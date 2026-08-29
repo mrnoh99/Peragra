@@ -1,0 +1,348 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		194D42A5880CB7E18B3B3E73 /* Place.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A949D6936EFF5314976F72 /* Place.swift */; };
+		2B3C4928A507274E72FE9D96 /* TripDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0EC4AE3B322246DAA168D68 /* TripDetailView.swift */; };
+		2DF84AD8803382A42C37CA1E /* Trip.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6E049BCBA203197C3FC9809 /* Trip.swift */; };
+		37844E01AA604E5535516219 /* PlaceMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB844760848B91E7946DB225 /* PlaceMapView.swift */; };
+		58BF451C8ED81EBA0F79972F /* InstagramEmbedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A724FCCA820579F5A284A7A /* InstagramEmbedView.swift */; };
+		5D1744EAB307E60EBE13C935 /* PlaceListingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8BC485BB5A43C5FE5BF7D88 /* PlaceListingView.swift */; };
+		6E6844D2B9A89DD6613ABD38 /* GeocodingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E74D7D82C88C55F4E7AA03 /* GeocodingService.swift */; };
+		70F14B7899E319410C055906 /* AddPlaceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D74B1688389732B5CD38E3 /* AddPlaceSheet.swift */; };
+		91D8479C85B75865CE35EE18 /* InstagramLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 718642978CE1880FF3A7401F /* InstagramLink.swift */; };
+		9EA0447484A2AF2E5C69ADF7 /* PlaceRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA04DC7BF07B250AF95A74F /* PlaceRowView.swift */; };
+		A9F241E1917F88AE05BFC62B /* PlaceCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38284761B40F598FFC15CD78 /* PlaceCollection.swift */; };
+		AF814051827CFFB204554783 /* TripsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27B84F76ADB57E07BE44A068 /* TripsListView.swift */; };
+		DCC245A680422C9294F58E78 /* PeragraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21B44480A4EA75D86D5BF876 /* PeragraApp.swift */; };
+		DCD34AA1AD8583EF2A04F8A2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A8EF4E7E9B5A07BEDCD12EB4 /* Assets.xcassets */; };
+		F0604210AAC5C6CC7FFB451F /* PlaceCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DE643C3AFBAD7B955502497 /* PlaceCategory.swift */; };
+		F6DB43A8B0CC3ECB97B48D07 /* AddTripSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 605D4129B5F1C6F46B096297 /* AddTripSheet.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		21B44480A4EA75D86D5BF876 /* PeragraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PeragraApp.swift; path = Peragra/App/PeragraApp.swift; sourceTree = "<group>"; };
+		27B84F76ADB57E07BE44A068 /* TripsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TripsListView.swift; path = Peragra/Views/Trips/TripsListView.swift; sourceTree = "<group>"; };
+		38284761B40F598FFC15CD78 /* PlaceCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceCollection.swift; path = Peragra/Models/PlaceCollection.swift; sourceTree = "<group>"; };
+		51E74D7D82C88C55F4E7AA03 /* GeocodingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeocodingService.swift; path = Peragra/Services/GeocodingService.swift; sourceTree = "<group>"; };
+		5DE643C3AFBAD7B955502497 /* PlaceCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceCategory.swift; path = Peragra/Models/PlaceCategory.swift; sourceTree = "<group>"; };
+		605D4129B5F1C6F46B096297 /* AddTripSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddTripSheet.swift; path = Peragra/Views/Trips/AddTripSheet.swift; sourceTree = "<group>"; };
+		718642978CE1880FF3A7401F /* InstagramLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InstagramLink.swift; path = Peragra/Services/InstagramLink.swift; sourceTree = "<group>"; };
+		84A949D6936EFF5314976F72 /* Place.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Place.swift; path = Peragra/Models/Place.swift; sourceTree = "<group>"; };
+		9A724FCCA820579F5A284A7A /* InstagramEmbedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InstagramEmbedView.swift; path = Peragra/Views/Places/InstagramEmbedView.swift; sourceTree = "<group>"; };
+		A8EF4E7E9B5A07BEDCD12EB4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Peragra/Assets.xcassets; sourceTree = "<group>"; };
+		AB844760848B91E7946DB225 /* PlaceMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceMapView.swift; path = Peragra/Views/Places/PlaceMapView.swift; sourceTree = "<group>"; };
+		B0478E29427E1153CA20E031 /* Peragra.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Peragra.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0D74B1688389732B5CD38E3 /* AddPlaceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddPlaceSheet.swift; path = Peragra/Views/Places/AddPlaceSheet.swift; sourceTree = "<group>"; };
+		C0EC4AE3B322246DAA168D68 /* TripDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TripDetailView.swift; path = Peragra/Views/Trips/TripDetailView.swift; sourceTree = "<group>"; };
+		C6E049BCBA203197C3FC9809 /* Trip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Trip.swift; path = Peragra/Models/Trip.swift; sourceTree = "<group>"; };
+		D8BC485BB5A43C5FE5BF7D88 /* PlaceListingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceListingView.swift; path = Peragra/Views/Places/PlaceListingView.swift; sourceTree = "<group>"; };
+		EBA04DC7BF07B250AF95A74F /* PlaceRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceRowView.swift; path = Peragra/Views/Places/PlaceRowView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7C02E57DD3702A8422359E67 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		445DF96D0B60493CEC404297 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B0478E29427E1153CA20E031 /* Peragra.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		626B4A958A28B79DA35213C7 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				51E74D7D82C88C55F4E7AA03 /* GeocodingService.swift */,
+				718642978CE1880FF3A7401F /* InstagramLink.swift */,
+			);
+			name = Services;
+			sourceTree = "<group>";
+		};
+		67964CBDB5523AB6193F4D6E /* Places */ = {
+			isa = PBXGroup;
+			children = (
+				EBA04DC7BF07B250AF95A74F /* PlaceRowView.swift */,
+				9A724FCCA820579F5A284A7A /* InstagramEmbedView.swift */,
+				AB844760848B91E7946DB225 /* PlaceMapView.swift */,
+				C0D74B1688389732B5CD38E3 /* AddPlaceSheet.swift */,
+				D8BC485BB5A43C5FE5BF7D88 /* PlaceListingView.swift */,
+			);
+			name = Places;
+			sourceTree = "<group>";
+		};
+		7BCD9074426DE2814E663AE9 = {
+			isa = PBXGroup;
+			children = (
+				445DF96D0B60493CEC404297 /* Products */,
+				94C84655B3C98B085BB68093 /* Peragra */,
+			);
+			sourceTree = "<group>";
+		};
+		88444B0B838B77EADB4341A4 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				67964CBDB5523AB6193F4D6E /* Places */,
+				F112433787F55AD8026EA315 /* Trips */,
+			);
+			name = Views;
+			sourceTree = "<group>";
+		};
+		94C84655B3C98B085BB68093 /* Peragra */ = {
+			isa = PBXGroup;
+			children = (
+				EE5B452C882A898919127114 /* Models */,
+				A8EF4E7E9B5A07BEDCD12EB4 /* Assets.xcassets */,
+				88444B0B838B77EADB4341A4 /* Views */,
+				626B4A958A28B79DA35213C7 /* Services */,
+				AD994A9EA10C8F6A93487BB5 /* App */,
+			);
+			name = Peragra;
+			sourceTree = "<group>";
+		};
+		AD994A9EA10C8F6A93487BB5 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				21B44480A4EA75D86D5BF876 /* PeragraApp.swift */,
+			);
+			name = App;
+			sourceTree = "<group>";
+		};
+		EE5B452C882A898919127114 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				5DE643C3AFBAD7B955502497 /* PlaceCategory.swift */,
+				C6E049BCBA203197C3FC9809 /* Trip.swift */,
+				84A949D6936EFF5314976F72 /* Place.swift */,
+				38284761B40F598FFC15CD78 /* PlaceCollection.swift */,
+			);
+			name = Models;
+			sourceTree = "<group>";
+		};
+		F112433787F55AD8026EA315 /* Trips */ = {
+			isa = PBXGroup;
+			children = (
+				27B84F76ADB57E07BE44A068 /* TripsListView.swift */,
+				C0EC4AE3B322246DAA168D68 /* TripDetailView.swift */,
+				605D4129B5F1C6F46B096297 /* AddTripSheet.swift */,
+			);
+			name = Trips;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C4A89A13B06A8C3627F8EF09 /* Peragra */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 946260F8FB111B1C1758C5FE /* Build configuration list for PBXNativeTarget "Peragra" */;
+			buildPhases = (
+				1D8BC5BF3A855DBB8AAB2974 /* Sources */,
+				7C02E57DD3702A8422359E67 /* Frameworks */,
+				E89634ACE0CABDD529DD6BD5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Peragra;
+			productName = Peragra;
+			productReference = B0478E29427E1153CA20E031 /* Peragra.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		98FB7356E72AD6EB3CCC8AFA /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1520;
+				TargetAttributes = {
+					C4A89A13B06A8C3627F8EF09 = {
+						CreatedOnToolsVersion = 15.2;
+					};
+				};
+			};
+			buildConfigurationList = 30F6903DD81159FDCBBF46E9 /* Build configuration list for PBXProject "Peragra" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 7BCD9074426DE2814E663AE9;
+			productRefGroup = 445DF96D0B60493CEC404297 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C4A89A13B06A8C3627F8EF09 /* Peragra */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E89634ACE0CABDD529DD6BD5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DCD34AA1AD8583EF2A04F8A2 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1D8BC5BF3A855DBB8AAB2974 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F0604210AAC5C6CC7FFB451F /* PlaceCategory.swift in Sources */,
+				2DF84AD8803382A42C37CA1E /* Trip.swift in Sources */,
+				194D42A5880CB7E18B3B3E73 /* Place.swift in Sources */,
+				A9F241E1917F88AE05BFC62B /* PlaceCollection.swift in Sources */,
+				9EA0447484A2AF2E5C69ADF7 /* PlaceRowView.swift in Sources */,
+				58BF451C8ED81EBA0F79972F /* InstagramEmbedView.swift in Sources */,
+				37844E01AA604E5535516219 /* PlaceMapView.swift in Sources */,
+				70F14B7899E319410C055906 /* AddPlaceSheet.swift in Sources */,
+				5D1744EAB307E60EBE13C935 /* PlaceListingView.swift in Sources */,
+				AF814051827CFFB204554783 /* TripsListView.swift in Sources */,
+				2B3C4928A507274E72FE9D96 /* TripDetailView.swift in Sources */,
+				F6DB43A8B0CC3ECB97B48D07 /* AddTripSheet.swift in Sources */,
+				6E6844D2B9A89DD6613ABD38 /* GeocodingService.swift in Sources */,
+				91D8479C85B75865CE35EE18 /* InstagramLink.swift in Sources */,
+				DCC245A680422C9294F58E78 /* PeragraApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		762B982A7EAA183BD55CEB02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				ONLY_ACTIVE_ARCH = NO;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		84B2EDC52BAF9A18D80ABE23 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Peragra;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.peragra.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		E2BD962934FD2BE48A5F167B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		EDC12AD8107C2B18CB029EAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Peragra;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.peragra.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		30F6903DD81159FDCBBF46E9 /* Build configuration list for PBXProject "Peragra" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E2BD962934FD2BE48A5F167B /* Debug */,
+				762B982A7EAA183BD55CEB02 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		946260F8FB111B1C1758C5FE /* Build configuration list for PBXNativeTarget "Peragra" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84B2EDC52BAF9A18D80ABE23 /* Debug */,
+				EDC12AD8107C2B18CB029EAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 98FB7356E72AD6EB3CCC8AFA /* Project object */;
+}

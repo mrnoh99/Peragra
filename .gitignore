@@ -1,15 +1,13 @@
 # Xcode
 build/
 DerivedData/
-*.xcodeproj
 *.xcworkspace
-Generated/
+
+# Peragra.xcodeproj itself IS committed (no XcodeGen) — only ignore the
+# per-user cruft Xcode writes inside it.
 xcuserdata/
 *.xcuserstate
 *.xcuserdatad/
-
-# XcodeGen doesn't need the generated project committed —
-# run `xcodegen generate` locally to produce Peragra.xcodeproj.
 
 # macOS
 .DS_Store
