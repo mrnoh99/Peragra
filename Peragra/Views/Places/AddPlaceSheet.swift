@@ -15,6 +15,14 @@ struct AddPlaceSheet: View {
     let trip: Trip
     var defaultCollection: PlaceCollection?
 
+    // Explicit, so this view's access level never depends on Swift's
+    // synthesized-memberwise-init rules around private stored properties
+    // elsewhere in the type (bit us once already — see aiSettings below).
+    init(trip: Trip, defaultCollection: PlaceCollection? = nil) {
+        self.trip = trip
+        self.defaultCollection = defaultCollection
+    }
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
