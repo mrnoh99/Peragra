@@ -181,21 +181,46 @@ struct AddPlaceSheet: View {
         }
     }
 
-    private func replaceRows(with places: [(name: String?, address: String?)]) {
+    private enum ExtractionSource: Equatable {
+        case pattern
+        case ai
+    }
+
+    private func replaceRows(with places: [(name: String?, address: String?)], source: ExtractionSource) {
         let usable = places.filter { $0.name != nil }
-        guard !usable.isEmpty else {
-            extractErrorMessage = "Couldn't find any places in that text."
-            return
+        if !usable.isEmpty {
+            rows = usable.map { place in
+                CandidateRow(name: place.name ?? "", address: place.address ?? "")
+            }
         }
-        rows = usable.map { place in
-            CandidateRow(name: place.name ?? "", address: place.address ?? "")
+
+        // The whole point of extraction is getting an address onto the
+        // map — a name-only fallback (the parser's last resort: any
+        // short, non-hashtag line) can still fire on pure noise, so check
+        // for at least one real address rather than just "found a name".
+        // OCR reads plain-text screenshots reliably, but garbles
+        // decorative text baked into a photo (a Reels cover, a graphic
+        // with a title overlay) into exactly this kind of nonsense
+        // fragment — confirmed by testing. When that's the likely cause,
+        // point at AI extraction, which reads the image directly instead
+        // of chaining through OCR. (Not shown when AI extraction itself
+        // is what just failed.)
+        let hasAddress = places.contains { $0.address != nil }
+        if usable.isEmpty || !hasAddress {
+            if source == .pattern, screenshotData != nil, aiSettings.apiKey == nil {
+                extractErrorMessage = "Couldn't find a usable address in that text. This often happens with stylized graphics (like a Reels cover) where text recognition struggles — add an Anthropic API key in Settings to extract with AI instead, which reads the image directly."
+            } else if source == .pattern, screenshotData != nil, aiSettings.apiKey != nil {
+                extractErrorMessage = "Couldn't find a usable address in that text — try ✨ Find Places (AI) instead, it reads the image directly rather than relying on text recognition."
+            } else {
+                extractErrorMessage = "Couldn't find any places in that text."
+            }
         }
     }
 
     private func runPatternExtraction() {
         extractErrorMessage = nil
         let results = CaptionParser.parseMultiple(captionText)
-        replaceRows(with: results.map { ($0.name, $0.address) })
+        replaceRows(with: results.map { ($0.name, $0.address) }, source: .pattern)
     }
 
     private func runAIExtraction() async {
@@ -218,7 +243,7 @@ struct AddPlaceSheet: View {
                 extractErrorMessage = "Paste a caption or upload a screenshot first."
                 return
             }
-            replaceRows(with: results.map { (name: $0.name as String?, address: $0.address) })
+            replaceRows(with: results.map { (name: $0.name as String?, address: $0.address) }, source: .ai)
         } catch {
             extractErrorMessage = (error as? LocalizedError)?.errorDescription ?? "AI extraction failed."
         }

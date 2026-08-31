@@ -77,13 +77,42 @@ export function AddPlaceModal({
     setRows((prev) => prev.filter((r) => r.id !== id));
   }
 
-  function replaceRowsFromExtraction(places: { name: string | null; address: string | null }[]) {
+  function replaceRowsFromExtraction(
+    places: { name: string | null; address: string | null }[],
+    source: "pattern" | "ai",
+  ) {
     const usable = places.filter((p) => p.name);
-    if (usable.length === 0) {
-      setExtractError("Couldn't find any places in that text.");
-      return;
+    if (usable.length > 0) {
+      setRows(usable.map((p) => makeRow({ name: p.name ?? "", address: p.address ?? "" })));
     }
-    setRows(usable.map((p) => makeRow({ name: p.name ?? "", address: p.address ?? "" })));
+
+    // The whole point of extraction is getting an address onto the map —
+    // a name-only fallback (the parser's last resort: any short,
+    // non-hashtag line) can still fire on pure noise, so check for at
+    // least one real address rather than just "found a name". OCR reads
+    // plain-text screenshots reliably, but garbles decorative text baked
+    // into a photo (a Reels cover, a graphic with a title overlay) into
+    // exactly this kind of nonsense fragment — confirmed by testing. When
+    // that's the likely cause, point at AI extraction, which reads the
+    // image directly instead of chaining through OCR. (Not shown when AI
+    // extraction itself is what just failed.)
+    const hasAddress = places.some((p) => p.address);
+    if (usable.length === 0 || !hasAddress) {
+      if (source === "pattern" && screenshotFile && !apiKey) {
+        setExtractError(
+          "Couldn't find a usable address in that text. This often happens with stylized " +
+            "graphics (like a Reels cover) where text recognition struggles — add an Anthropic " +
+            "API key in Settings to extract with AI instead, which reads the image directly.",
+        );
+      } else if (source === "pattern" && screenshotFile && apiKey) {
+        setExtractError(
+          "Couldn't find a usable address in that text — try ✨ Find places (AI) instead, it " +
+            "reads the image directly rather than relying on text recognition.",
+        );
+      } else {
+        setExtractError("Couldn't find any places in that text.");
+      }
+    }
   }
 
   async function handleScreenshotChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -108,7 +137,7 @@ export function AddPlaceModal({
 
   function handlePatternExtract() {
     setExtractError(null);
-    replaceRowsFromExtraction(parsePlaces(captionText));
+    replaceRowsFromExtraction(parsePlaces(captionText), "pattern");
   }
 
   async function handleAIExtract() {
@@ -130,7 +159,7 @@ export function AddPlaceModal({
         setExtractError("Paste a caption or upload a screenshot first.");
         return;
       }
-      replaceRowsFromExtraction(results);
+      replaceRowsFromExtraction(results, "ai");
     } catch (error) {
       setExtractError(error instanceof AIExtractionError ? error.message : "AI extraction failed.");
     } finally {
