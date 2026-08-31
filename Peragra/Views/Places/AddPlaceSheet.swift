@@ -31,7 +31,10 @@ struct AddPlaceSheet: View {
     @State private var isAILoading = false
     @State private var extractErrorMessage: String?
 
-    private var aiSettings = AISettings.shared
+    // Computed, not stored — a private *stored* property forces Swift's
+    // synthesized memberwise init to become private too, which broke
+    // AddPlaceSheet(trip:defaultCollection:) calls from other files.
+    private var aiSettings: AISettings { AISettings.shared }
 
     private var normalizedInstagramURL: URL? {
         InstagramLink.normalized(instagramInput).flatMap(URL.init(string:))
