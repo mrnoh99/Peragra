@@ -15,6 +15,11 @@ Same product as the native iOS app in `../Peragra`, built for the browser.
   embedded next to your notes. Instagram doesn't expose a user's Saved
   collection through any public API, so this app works from links you bring
   over yourself rather than an automatic import.
+- **Caption detection** — paste the post's caption text (or upload a
+  screenshot of it — on-device OCR via Tesseract.js reads the text for you)
+  and Peragra tries to pull out the place name and address, so you don't have
+  to retype what's already in the caption. Always shown as a suggestion you
+  apply with one click, never a silent overwrite.
 - **Listing** — every saved place as a card: category, address, notes,
   visited status, and a link back to the original Instagram post.
 - **Map** — saved places are geocoded (via OpenStreetMap Nominatim) and
@@ -33,6 +38,7 @@ Same product as the native iOS app in `../Peragra`, built for the browser.
 - Leaflet / react-leaflet for maps
 - OpenStreetMap Nominatim for geocoding, Instagram's public `embed.js` for
   post embeds — both called directly from the browser, no API keys required
+- Tesseract.js (WASM, on-device) for optional caption-screenshot OCR
 
 ## Getting started
 

@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Modal } from "./Modal";
 import { InstagramEmbed } from "./InstagramEmbed";
 import { geocodePlace } from "../lib/geocode";
 import { isInstagramPostUrl, normalizeInstagramUrl } from "../lib/instagram";
+import { parseCaption } from "../lib/captionParser";
+import { recognizeCaptionImage } from "../lib/ocr";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type PlaceCategory } from "../types";
 
@@ -27,10 +29,46 @@ export function AddPlaceModal({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const [captionText, setCaptionText] = useState("");
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const instagramUrl = isInstagramPostUrl(instagramInput)
     ? normalizeInstagramUrl(instagramInput)
     : null;
   const canSubmit = name.trim().length > 0;
+
+  const detected = useMemo(() => parseCaption(captionText), [captionText]);
+  const hasDetection = Boolean(detected.name || detected.address);
+  const detectionAlreadyApplied =
+    (!detected.name || name.trim() === detected.name) &&
+    (!detected.address || address.trim() === detected.address);
+
+  function applyDetected() {
+    if (detected.name && !name.trim()) setName(detected.name);
+    if (detected.address && !address.trim()) setAddress(detected.address);
+  }
+
+  async function handleScreenshotChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setOcrLoading(true);
+    setOcrError(null);
+    try {
+      const text = await recognizeCaptionImage(file);
+      if (!text) {
+        setOcrError("Couldn't find any readable text in that image.");
+      } else {
+        setCaptionText((prev) => (prev.trim() ? `${prev}\n${text}` : text));
+      }
+    } catch {
+      setOcrError("Couldn't read text from that image — try pasting the caption instead.");
+    } finally {
+      setOcrLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -90,6 +128,57 @@ export function AddPlaceModal({
           {instagramUrl && (
             <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-neutral-200 p-2">
               <InstagramEmbed url={instagramUrl} />
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-dashed border-neutral-300 p-3">
+          <label className="mb-1 block text-sm font-medium text-neutral-700">
+            Caption text <span className="font-normal text-neutral-400">(optional)</span>
+          </label>
+          <p className="mb-2 text-xs text-neutral-400">
+            Instagram won't hand over a post's caption automatically, but if the shop's name and
+            address are written in it, paste the caption below — or upload a screenshot of it and
+            we'll read the text for you — and we'll try to pull them out.
+          </p>
+          <textarea
+            value={captionText}
+            onChange={(e) => setCaptionText(e.target.value)}
+            rows={3}
+            placeholder="Paste the post's caption here…"
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleScreenshotChange}
+              className="hidden"
+              id="caption-screenshot-input"
+            />
+            <label
+              htmlFor="caption-screenshot-input"
+              className="cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+            >
+              📷 Upload a screenshot of the caption
+            </label>
+            {ocrLoading && <span className="text-xs text-neutral-400">Reading text…</span>}
+          </div>
+          {ocrError && <p className="mt-1 text-xs text-amber-600">{ocrError}</p>}
+
+          {hasDetection && !detectionAlreadyApplied && (
+            <div className="mt-2 rounded-lg bg-brand-50 p-2 text-xs text-brand-800">
+              Detected{detected.name ? ` name "${detected.name}"` : ""}
+              {detected.name && detected.address ? " and" : ""}
+              {detected.address ? ` address "${detected.address}"` : ""}.{" "}
+              <button
+                type="button"
+                onClick={applyDetected}
+                className="font-semibold underline hover:no-underline"
+              >
+                Use this
+              </button>
             </div>
           )}
         </div>

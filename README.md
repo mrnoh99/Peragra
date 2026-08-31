@@ -21,6 +21,11 @@ web) — they don't currently sync with each other.
   embedded next to your notes. Instagram doesn't expose a user's Saved
   collection through any public API, so both apps work from links you bring
   over yourself rather than an automatic import.
+- **Caption detection** — paste the post's caption text (or provide a
+  screenshot of it — on-device OCR reads the text for you) and Peragra tries
+  to pull out the place name and address, so you don't have to retype what's
+  already in the caption. Always a one-tap suggestion, never a silent
+  overwrite.
 - **Listing** — every saved place as a card/row: category, address, notes,
   visited status, and a link back to the original Instagram post. Searchable
   and filterable by category.
@@ -38,6 +43,8 @@ Native Swift/SwiftUI app, targeting iOS 17+, iPhone-first.
 - MapKit (`Map`/`Marker`, iOS 17 API) for the map view, `CLGeocoder` for
   address → coordinate lookups (no API key needed)
 - `WKWebView` loading Instagram's public `embed.js` for inline post previews
+- Vision framework (`VNRecognizeTextRequest`, on-device, ko-KR + en-US) for
+  optional caption-screenshot OCR, via a `PhotosPicker`
 - `Peragra.xcodeproj` is committed directly (no XcodeGen, no generation step)
   — clone and open
 
@@ -65,7 +72,8 @@ Peragra.xcodeproj/            Committed Xcode project (source of truth)
 Peragra/
   App/PeragraApp.swift        App entry point, SwiftData container setup
   Models/                     Trip, Place, PlaceCollection (@Model), PlaceCategory
-  Services/                   GeocodingService (CLGeocoder), InstagramLink (URL parsing)
+  Services/                    GeocodingService (CLGeocoder), InstagramLink (URL parsing),
+                                CaptionParser (name/address heuristics), CaptionOCR (Vision)
   Views/
     Trips/                    Trips list, add-trip sheet, trip detail (Listing/Map tabs)
     Places/                   Listing rows, map view, add-place sheet, Instagram embed
