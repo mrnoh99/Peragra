@@ -24,7 +24,6 @@
 		AF814051827CFFB204554783 /* TripsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27B84F76ADB57E07BE44A068 /* TripsListView.swift */; };
 		B510449A8E13CF05A23F0946 /* AISettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E34F8F9F0C225B0D4629E5 /* AISettings.swift */; };
 		BA4340C4920B2224AF4EBC56 /* AIExtractionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A09D4E01A03ED8194F5A9673 /* AIExtractionService.swift */; };
-		C46E4D54A258295695A574AB /* CaptionOCR.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3BE4C80AD1F4B7E7D0C24C9 /* CaptionOCR.swift */; };
 		DCC245A680422C9294F58E78 /* PeragraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21B44480A4EA75D86D5BF876 /* PeragraApp.swift */; };
 		DCD34AA1AD8583EF2A04F8A2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A8EF4E7E9B5A07BEDCD12EB4 /* Assets.xcassets */; };
 		F0604210AAC5C6CC7FFB451F /* PlaceCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DE643C3AFBAD7B955502497 /* PlaceCategory.swift */; };
@@ -51,21 +50,10 @@
 		C0D74B1688389732B5CD38E3 /* AddPlaceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddPlaceSheet.swift; path = Peragra/Views/Places/AddPlaceSheet.swift; sourceTree = "<group>"; };
 		C0EC4AE3B322246DAA168D68 /* TripDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TripDetailView.swift; path = Peragra/Views/Trips/TripDetailView.swift; sourceTree = "<group>"; };
 		C6E049BCBA203197C3FC9809 /* Trip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Trip.swift; path = Peragra/Models/Trip.swift; sourceTree = "<group>"; };
-		D3BE4C80AD1F4B7E7D0C24C9 /* CaptionOCR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CaptionOCR.swift; path = Peragra/Services/CaptionOCR.swift; sourceTree = "<group>"; };
 		D8BC485BB5A43C5FE5BF7D88 /* PlaceListingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceListingView.swift; path = Peragra/Views/Places/PlaceListingView.swift; sourceTree = "<group>"; };
 		E1E34F8F9F0C225B0D4629E5 /* AISettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AISettings.swift; path = Peragra/Models/AISettings.swift; sourceTree = "<group>"; };
 		EBA04DC7BF07B250AF95A74F /* PlaceRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceRowView.swift; path = Peragra/Views/Places/PlaceRowView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFrameworksBuildPhase section */
-		7C02E57DD3702A8422359E67 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		445DF96D0B60493CEC404297 /* Products */ = {
@@ -82,7 +70,6 @@
 				51E74D7D82C88C55F4E7AA03 /* GeocodingService.swift */,
 				718642978CE1880FF3A7401F /* InstagramLink.swift */,
 				910E4474B483A1D7998FCD7A /* CaptionParser.swift */,
-				D3BE4C80AD1F4B7E7D0C24C9 /* CaptionOCR.swift */,
 				67754B66A448FD1EF6D5B920 /* KeychainService.swift */,
 				A09D4E01A03ED8194F5A9673 /* AIExtractionService.swift */,
 			);
@@ -169,7 +156,6 @@
 			buildConfigurationList = 946260F8FB111B1C1758C5FE /* Build configuration list for PBXNativeTarget "Peragra" */;
 			buildPhases = (
 				1D8BC5BF3A855DBB8AAB2974 /* Sources */,
-				7C02E57DD3702A8422359E67 /* Frameworks */,
 				E89634ACE0CABDD529DD6BD5 /* Resources */,
 			);
 			buildRules = (
@@ -245,7 +231,6 @@
 				91D8479C85B75865CE35EE18 /* InstagramLink.swift in Sources */,
 				DCC245A680422C9294F58E78 /* PeragraApp.swift in Sources */,
 				5FC04A3C96AA30459C221D9C /* CaptionParser.swift in Sources */,
-				C46E4D54A258295695A574AB /* CaptionOCR.swift in Sources */,
 				64644134808E5774D2F023BD /* KeychainService.swift in Sources */,
 				BA4340C4920B2224AF4EBC56 /* AIExtractionService.swift in Sources */,
 				B510449A8E13CF05A23F0946 /* AISettings.swift in Sources */,

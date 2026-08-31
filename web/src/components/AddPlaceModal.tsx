@@ -4,7 +4,6 @@ import { InstagramEmbed } from "./InstagramEmbed";
 import { geocodePlace } from "../lib/geocode";
 import { isInstagramPostUrl, normalizeInstagramUrl } from "../lib/instagram";
 import { parsePlaces } from "../lib/captionParser";
-import { recognizeCaptionImage } from "../lib/ocr";
 import {
   extractPlacesFromImage,
   extractPlacesFromText,
@@ -57,7 +56,6 @@ export function AddPlaceModal({
   const [saving, setSaving] = useState(false);
 
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
-  const [ocrLoading, setOcrLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,50 +87,27 @@ export function AddPlaceModal({
     // The whole point of extraction is getting an address onto the map —
     // a name-only fallback (the parser's last resort: any short,
     // non-hashtag line) can still fire on pure noise, so check for at
-    // least one real address rather than just "found a name". OCR reads
-    // plain-text screenshots reliably, but garbles decorative text baked
-    // into a photo (a Reels cover, a graphic with a title overlay) into
-    // exactly this kind of nonsense fragment — confirmed by testing. When
-    // that's the likely cause, point at AI extraction, which reads the
-    // image directly instead of chaining through OCR. (Not shown when AI
-    // extraction itself is what just failed.)
+    // least one real address rather than just "found a name".
     const hasAddress = places.some((p) => p.address);
     if (usable.length === 0 || !hasAddress) {
-      if (source === "pattern" && screenshotFile && !apiKey) {
+      if (source === "pattern") {
         setExtractError(
-          "Couldn't find a usable address in that text. This often happens with stylized " +
-            "graphics (like a Reels cover) where text recognition struggles — add an Anthropic " +
-            "API key in Settings to extract with AI instead, which reads the image directly.",
-        );
-      } else if (source === "pattern" && screenshotFile && apiKey) {
-        setExtractError(
-          "Couldn't find a usable address in that text — try ✨ Find places (AI) instead, it " +
-            "reads the image directly rather than relying on text recognition.",
+          apiKey
+            ? "Couldn't find a usable address in that text — try ✨ Find places (AI) instead."
+            : "Couldn't find any places in that text.",
         );
       } else {
-        setExtractError("Couldn't find any places in that text.");
+        setExtractError("AI couldn't find a usable address there — try a clearer screenshot, or edit the place below manually.");
       }
     }
   }
 
-  async function handleScreenshotChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleScreenshotChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setScreenshotFile(file);
     setExtractError(null);
-    setOcrLoading(true);
-    try {
-      const text = await recognizeCaptionImage(file);
-      if (text) {
-        setCaptionText((prev) => (prev.trim() ? `${prev}\n${text}` : text));
-      }
-    } catch {
-      // OCR is just a convenience for the free pattern-match path; AI
-      // extraction can still use the image directly via vision.
-    } finally {
-      setOcrLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function handlePatternExtract() {
@@ -237,8 +212,10 @@ export function AddPlaceModal({
             Caption text <span className="font-normal text-neutral-400">(optional)</span>
           </label>
           <p className="mb-2 text-xs text-neutral-400">
-            If a post recommends one place or several, paste the caption below — or upload a
-            screenshot of it — and extract them into the list below to review before saving.
+            If a post recommends one place or several, paste the caption below and use free
+            pattern matching — or attach a screenshot and let AI read and organize it completely
+            (requires an Anthropic API key in Settings; on-device text recognition struggles with
+            stylized graphics, so this app doesn't try to guess at photo text itself).
           </p>
           <textarea
             value={captionText}
@@ -262,10 +239,7 @@ export function AddPlaceModal({
             >
               📷 {screenshotFile ? "Replace screenshot" : "Upload a screenshot"}
             </label>
-            {ocrLoading && <span className="text-xs text-neutral-400">Reading text…</span>}
-            {screenshotFile && !ocrLoading && (
-              <span className="text-xs text-neutral-400">{screenshotFile.name}</span>
-            )}
+            {screenshotFile && <span className="text-xs text-neutral-400">{screenshotFile.name}</span>}
 
             <span className="mx-1 h-4 w-px bg-neutral-200" />
 
@@ -288,6 +262,12 @@ export function AddPlaceModal({
               </button>
             )}
           </div>
+          {screenshotFile && !apiKey && (
+            <p className="mt-2 text-xs text-neutral-400">
+              Add an Anthropic API key in Settings to read this screenshot — AI reads photos
+              completely, since on-device text recognition struggles with stylized graphics.
+            </p>
+          )}
           {extractError && <p className="mt-2 text-xs text-amber-600">{extractError}</p>}
         </div>
 

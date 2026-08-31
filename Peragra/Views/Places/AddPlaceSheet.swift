@@ -35,7 +35,7 @@ struct AddPlaceSheet: View {
     @State private var screenshotItem: PhotosPickerItem?
     @State private var screenshotData: Data?
     @State private var screenshotFileName: String?
-    @State private var isReadingScreenshot = false
+    @State private var isLoadingScreenshot = false
     @State private var isAILoading = false
     @State private var extractErrorMessage: String?
 
@@ -84,13 +84,13 @@ struct AddPlaceSheet: View {
                         .lineLimit(3...6)
 
                     PhotosPicker(selection: $screenshotItem, matching: .images) {
-                        if isReadingScreenshot {
-                            Label("Reading text…", systemImage: "text.viewfinder")
+                        if isLoadingScreenshot {
+                            ProgressView()
                         } else {
-                            Label(screenshotFileName == nil ? "Upload a screenshot" : "Replace screenshot", systemImage: "camera")
+                            Label(screenshotFileName == nil ? "Attach a screenshot" : "Replace screenshot", systemImage: "camera")
                         }
                     }
-                    .disabled(isReadingScreenshot)
+                    .disabled(isLoadingScreenshot)
 
                     HStack {
                         Button("🔍 Find Places (Free)") { runPatternExtraction() }
@@ -112,6 +112,12 @@ struct AddPlaceSheet: View {
                         }
                     }
 
+                    if screenshotData != nil, aiSettings.apiKey == nil {
+                        Text("Add an Anthropic API key in Settings to read this screenshot — AI reads photos completely, since on-device text recognition struggles with stylized graphics.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     if let extractErrorMessage {
                         Text(extractErrorMessage)
                             .font(.caption)
@@ -120,7 +126,7 @@ struct AddPlaceSheet: View {
                 } header: {
                     Text("Caption text (optional)")
                 } footer: {
-                    Text("If a post recommends one place or several, paste the caption — or upload a screenshot — and extract them into the list below to review before saving.")
+                    Text("If a post recommends one place or several, paste the caption and use free pattern matching — or attach a screenshot and let AI read and organize it completely.")
                 }
 
                 Section {
@@ -209,21 +215,15 @@ struct AddPlaceSheet: View {
         // map — a name-only fallback (the parser's last resort: any
         // short, non-hashtag line) can still fire on pure noise, so check
         // for at least one real address rather than just "found a name".
-        // OCR reads plain-text screenshots reliably, but garbles
-        // decorative text baked into a photo (a Reels cover, a graphic
-        // with a title overlay) into exactly this kind of nonsense
-        // fragment — confirmed by testing. When that's the likely cause,
-        // point at AI extraction, which reads the image directly instead
-        // of chaining through OCR. (Not shown when AI extraction itself
-        // is what just failed.)
         let hasAddress = places.contains { $0.address != nil }
         if usable.isEmpty || !hasAddress {
-            if source == .pattern, screenshotData != nil, aiSettings.apiKey == nil {
-                extractErrorMessage = "Couldn't find a usable address in that text. This often happens with stylized graphics (like a Reels cover) where text recognition struggles — add an Anthropic API key in Settings to extract with AI instead, which reads the image directly."
-            } else if source == .pattern, screenshotData != nil, aiSettings.apiKey != nil {
-                extractErrorMessage = "Couldn't find a usable address in that text — try ✨ Find Places (AI) instead, it reads the image directly rather than relying on text recognition."
-            } else {
-                extractErrorMessage = "Couldn't find any places in that text."
+            switch source {
+            case .pattern:
+                extractErrorMessage = aiSettings.apiKey != nil
+                    ? "Couldn't find a usable address in that text — try ✨ Find Places (AI) instead."
+                    : "Couldn't find any places in that text."
+            case .ai:
+                extractErrorMessage = "AI couldn't find a usable address there — try a clearer screenshot, or edit the place below manually."
             }
         }
     }
@@ -261,35 +261,20 @@ struct AddPlaceSheet: View {
     }
 
     private func loadScreenshot(_ item: PhotosPickerItem) async {
-        isReadingScreenshot = true
+        isLoadingScreenshot = true
         extractErrorMessage = nil
-        defer { isReadingScreenshot = false }
+        defer { isLoadingScreenshot = false }
 
-        do {
-            guard
-                let data = try await item.loadTransferable(type: Data.self),
-                let image = UIImage(data: data),
-                let jpegData = image.jpegData(compressionQuality: 0.85)
-            else {
-                extractErrorMessage = "Couldn't read that image."
-                return
-            }
-            screenshotData = jpegData
-            screenshotFileName = "screenshot.jpg"
-
-            let text = try await CaptionOCR.recognizeText(in: image)
-            captionText = captionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? text
-                : captionText + "\n" + text
-        } catch let error as CaptionOCR.OCRError {
-            // OCR is just a convenience for the free pattern-match path;
-            // AI extraction can still use the image directly via vision.
-            if error != .noText {
-                extractErrorMessage = error.errorDescription
-            }
-        } catch {
-            extractErrorMessage = "Couldn't read text from that image — try pasting the caption instead."
+        guard
+            let data = try? await item.loadTransferable(type: Data.self),
+            let image = UIImage(data: data),
+            let jpegData = image.jpegData(compressionQuality: 0.85)
+        else {
+            extractErrorMessage = "Couldn't read that image."
+            return
         }
+        screenshotData = jpegData
+        screenshotFileName = "screenshot.jpg"
     }
 
     private func save() async {

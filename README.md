@@ -22,15 +22,18 @@ web) — they don't currently sync with each other.
   collection through any public API, so both apps work from links you bring
   over yourself rather than an automatic import.
 - **Caption detection, one place or several** — paste the post's caption
-  text (or provide a screenshot of it — on-device OCR reads the text for
-  you) and extract it into an editable list of places to review before
+  text and extract it into an editable list of places to review before
   saving, whether the caption recommends a single spot or a numbered list
-  of several. Free and pattern-matching based by default.
-- **AI-powered extraction (optional)** — add your own Anthropic API key in
-  Settings to extract with Claude instead — more accurate on messy
-  captions, and can read a screenshot directly via vision. Neither app has
-  a server, so the key is used to call Anthropic's API directly from your
-  browser/device and is stored only locally.
+  of several. Free and pattern-matching based, works on text you paste in.
+- **AI-powered extraction** — add your own Anthropic API key in Settings to
+  extract with Claude instead: more accurate on messy captions, and the
+  only way to read a screenshot. Reading and organizing text from a photo
+  is done entirely by AI (Claude reads the image directly via vision) —
+  neither app runs local OCR on photos, since on-device text recognition
+  proved unreliable on stylized graphics (a Reels cover, a title overlay)
+  during testing. Neither app has a server, so the key is used to call
+  Anthropic's API directly from your browser/device and is stored only
+  locally.
 - **Listing** — every saved place as a card/row: category, address, notes,
   visited status, and a link back to the original Instagram post. Searchable
   and filterable by category.
@@ -48,11 +51,11 @@ Native Swift/SwiftUI app, targeting iOS 17+, iPhone-first.
 - MapKit (`Map`/`Marker`, iOS 17 API) for the map view, `CLGeocoder` for
   address → coordinate lookups (no API key needed)
 - `WKWebView` loading Instagram's public `embed.js` for inline post previews
-- Vision framework (`VNRecognizeTextRequest`, on-device, ko-KR + en-US) for
-  optional caption-screenshot OCR, via a `PhotosPicker`
-- Optional AI extraction calls the Anthropic Messages API directly over
-  HTTPS (Swift has no official Anthropic SDK) using an API key the user
-  enters in Settings and that's stored in the Keychain
+- Screenshots are picked via `PhotosPicker`; reading and organizing their
+  text is done entirely by AI extraction, not on-device OCR (see Features)
+- AI extraction calls the Anthropic Messages API directly over HTTPS
+  (Swift has no official Anthropic SDK) using an API key the user enters
+  in Settings and that's stored in the Keychain
 - `Peragra.xcodeproj` is committed directly (no XcodeGen, no generation step)
   — clone and open
 
@@ -81,7 +84,7 @@ Peragra/
   App/PeragraApp.swift        App entry point, SwiftData container setup
   Models/                     Trip, Place, PlaceCollection (@Model), PlaceCategory
   Services/                    GeocodingService (CLGeocoder), InstagramLink (URL parsing),
-                                CaptionParser (name/address heuristics), CaptionOCR (Vision),
+                                CaptionParser (name/address heuristics),
                                 AIExtractionService (Anthropic API), KeychainService
   Views/
     Trips/                    Trips list, add-trip sheet, trip detail (Listing/Map tabs)
