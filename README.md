@@ -21,11 +21,16 @@ web) — they don't currently sync with each other.
   embedded next to your notes. Instagram doesn't expose a user's Saved
   collection through any public API, so both apps work from links you bring
   over yourself rather than an automatic import.
-- **Caption detection** — paste the post's caption text (or provide a
-  screenshot of it — on-device OCR reads the text for you) and Peragra tries
-  to pull out the place name and address, so you don't have to retype what's
-  already in the caption. Always a one-tap suggestion, never a silent
-  overwrite.
+- **Caption detection, one place or several** — paste the post's caption
+  text (or provide a screenshot of it — on-device OCR reads the text for
+  you) and extract it into an editable list of places to review before
+  saving, whether the caption recommends a single spot or a numbered list
+  of several. Free and pattern-matching based by default.
+- **AI-powered extraction (optional)** — add your own Anthropic API key in
+  Settings to extract with Claude instead — more accurate on messy
+  captions, and can read a screenshot directly via vision. Neither app has
+  a server, so the key is used to call Anthropic's API directly from your
+  browser/device and is stored only locally.
 - **Listing** — every saved place as a card/row: category, address, notes,
   visited status, and a link back to the original Instagram post. Searchable
   and filterable by category.
@@ -45,6 +50,9 @@ Native Swift/SwiftUI app, targeting iOS 17+, iPhone-first.
 - `WKWebView` loading Instagram's public `embed.js` for inline post previews
 - Vision framework (`VNRecognizeTextRequest`, on-device, ko-KR + en-US) for
   optional caption-screenshot OCR, via a `PhotosPicker`
+- Optional AI extraction calls the Anthropic Messages API directly over
+  HTTPS (Swift has no official Anthropic SDK) using an API key the user
+  enters in Settings and that's stored in the Keychain
 - `Peragra.xcodeproj` is committed directly (no XcodeGen, no generation step)
   — clone and open
 
@@ -73,10 +81,12 @@ Peragra/
   App/PeragraApp.swift        App entry point, SwiftData container setup
   Models/                     Trip, Place, PlaceCollection (@Model), PlaceCategory
   Services/                    GeocodingService (CLGeocoder), InstagramLink (URL parsing),
-                                CaptionParser (name/address heuristics), CaptionOCR (Vision)
+                                CaptionParser (name/address heuristics), CaptionOCR (Vision),
+                                AIExtractionService (Anthropic API), KeychainService
   Views/
     Trips/                    Trips list, add-trip sheet, trip detail (Listing/Map tabs)
     Places/                   Listing rows, map view, add-place sheet, Instagram embed
+    SettingsSheet.swift       Anthropic API key entry
   Assets.xcassets/            App icon placeholder + accent color
 ```
 

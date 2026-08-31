@@ -6,6 +6,7 @@ struct TripsListView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var showingAddTrip = false
+    @State private var showingSettings = false
     @State private var tripPendingDelete: Trip?
 
     var body: some View {
@@ -42,9 +43,19 @@ struct TripsListView: View {
                         Label("New Trip", systemImage: "plus")
                     }
                 }
+                ToolbarItem(placement: .secondaryAction) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Label("AI Settings", systemImage: "gearshape")
+                    }
+                }
             }
             .sheet(isPresented: $showingAddTrip) {
                 AddTripSheet()
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsSheet()
             }
             .confirmationDialog(
                 "Delete this trip and all its saved places?",

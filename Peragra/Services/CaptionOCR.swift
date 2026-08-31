@@ -5,7 +5,7 @@ import Vision
 /// no API key) for reading an Instagram caption off a screenshot, so people
 /// can snap a photo of the caption instead of copy-pasting it by hand.
 enum CaptionOCR {
-    enum OCRError: LocalizedError {
+    enum OCRError: LocalizedError, Equatable {
         case invalidImage
         case noText
 

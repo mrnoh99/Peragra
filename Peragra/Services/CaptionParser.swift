@@ -1,6 +1,6 @@
 import Foundation
 
-/// Best-effort extraction of a place name and address from Instagram
+/// Best-effort extraction of place name(s) and address(es) from Instagram
 /// caption text the user provides (pasted, or OCR'd from a screenshot).
 /// Instagram doesn't expose caption text via any client-accessible API, so
 /// this only ever sees text the person brings over themselves — always
@@ -23,11 +23,15 @@ enum CaptionParser {
         options: [.caseInsensitive]
     )
 
-    // Korean road-name/land-lot address: e.g. "서울 강남구 테헤란로 123",
-    // "경기도 성남시 분당구 판교역로 235-1", or "마포구 새창로2길 20" (road
-    // name followed by a numbered sub-"길", then the building number).
+    // Korean road-name/land-lot address, with an optional leading
+    // province/city name so the match captures the whole thing (e.g.
+    // "서울 강남구 ...") — matters for splitting "Name - Address" lines,
+    // where whatever isn't part of the address match becomes the name.
+    // Handles e.g. "서울 강남구 테헤란로 123", "경기도 성남시 분당구
+    // 판교역로 235-1", or "마포구 새창로2길 20" (road name followed by a
+    // numbered sub-"길", then the building number).
     private static let koreanAddress = try! NSRegularExpression(
-        pattern: #"[가-힣]+(?:시|군|구)\s?[가-힣0-9]+(?:읍|면|동|로|길)(?:\s?[0-9]+길)?\s?[0-9]+(?:-[0-9]+)?"#
+        pattern: #"(?:(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)(?:특별시|광역시|특별자치시|도|특별자치도)?\s?)?[가-힣]+(?:시|군|구)\s?[가-힣0-9]+(?:읍|면|동|로|길)(?:\s?[0-9]+길)?\s?[0-9]+(?:-[0-9]+)?"#
     )
 
     // A generic Western-style street address: a number followed by a
@@ -37,12 +41,24 @@ enum CaptionParser {
         options: [.caseInsensitive]
     )
 
+    // Numbered/bulleted list markers ("1.", "1)", "①", "1️⃣", ...) that
+    // mark the start of a new place in a "recommend N spots" caption.
+    private static let numberedMarker = try! NSRegularExpression(
+        pattern: #"^(?:\d{1,2}[.)]|[①②③④⑤⑥⑦⑧⑨⑩]|[❶❷❸❹❺❻❼❽❾❿]|\d{1,2}️?⃣)\s*"#
+    )
+
+    // A "Name - Address" inline separator, used to split a single line
+    // into its name and address parts once the address has been located.
+    private static let trailingSeparator = try! NSRegularExpression(
+        pattern: #"[\s\-–—:：|·]+$"#
+    )
+
     // Strips leading emoji/bullets/hashtags off a line before treating it
     // as a name/address candidate. The hyphen sits at the very end of the
     // class (away from the full-width space) so it can never be read as a
     // Unicode range with a neighboring char.
     private static let leadingDecoration = try! NSRegularExpression(
-        pattern: #"^[\s\p{Extended_Pictographic}\uFE0F*\u00B7\u2022\u30FB#\u3000-]+"#
+        pattern: #"^[\s\p{Extended_Pictographic}️*·•・#　-]+"#
     )
 
     private static func firstMatch(_ regex: NSRegularExpression, in text: String) -> NSTextCheckingResult? {
@@ -62,6 +78,11 @@ enum CaptionParser {
         return result.trimmingCharacters(in: .whitespaces)
     }
 
+    private static func stripTrailingSeparator(_ text: String) -> String {
+        let range = NSRange(text.startIndex..., in: text)
+        return trailingSeparator.stringByReplacingMatches(in: text, range: range, withTemplate: "")
+    }
+
     private static func isHashtagLine(_ line: String) -> Bool {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty { return true }
@@ -70,16 +91,33 @@ enum CaptionParser {
         return !hashtags.isEmpty && Double(hashtags.count) >= Double(words.count) * 0.6
     }
 
-    static func parse(_ caption: String) -> Result {
-        let lines = caption
-            .components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
+    private static func isListMarkerLine(_ line: String) -> Bool {
+        firstMatch(numberedMarker, in: line) != nil
+    }
 
+    private static func stripListMarker(_ line: String) -> String {
+        guard let match = firstMatch(numberedMarker, in: line), let range = Range(match.range, in: line) else {
+            return line
+        }
+        var result = line
+        result.removeSubrange(range)
+        return result.trimmingCharacters(in: .whitespaces)
+    }
+
+    private static func findAddressMatch(_ line: String) -> (regex: NSRegularExpression, match: NSTextCheckingResult)? {
+        if let match = firstMatch(koreanAddress, in: line) { return (koreanAddress, match) }
+        if let match = firstMatch(westernAddress, in: line) { return (westernAddress, match) }
+        return nil
+    }
+
+    /// Parses a single place out of a block of caption lines (all the
+    /// lines believed to describe just one place). Handles both "Name"
+    /// then "Address" on separate lines, and "Name - Address" on one line.
+    private static func parsePlaceBlock(_ lines: [String]) -> Result {
         var name: String?
         var address: String?
 
-        // Pass 1: explicit "label: value" lines anywhere in the caption.
+        // Pass 1: explicit "label: value" lines anywhere in the block.
         for line in lines {
             if name == nil, let match = firstMatch(nameLabel, in: line), let value = captured(line, match, 1) {
                 name = cleanLine(value)
@@ -89,35 +127,115 @@ enum CaptionParser {
             }
         }
 
-        // Pass 2: address-shaped lines (Korean or Western), when no label found.
+        // Pass 2: address-shaped text, when no label found. Remember which
+        // line and where in it, so a "Name - Address" line can still yield
+        // a name.
+        var addressLineIndex = -1
+        var addressRange: Range<String.Index>?
         if address == nil {
-            addressSearch: for line in lines {
-                if let match = firstMatch(koreanAddress, in: line), let value = captured(line, match, 0) {
-                    address = cleanLine(value)
-                    break addressSearch
-                }
-                if let match = firstMatch(westernAddress, in: line), let value = captured(line, match, 0) {
-                    address = cleanLine(value)
-                    break addressSearch
-                }
-            }
-        }
-
-        // Pass 3: name fallback — first non-hashtag, non-address line, so
-        // the typical "shop name on line 1, then description/address"
-        // caption shape works without any labels at all.
-        if name == nil {
-            for line in lines {
-                if isHashtagLine(line) { continue }
-                if let address, line.contains(address) { continue }
-                let cleaned = cleanLine(line)
-                if !cleaned.isEmpty && cleaned.count <= 60 {
-                    name = cleaned
+            for (i, line) in lines.enumerated() {
+                if let (_, match) = findAddressMatch(line), let range = Range(match.range, in: line) {
+                    address = cleanLine(String(line[range]))
+                    addressLineIndex = i
+                    addressRange = range
                     break
                 }
             }
         }
 
+        // Pass 3: name. Try, in order: splitting the address line itself
+        // ("Name - Address"); the nearest non-hashtag line immediately
+        // before the address (closest wins, so an unrelated intro line
+        // earlier in a multi-address block doesn't get picked over the
+        // actual name); then any other usable, non-hashtag line.
+        if name == nil {
+            if addressLineIndex >= 0, let addressRange {
+                let line = lines[addressLineIndex]
+                let before = stripTrailingSeparator(String(line[line.startIndex..<addressRange.lowerBound]))
+                let cleanedBefore = cleanLine(before)
+                if !cleanedBefore.isEmpty { name = cleanedBefore }
+            }
+            if name == nil, addressLineIndex > 0 {
+                for i in stride(from: addressLineIndex - 1, through: 0, by: -1) {
+                    if isHashtagLine(lines[i]) { continue }
+                    let cleaned = cleanLine(lines[i])
+                    if !cleaned.isEmpty && cleaned.count <= 60 {
+                        name = cleaned
+                        break
+                    }
+                }
+            }
+            if name == nil {
+                for (i, line) in lines.enumerated() {
+                    if i == addressLineIndex { continue }
+                    if isHashtagLine(line) { continue }
+                    let cleaned = cleanLine(line)
+                    if !cleaned.isEmpty && cleaned.count <= 60 {
+                        name = cleaned
+                        break
+                    }
+                }
+            }
+        }
+
         return Result(name: name, address: address)
+    }
+
+    private static func nonEmptyLines(_ caption: String) -> [String] {
+        caption
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// Handles both a caption describing a single place and one listing
+    /// several — a "recommend N spots" numbered list, or several distinct
+    /// address-shaped lines without numbering — returning a single-item
+    /// list (or an empty one) when the caption only describes one place.
+    static func parseMultiple(_ caption: String) -> [Result] {
+        let lines = nonEmptyLines(caption)
+        if lines.isEmpty { return [] }
+
+        // Group into blocks split at each numbered-list marker line.
+        // Anything before the first marker (an intro line like "3 spots I
+        // loved!") is discarded rather than treated as its own place.
+        var blocks: [[String]] = []
+        var current: [String] = []
+        var sawMarker = false
+        for line in lines {
+            if isListMarkerLine(line) {
+                if sawMarker && !current.isEmpty { blocks.append(current) }
+                sawMarker = true
+                current = [stripListMarker(line)]
+            } else if sawMarker {
+                current.append(line)
+            }
+        }
+        if sawMarker && !current.isEmpty { blocks.append(current) }
+
+        if sawMarker && blocks.count > 1 {
+            return blocks.map(parsePlaceBlock).filter { $0.name != nil || $0.address != nil }
+        }
+
+        // No numbered list: look for multiple distinct address-shaped
+        // lines, each paired with whatever precedes it (back to the
+        // previous address, or the start of the caption) as its block.
+        let addressLineIndexes = lines.enumerated().compactMap { i, line in
+            findAddressMatch(line) != nil ? i : nil
+        }
+
+        if addressLineIndexes.count <= 1 {
+            let single = parsePlaceBlock(lines)
+            return (single.name != nil || single.address != nil) ? [single] : []
+        }
+
+        var results: [Result] = []
+        var previousIndex = -1
+        for idx in addressLineIndexes {
+            let blockLines = Array(lines[(previousIndex + 1)...idx])
+            results.append(parsePlaceBlock(blockLines))
+            previousIndex = idx
+        }
+        return results
     }
 }

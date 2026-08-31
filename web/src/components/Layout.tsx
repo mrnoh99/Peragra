@@ -1,7 +1,10 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { SettingsModal } from "./SettingsModal";
 
 export function Layout({ children }: { children: ReactNode }) {
+  const [showSettings, setShowSettings] = useState(false);
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-black/5 bg-white/80 backdrop-blur">
@@ -14,15 +17,26 @@ export function Layout({ children }: { children: ReactNode }) {
               Peragra
             </span>
           </Link>
-          <p className="hidden text-sm text-neutral-500 sm:block">
-            Turn saved Instagram spots into a real trip plan
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="hidden text-sm text-neutral-500 sm:block">
+              Turn saved Instagram spots into a real trip plan
+            </p>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="grid h-8 w-8 place-items-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+              aria-label="AI settings"
+              title="AI settings"
+            >
+              ⚙️
+            </button>
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">{children}</main>
       <footer className="border-t border-black/5 py-4 text-center text-xs text-neutral-400">
         Peragra — plan trips from the places you save
       </footer>
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }
