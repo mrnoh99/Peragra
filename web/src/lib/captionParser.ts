@@ -41,14 +41,18 @@ const NUMBERED_MARKER =
 // range with a neighboring char — an unescaped `-` between two literals in
 // a character class is a range, and an earlier version of this regex
 // accidentally ranged U+0020 through U+3000, matching almost every
-// printable character and blanking out whole lines.
-const LEADING_DECORATION = /^[\s\p{Extended_Pictographic}️*·•・#　-]+/u;
+// printable character and blanking out whole lines. ㆍ (ㆍ, HANGUL
+// LETTER ARAEA — an archaic vowel letter essentially unused in modern
+// text) is what real on-device OCR renders a pin/bullet glyph as, found
+// by testing actual OCR output: without it, lines like "ㆍ부산 강남구 …"
+// left a bare "ㆍ" mistaken for the place name.
+const LEADING_DECORATION = /^[\s\p{Extended_Pictographic}️*·•・#　ㆍ-]+/u;
 
 // Same idea, anchored at the end — strips a trailing separator/emoji run
 // (e.g. the pin emoji before an inline address: "봉래산 📍 부산 ...", or a
 // "Name - Address" dash) when extracting whatever precedes an address
 // match on the same line.
-const TRAILING_DECORATION = /[\s\p{Extended_Pictographic}️*·•・#　\-–—:：|]+$/u;
+const TRAILING_DECORATION = /[\s\p{Extended_Pictographic}️*·•・#　ㆍ\-–—:：|]+$/u;
 
 // A trailing Instagram handle mention in parentheses, e.g.
 // "모모스커피 본점 (@momos_coffee)" — common in "📍 Name (@handle)" style

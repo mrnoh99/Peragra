@@ -53,9 +53,13 @@ enum CaptionParser {
     // Strips leading emoji/bullets/hashtags off a line before treating it
     // as a name/address candidate. The hyphen sits at the very end of the
     // class (away from the full-width space) so it can never be read as a
-    // Unicode range with a neighboring char.
+    // Unicode range with a neighboring char. ㆍ (HANGUL LETTER ARAEA — an
+    // archaic vowel letter essentially unused in modern text) is what
+    // real on-device OCR renders a pin/bullet glyph as, found by testing
+    // actual OCR output: without it, lines like "ㆍ부산 강남구 …" left a
+    // bare "ㆍ" mistaken for the place name.
     private static let leadingDecoration = try! NSRegularExpression(
-        pattern: #"^[\s\p{Extended_Pictographic}️*·•・#　-]+"#
+        pattern: #"^[\s\p{Extended_Pictographic}️*·•・#　ㆍ-]+"#
     )
 
     // Same idea, anchored at the end — strips a trailing separator/emoji
@@ -63,7 +67,7 @@ enum CaptionParser {
     // ...", or a "Name - Address" dash) when extracting whatever precedes
     // an address match on the same line.
     private static let trailingDecoration = try! NSRegularExpression(
-        pattern: #"[\s\p{Extended_Pictographic}️*·•・#　\-–—:：|]+$"#
+        pattern: #"[\s\p{Extended_Pictographic}️*·•・#　ㆍ\-–—:：|]+$"#
     )
 
     // A trailing Instagram handle mention in parentheses, e.g.
