@@ -16,10 +16,13 @@ const CITY_PREFIX =
   "(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)(?:특별시|광역시|특별자치시|도|특별자치도)?\\s?";
 
 // Korean road-name/land-lot address: e.g. "서울 강남구 테헤란로 123",
-// "경기도 성남시 분당구 판교역로 235-1", or "마포구 새창로2길 20" (road name
-// followed by a numbered sub-"길", then the building number).
+// "경기도 성남시 분당구 판교역로 235-1", "마포구 새창로2길 20" (road name
+// followed by a numbered sub-"길", then the building number), or just
+// "부산 영도구 청학동" (동-level only, no street number — common for
+// landmarks/trailheads that don't have one). The trailing building number
+// is optional for exactly that reason.
 const KOREAN_ADDRESS = new RegExp(
-  `(?:${CITY_PREFIX})?[가-힣]+(?:시|군|구)\\s?[가-힣0-9]+(?:읍|면|동|로|길)(?:\\s?[0-9]+길)?\\s?[0-9]+(?:-[0-9]+)?`,
+  `(?:${CITY_PREFIX})?[가-힣]+(?:시|군|구)\\s?[가-힣0-9]+(?:읍|면|동|로|길)(?:\\s?[0-9]+길)?(?:\\s?[0-9]+(?:-[0-9]+)?)?`,
 );
 
 // A generic Western-style street address: a number followed by a street
@@ -32,10 +35,6 @@ const WESTERN_ADDRESS =
 const NUMBERED_MARKER =
   /^(?:\d{1,2}[.)]|[①②③④⑤⑥⑦⑧⑨⑩]|[❶❷❸❹❺❻❼❽❾❿]|\d{1,2}️?⃣)\s*/;
 
-// A "Name - Address" inline separator, used to split a single line into
-// its name and address parts once the address portion has been located.
-const TRAILING_SEPARATOR = /[\s\-–—:：|·]+$/;
-
 // Strips leading emoji/bullets/hashtags off a line before treating it as a
 // name/address candidate. The hyphen sits at the very end of the class (and
 // away from the full-width space) so it can never be read as a Unicode
@@ -45,8 +44,27 @@ const TRAILING_SEPARATOR = /[\s\-–—:：|·]+$/;
 // printable character and blanking out whole lines.
 const LEADING_DECORATION = /^[\s\p{Extended_Pictographic}️*·•・#　-]+/u;
 
+// Same idea, anchored at the end — strips a trailing separator/emoji run
+// (e.g. the pin emoji before an inline address: "봉래산 📍 부산 ...", or a
+// "Name - Address" dash) when extracting whatever precedes an address
+// match on the same line.
+const TRAILING_DECORATION = /[\s\p{Extended_Pictographic}️*·•・#　\-–—:：|]+$/u;
+
+// A trailing Instagram handle mention in parentheses, e.g.
+// "모모스커피 본점 (@momos_coffee)" — common in "📍 Name (@handle)" style
+// listing captions. Stripped from the resolved name.
+const TRAILING_HANDLE = /\s*\([@＠][^\s()]+\)\s*$/;
+
 function cleanLine(line: string): string {
   return line.replace(LEADING_DECORATION, "").trim();
+}
+
+function cleanTrailing(line: string): string {
+  return line.replace(TRAILING_DECORATION, "").trim();
+}
+
+function stripHandle(name: string): string {
+  return name.replace(TRAILING_HANDLE, "").trim();
 }
 
 function isHashtagLine(line: string): boolean {
@@ -111,7 +129,7 @@ function parsePlaceBlock(lines: string[]): ParsedCaption {
   if (!name) {
     if (addressLineIndex >= 0 && addressMatch?.index !== undefined) {
       const line = lines[addressLineIndex];
-      const before = line.slice(0, addressMatch.index).replace(TRAILING_SEPARATOR, "");
+      const before = cleanTrailing(line.slice(0, addressMatch.index));
       const cleanedBefore = cleanLine(before);
       if (cleanedBefore) name = cleanedBefore;
     }
@@ -138,7 +156,7 @@ function parsePlaceBlock(lines: string[]): ParsedCaption {
     }
   }
 
-  return { name, address };
+  return { name: name ? stripHandle(name) : name, address };
 }
 
 /**

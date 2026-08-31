@@ -28,10 +28,13 @@ enum CaptionParser {
     // "서울 강남구 ...") — matters for splitting "Name - Address" lines,
     // where whatever isn't part of the address match becomes the name.
     // Handles e.g. "서울 강남구 테헤란로 123", "경기도 성남시 분당구
-    // 판교역로 235-1", or "마포구 새창로2길 20" (road name followed by a
-    // numbered sub-"길", then the building number).
+    // 판교역로 235-1", "마포구 새창로2길 20" (road name followed by a
+    // numbered sub-"길", then the building number), or just "부산 영도구
+    // 청학동" (동-level only, no street number — common for
+    // landmarks/trailheads that don't have one). The trailing building
+    // number is optional for exactly that reason.
     private static let koreanAddress = try! NSRegularExpression(
-        pattern: #"(?:(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)(?:특별시|광역시|특별자치시|도|특별자치도)?\s?)?[가-힣]+(?:시|군|구)\s?[가-힣0-9]+(?:읍|면|동|로|길)(?:\s?[0-9]+길)?\s?[0-9]+(?:-[0-9]+)?"#
+        pattern: #"(?:(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)(?:특별시|광역시|특별자치시|도|특별자치도)?\s?)?[가-힣]+(?:시|군|구)\s?[가-힣0-9]+(?:읍|면|동|로|길)(?:\s?[0-9]+길)?(?:\s?[0-9]+(?:-[0-9]+)?)?"#
     )
 
     // A generic Western-style street address: a number followed by a
@@ -47,18 +50,27 @@ enum CaptionParser {
         pattern: #"^(?:\d{1,2}[.)]|[①②③④⑤⑥⑦⑧⑨⑩]|[❶❷❸❹❺❻❼❽❾❿]|\d{1,2}️?⃣)\s*"#
     )
 
-    // A "Name - Address" inline separator, used to split a single line
-    // into its name and address parts once the address has been located.
-    private static let trailingSeparator = try! NSRegularExpression(
-        pattern: #"[\s\-–—:：|·]+$"#
-    )
-
     // Strips leading emoji/bullets/hashtags off a line before treating it
     // as a name/address candidate. The hyphen sits at the very end of the
     // class (away from the full-width space) so it can never be read as a
     // Unicode range with a neighboring char.
     private static let leadingDecoration = try! NSRegularExpression(
         pattern: #"^[\s\p{Extended_Pictographic}️*·•・#　-]+"#
+    )
+
+    // Same idea, anchored at the end — strips a trailing separator/emoji
+    // run (e.g. the pin emoji before an inline address: "봉래산 📍 부산
+    // ...", or a "Name - Address" dash) when extracting whatever precedes
+    // an address match on the same line.
+    private static let trailingDecoration = try! NSRegularExpression(
+        pattern: #"[\s\p{Extended_Pictographic}️*·•・#　\-–—:：|]+$"#
+    )
+
+    // A trailing Instagram handle mention in parentheses, e.g.
+    // "모모스커피 본점 (@momos_coffee)" — common in "📍 Name (@handle)"
+    // style listing captions. Stripped from the resolved name.
+    private static let trailingHandle = try! NSRegularExpression(
+        pattern: #"\s*\([@＠][^\s()]+\)\s*$"#
     )
 
     private static func firstMatch(_ regex: NSRegularExpression, in text: String) -> NSTextCheckingResult? {
@@ -78,9 +90,16 @@ enum CaptionParser {
         return result.trimmingCharacters(in: .whitespaces)
     }
 
-    private static func stripTrailingSeparator(_ text: String) -> String {
+    private static func cleanTrailing(_ text: String) -> String {
         let range = NSRange(text.startIndex..., in: text)
-        return trailingSeparator.stringByReplacingMatches(in: text, range: range, withTemplate: "")
+        let stripped = trailingDecoration.stringByReplacingMatches(in: text, range: range, withTemplate: "")
+        return stripped.trimmingCharacters(in: .whitespaces)
+    }
+
+    private static func stripHandle(_ name: String) -> String {
+        let range = NSRange(name.startIndex..., in: name)
+        let stripped = trailingHandle.stringByReplacingMatches(in: name, range: range, withTemplate: "")
+        return stripped.trimmingCharacters(in: .whitespaces)
     }
 
     private static func isHashtagLine(_ line: String) -> Bool {
@@ -151,7 +170,7 @@ enum CaptionParser {
         if name == nil {
             if addressLineIndex >= 0, let addressRange {
                 let line = lines[addressLineIndex]
-                let before = stripTrailingSeparator(String(line[line.startIndex..<addressRange.lowerBound]))
+                let before = cleanTrailing(String(line[line.startIndex..<addressRange.lowerBound]))
                 let cleanedBefore = cleanLine(before)
                 if !cleanedBefore.isEmpty { name = cleanedBefore }
             }
@@ -178,7 +197,7 @@ enum CaptionParser {
             }
         }
 
-        return Result(name: name, address: address)
+        return Result(name: name.map(stripHandle), address: address)
     }
 
     private static func nonEmptyLines(_ caption: String) -> [String] {
