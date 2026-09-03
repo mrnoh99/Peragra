@@ -1,16 +1,18 @@
 import type { Place } from "../types";
 
 /**
- * A search/route query for one place. Prefers "name, address"; when a
- * place has no address on file, a bare name is often too ambiguous for
- * Google Maps to resolve into an actual routable point (confirmed by a
- * real "can't find a way to the specified destination" failure on a
- * name-only waypoint) — qualifying it with the trip's destination city
- * gives Maps something to disambiguate against.
+ * A search/route query for one place. Prefers "name, address" — but only
+ * when this app's own geocoding actually resolved that address
+ * ("located"); for anything else (no address, or a "failed"/"estimated"
+ * pin that never located cleanly on our own map) the address text has
+ * already proven unreliable, so it's dropped in favor of qualifying the
+ * name with the trip's destination city instead. Confirmed by a real
+ * "can't find a way to the specified destination" failure on a place
+ * whose pin didn't show on our map either.
  */
 function placeQuery(place: Place, tripDestination?: string): string {
-  if (place.address) {
-    return [place.name, place.address].filter(Boolean).join(", ");
+  if (place.geocodeStatus === "located" && place.address) {
+    return [place.name, place.address].join(", ");
   }
   return [place.name, tripDestination].filter(Boolean).join(", ");
 }

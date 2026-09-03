@@ -16,6 +16,11 @@ struct GoogleMapWebView: UIViewRepresentable {
         let address: String
         let emoji: String
         let visited: Bool
+        /// Only true when this app's own geocoding actually resolved
+        /// `address` (`.located`) — an `.estimated` pin's address hasn't
+        /// necessarily proven resolvable on Google's side, so its "Open in
+        /// Google Maps" link falls back to name + trip destination too.
+        let addressTrusted: Bool
         let latitude: Double
         let longitude: Double
     }
@@ -139,11 +144,12 @@ struct GoogleMapWebView: UIViewRepresentable {
                     addressEl.textContent = place.address;
                     content.appendChild(addressEl);
                   }
-                  // A bare business name is often too ambiguous for Google
-                  // Maps to resolve into an actual point when there's no
-                  // address to go with it — fall back to qualifying it
-                  // with the trip's destination city instead.
-                  const mapsQuery = place.address
+                  // Only trust this place's own address text when our own
+                  // geocoding actually resolved it — otherwise (no
+                  // address, or an unresolved/estimated pin) that text has
+                  // already proven unreliable, so qualify the name with
+                  // the trip's destination city instead.
+                  const mapsQuery = (place.addressTrusted && place.address)
                     ? [place.name, place.address].filter(Boolean).join(", ")
                     : [place.name, tripDestination].filter(Boolean).join(", ");
                   const mapsUrl = "https://www.google.com/maps/search/?api=1&query=" +

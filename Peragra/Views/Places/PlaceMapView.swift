@@ -83,6 +83,7 @@ struct PlaceMapView: View {
             address: place.address,
             emoji: place.category.emoji,
             visited: place.visited,
+            addressTrusted: place.geocodeStatus == .located,
             latitude: place.latitude ?? 0,
             longitude: place.longitude ?? 0
         )
