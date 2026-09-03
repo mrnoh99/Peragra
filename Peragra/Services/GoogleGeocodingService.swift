@@ -18,18 +18,49 @@ enum GoogleGeocodingService {
         ]
         guard let url = components?.url else { return nil }
 
+        var request = URLRequest(url: url)
+        // A Google Cloud Console API key restricted to "iOS apps" is
+        // verified via this header — Google's own SDKs (like the Maps
+        // JS API this app's map view loads in a WKWebView) set it
+        // automatically, but a direct URLSession call like this one has
+        // to add it itself, or the key gets REQUEST_DENIED even though
+        // it's the right key for the right app.
+        if let bundleID = Bundle.main.bundleIdentifier {
+            request.setValue(bundleID, forHTTPHeaderField: "X-Ios-Bundle-Identifier")
+        }
+
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            let (data, _) = try await URLSession.shared.data(for: request)
             let decoded = try JSONDecoder().decode(GeocodeResponse.self, from: data)
-            guard let location = decoded.results.first?.geometry.location else { return nil }
+            guard let location = decoded.results.first?.geometry.location else {
+                // Logged rather than surfaced in the UI (the caller just
+                // treats this as "couldn't locate") — but genuinely useful
+                // when debugging why geocoding fails. REQUEST_DENIED in
+                // particular usually means the Geocoding API isn't enabled
+                // for this key/project — a separate toggle in Google Cloud
+                // Console from the Maps SDK the map display itself uses.
+                if decoded.status != "OK", decoded.status != "ZERO_RESULTS" {
+                    print("Google geocoding failed: \(decoded.status) \(decoded.errorMessage ?? "")")
+                }
+                return nil
+            }
             return Result(latitude: location.lat, longitude: location.lng)
         } catch {
+            print("Google geocoding request failed: \(error)")
             return nil
         }
     }
 
     private struct GeocodeResponse: Decodable {
         let results: [GeocodeResult]
+        let status: String
+        let errorMessage: String?
+
+        enum CodingKeys: String, CodingKey {
+            case results
+            case status
+            case errorMessage = "error_message"
+        }
     }
 
     private struct GeocodeResult: Decodable {
