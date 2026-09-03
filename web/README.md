@@ -82,3 +82,35 @@ it appear in the listing and on the map.
 - `npm run build` — type-check and build for production
 - `npm run lint` — run Oxlint
 - `npm run preview` — preview the production build
+
+## Deployment (GitHub Pages)
+
+The app deploys as a static site to GitHub Pages, built by
+[`.github/workflows/deploy-web.yml`](../.github/workflows/deploy-web.yml) on
+every push that touches `web/`. Two things in the app are already set up for
+this specifically:
+
+- `vite.config.ts` sets `base: "/Peragra/"` — required because a GitHub
+  Pages project site (as opposed to a custom domain or `<user>.github.io`
+  itself) is served from a `/<repo-name>/` subpath, and assets built with
+  the default root-relative paths would 404 under that prefix.
+- `main.tsx` uses React Router's `HashRouter`, not `BrowserRouter` — GitHub
+  Pages is static file hosting with no server-side rewrites, so reloading a
+  path like `/trips/abc` directly would 404. Hash routes (`/#/trips/abc`)
+  always resolve to `index.html`, since the server never sees anything
+  after the `#`.
+
+**One manual, one-time step is still required** — enabling Pages itself
+isn't something a workflow file or a `git push` can do:
+
+1. On GitHub, go to the repo's **Settings → Pages**.
+2. Under **Build and deployment → Source**, choose **GitHub Actions**.
+3. Push to (or merge into) a branch the workflow watches — currently `main`
+   and `claude/travel-planning-app-9ou1mc` — and the `deploy-web` workflow
+   run's summary will show the live URL once it finishes (also visible on
+   the Pages settings page after the first successful run):
+   `https://<owner>.github.io/Peragra/`.
+
+If the branch this was developed on isn't `main`, update the `branches:`
+list in the workflow file (or just merge to `main`, which it already
+watches).

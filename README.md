@@ -135,3 +135,8 @@ npm run dev
 Uses Leaflet/OpenStreetMap for the map, OpenStreetMap Nominatim for
 geocoding, and the same Instagram `embed.js` technique as the iOS app —
 verified with a production build, lint, and an end-to-end smoke test.
+
+Deploys to GitHub Pages via
+[`.github/workflows/deploy-web.yml`](.github/workflows/deploy-web.yml) —
+see [`web/README.md`'s Deployment section](web/README.md#deployment-github-pages)
+for the one manual repo-settings step it still needs and the resulting URL.
