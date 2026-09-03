@@ -1,6 +1,7 @@
 import Observation
 
-/// Reactive wrapper around the Keychain-stored Anthropic API key, so
+/// Reactive wrapper around the Keychain-stored AI extraction API key (for
+/// the factchat-cloud.mindlogic.ai gateway — see AIExtractionService), so
 /// SwiftUI views update automatically when it changes.
 @Observable
 final class AISettings {

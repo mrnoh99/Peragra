@@ -262,7 +262,7 @@ export function AddPlaceModal({
           <p className="mb-2 text-xs text-neutral-400">
             If a post recommends one place or several, paste the caption below and use free
             pattern matching — or attach a screenshot and let AI read and organize it completely
-            (requires an Anthropic API key in Settings; on-device text recognition struggles with
+            (requires an AI extraction API key in Settings; on-device text recognition struggles with
             stylized graphics, so this app doesn't try to guess at photo text itself).
           </p>
           <textarea
@@ -312,7 +312,7 @@ export function AddPlaceModal({
           </div>
           {screenshotFile && !apiKey && (
             <p className="mt-2 text-xs text-neutral-400">
-              Add an Anthropic API key in Settings to read this screenshot — AI reads photos
+              Add an AI extraction API key in Settings to read this screenshot — AI reads photos
               completely, since on-device text recognition struggles with stylized graphics.
             </p>
           )}

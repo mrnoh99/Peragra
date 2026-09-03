@@ -2,9 +2,10 @@ import Foundation
 import Security
 
 /// Minimal Keychain wrapper for storing the user's own API keys on-device
-/// (Anthropic, Google Maps, ...). This app has no server — every feature
-/// that needs one of these calls the provider's API directly from the
-/// device using the key, which never leaves it except in that request.
+/// (the AI extraction gateway, Google Maps, ...). This app has no server —
+/// every feature that needs one of these calls that provider's API
+/// directly from the device using the key, which never leaves it except
+/// in that request.
 enum KeychainService {
     private static let service = "com.peragra.app.keychain"
 

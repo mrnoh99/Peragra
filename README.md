@@ -25,15 +25,19 @@ web) — they don't currently sync with each other.
   text and extract it into an editable list of places to review before
   saving, whether the caption recommends a single spot or a numbered list
   of several. Free and pattern-matching based, works on text you paste in.
-- **AI-powered extraction** — add your own Anthropic API key in Settings to
-  extract with Claude instead: more accurate on messy captions, and the
-  only way to read a screenshot. Reading and organizing text from a photo
-  is done entirely by AI (Claude reads the image directly via vision) —
-  neither app runs local OCR on photos, since on-device text recognition
-  proved unreliable on stylized graphics (a Reels cover, a title overlay)
-  during testing. Neither app has a server, so the key is used to call
-  Anthropic's API directly from your browser/device and is stored only
-  locally.
+- **AI-powered extraction** — add your own API key in Settings to extract
+  with Claude instead: more accurate on messy captions, and the only way
+  to read a screenshot. Reading and organizing text from a photo is done
+  entirely by AI (Claude reads the image directly via vision) — neither
+  app runs local OCR on photos, since on-device text recognition proved
+  unreliable on stylized graphics (a Reels cover, a title overlay) during
+  testing. Neither app has a server, so the key is used to call the AI
+  provider directly from your browser/device and is stored only locally.
+  Routed through a third-party OpenAI-compatible gateway
+  (factchat-cloud.mindlogic.ai) rather than Anthropic's own API, per
+  explicit instruction — the key is one issued by that gateway, and
+  caption/screenshot data passes through it rather than going only to
+  Anthropic.
 - **Listing** — every saved place as a card/row: category, address, notes,
   visited status, and a link back to the original Instagram post. Searchable
   and filterable by category. Every saved place is editable after the fact
@@ -67,9 +71,10 @@ Native Swift/SwiftUI app, targeting iOS 17+, iPhone-first.
 - `WKWebView` loading Instagram's public `embed.js` for inline post previews
 - Screenshots are picked via `PhotosPicker`; reading and organizing their
   text is done entirely by AI extraction, not on-device OCR (see Features)
-- AI extraction calls the Anthropic Messages API directly over HTTPS
-  (Swift has no official Anthropic SDK) using an API key the user enters
-  in Settings and that's stored in the Keychain
+- AI extraction calls a third-party OpenAI-compatible gateway
+  (factchat-cloud.mindlogic.ai, not Anthropic's own API) directly over
+  HTTPS using an API key the user enters in Settings and that's stored in
+  the Keychain
 - `Peragra.xcodeproj` is committed directly (no XcodeGen, no generation step)
   — clone and open
 
@@ -102,12 +107,12 @@ Peragra/
                                 GoogleGeocodingService, InstagramLink (URL parsing),
                                 CaptionParser (name/address heuristics), KMLService
                                 (Google Maps export/import), AIExtractionService
-                                (Anthropic API), KeychainService
+                                (AI gateway), KeychainService
   Views/
     Trips/                    Trips list, add-trip sheet, trip detail (Listing/Map tabs)
     Places/                   Listing rows, map view (MapKit/Google dispatch),
                                 add/edit-place sheets, Instagram embed
-    SettingsSheet.swift       Anthropic API key + map provider settings
+    SettingsSheet.swift       AI extraction API key + map provider settings
   Assets.xcassets/            App icon + accent color
 ```
 

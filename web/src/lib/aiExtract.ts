@@ -1,6 +1,17 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { z } from "zod";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+
+// Routed through a third-party OpenAI-compatible gateway
+// (factchat-cloud.mindlogic.ai) rather than Anthropic's own API — per
+// explicit instruction. This means captions/screenshots sent for AI
+// extraction pass through that gateway, not just Anthropic directly, and
+// the API key entered in Settings is a key issued by that gateway, not an
+// Anthropic key. The gateway's actual feature support (vision passthrough,
+// JSON mode) is undocumented from here, so this prompts for JSON in plain
+// chat-completion form and validates the response against the schema below
+// rather than relying on any provider-specific structured-output extension.
+const GATEWAY_BASE_URL = "https://factchat-cloud.mindlogic.ai/v1/gateway";
+const GATEWAY_MODEL = "claude-sonnet-5";
 
 const PlacesSchema = z.object({
   places: z.array(
@@ -28,41 +39,70 @@ const SYSTEM_PROMPT =
   "an Instagram post's caption text or a screenshot of one. Return every distinct " +
   "place mentioned, each with its name and, if given, its full address exactly as " +
   "written. If no address is given for a place, use null — never guess or invent " +
-  "one. If nothing in the text describes an actual place, return an empty list.";
+  "one. If nothing in the text describes an actual place, return an empty list.\n\n" +
+  "Respond with ONLY a single JSON object, no other text, no markdown code fence, " +
+  'matching exactly this shape: {"places": [{"name": string, "address": string | null}]}';
 
-function getClient(apiKey: string): Anthropic {
-  return new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+function getClient(apiKey: string): OpenAI {
+  return new OpenAI({ apiKey, baseURL: GATEWAY_BASE_URL, dangerouslyAllowBrowser: true });
 }
 
 function toAIExtractionError(error: unknown): AIExtractionError {
-  if (error instanceof Anthropic.AuthenticationError) {
+  if (error instanceof OpenAI.AuthenticationError) {
     return new AIExtractionError("That API key was rejected — check it in Settings.");
   }
-  if (error instanceof Anthropic.RateLimitError) {
-    return new AIExtractionError("Rate limited by Anthropic — try again in a moment.");
+  if (error instanceof OpenAI.RateLimitError) {
+    return new AIExtractionError("Rate limited by the gateway — try again in a moment.");
   }
-  if (error instanceof Anthropic.APIError) {
-    return new AIExtractionError(`Anthropic API error: ${error.message}`);
+  if (error instanceof OpenAI.APIError) {
+    return new AIExtractionError(`Gateway error: ${error.message}`);
   }
   return new AIExtractionError("Couldn't reach the AI extraction service.");
 }
 
-/** Extracts places from pasted/OCR'd caption text using the user's own Anthropic API key. */
+/**
+ * Parses the model's reply as the {places: [...]} shape, tolerating a
+ * markdown code fence around the JSON despite the prompt asking for none —
+ * models routed through arbitrary gateways don't reliably follow that.
+ */
+function parsePlacesResponse(content: string | null | undefined): AIExtractedPlace[] {
+  if (!content) {
+    throw new AIExtractionError("The AI extraction service returned an empty response.");
+  }
+  const fenced = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  const jsonText = fenced ? fenced[1] : content;
+
+  let parsedJSON: unknown;
+  try {
+    parsedJSON = JSON.parse(jsonText);
+  } catch {
+    throw new AIExtractionError("The AI extraction service didn't return valid JSON.");
+  }
+
+  const result = PlacesSchema.safeParse(parsedJSON);
+  if (!result.success) {
+    throw new AIExtractionError("The AI extraction service returned an unexpected response shape.");
+  }
+  return result.data.places;
+}
+
+/** Extracts places from pasted/OCR'd caption text using the user's own gateway API key. */
 export async function extractPlacesFromText(
   apiKey: string,
   captionText: string,
 ): Promise<AIExtractedPlace[]> {
   const client = getClient(apiKey);
   try {
-    const response = await client.messages.parse({
-      model: "claude-opus-5",
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: captionText }],
-      output_config: { format: zodOutputFormat(PlacesSchema) },
+    const response = await client.chat.completions.create({
+      model: GATEWAY_MODEL,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: captionText },
+      ],
     });
-    return response.parsed_output?.places ?? [];
+    return parsePlacesResponse(response.choices[0]?.message.content);
   } catch (error) {
+    if (error instanceof AIExtractionError) throw error;
     throw toAIExtractionError(error);
   }
 }
@@ -79,23 +119,22 @@ export async function extractPlacesFromImage(
 ): Promise<AIExtractedPlace[]> {
   const client = getClient(apiKey);
   try {
-    const response = await client.messages.parse({
-      model: "claude-opus-5",
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
+    const response = await client.chat.completions.create({
+      model: GATEWAY_MODEL,
       messages: [
+        { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
           content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: imageBase64 } },
             { type: "text", text: "Extract every place recommended in this screenshot's caption." },
+            { type: "image_url", image_url: { url: `data:${mediaType};base64,${imageBase64}` } },
           ],
         },
       ],
-      output_config: { format: zodOutputFormat(PlacesSchema) },
     });
-    return response.parsed_output?.places ?? [];
+    return parsePlacesResponse(response.choices[0]?.message.content);
   } catch (error) {
+    if (error instanceof AIExtractionError) throw error;
     throw toAIExtractionError(error);
   }
 }

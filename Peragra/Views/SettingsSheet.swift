@@ -19,13 +19,13 @@ struct SettingsSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    SecureField("sk-ant-...", text: $apiKeyInput)
+                    SecureField("API key", text: $apiKeyInput)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 } header: {
-                    Text("Anthropic API key")
+                    Text("AI extraction API key")
                 } footer: {
-                    Text("This app has no server — AI place extraction calls Anthropic's API directly from your device using this key, stored only in this device's Keychain. Get one at console.anthropic.com. Leave blank to skip AI — the free pattern-matching extraction still works without a key.")
+                    Text("This app has no server — AI place extraction calls the gateway at factchat-cloud.mindlogic.ai directly from your device using this key, stored only in this device's Keychain. This is a third-party gateway, not Anthropic's own API — your caption/screenshot data passes through it. Leave blank to skip AI — the free pattern-matching extraction still works without a key.")
                 }
 
                 if settings.apiKey != nil {

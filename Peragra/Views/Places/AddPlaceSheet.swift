@@ -120,7 +120,7 @@ struct AddPlaceSheet: View {
                     }
 
                     if screenshotData != nil, aiSettings.apiKey == nil {
-                        Text("Add an Anthropic API key in Settings to read this screenshot — AI reads photos completely, since on-device text recognition struggles with stylized graphics.")
+                        Text("Add an AI extraction API key in Settings to read this screenshot — AI reads photos completely, since on-device text recognition struggles with stylized graphics.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

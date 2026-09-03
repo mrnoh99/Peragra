@@ -20,15 +20,19 @@ Same product as the native iOS app in `../Peragra`, built for the browser.
   and edit before saving — handles a caption recommending a single spot
   just as well as a numbered "5 cafes I loved" post. Free, pattern-matching
   based, no API key needed, and works on text you paste in.
-- **AI-powered extraction** — add your own Anthropic API key in Settings
-  (⚙️ in the header) to extract places with Claude instead: more accurate
-  on messy or unlabeled captions, and the only way to read a screenshot.
-  Reading and organizing text from a photo is done entirely by AI (Claude
-  reads the image directly via vision) — this app doesn't run local OCR on
-  photos, since on-device text recognition proved unreliable on stylized
-  graphics (a Reels cover, a title overlay) during testing. This app has no
-  server, so the key is used to call Anthropic's API directly from your
-  browser and is stored only in this browser's local storage.
+- **AI-powered extraction** — add your own API key in Settings (⚙️ in the
+  header) to extract places with Claude instead: more accurate on messy or
+  unlabeled captions, and the only way to read a screenshot. Reading and
+  organizing text from a photo is done entirely by AI (Claude reads the
+  image directly via vision) — this app doesn't run local OCR on photos,
+  since on-device text recognition proved unreliable on stylized graphics
+  (a Reels cover, a title overlay) during testing. This app has no server,
+  so the key is used to call the AI provider directly from your browser
+  and is stored only in this browser's local storage. Routed through a
+  third-party OpenAI-compatible gateway (factchat-cloud.mindlogic.ai)
+  rather than Anthropic's own API, per explicit instruction — the key is
+  one issued by that gateway, and caption/screenshot data passes through
+  it rather than going only to Anthropic.
 - **Listing** — every saved place as a card: category, address, notes,
   visited status, and a link back to the original Instagram post. Every
   saved place is editable after the fact (name, address, category, notes)
@@ -60,10 +64,14 @@ Same product as the native iOS app in `../Peragra`, built for the browser.
   as a plain script tag, no `@react-google-maps/api` dependency
 - Instagram's public `embed.js` for post embeds, called directly from the
   browser like the map/geocoding APIs — no API keys required
-- `@anthropic-ai/sdk` (`dangerouslyAllowBrowser`) + Zod structured outputs
-  for AI-powered extraction, called directly from the browser with the
-  user's own API key — no backend. This is also the only path that reads
-  screenshots: there's no local OCR step
+- `openai` SDK (`dangerouslyAllowBrowser`), pointed at a third-party
+  OpenAI-compatible gateway (factchat-cloud.mindlogic.ai) rather than
+  Anthropic's own API, for AI-powered extraction — called directly from
+  the browser with the user's own (gateway-issued) API key, no backend.
+  This is also the only path that reads screenshots: there's no local OCR
+  step. Response JSON is validated with Zod after the fact rather than via
+  a provider-native structured-output feature, since the gateway's support
+  for that is undocumented
 
 ## Getting started
 
