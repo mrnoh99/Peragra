@@ -20,6 +20,7 @@ export function PlaceCard({
   selectable = false,
   selected = false,
   onToggleSelect,
+  distanceKm,
 }: {
   place: Place;
   collections: Collection[];
@@ -27,8 +28,11 @@ export function PlaceCard({
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  /** Shown as "N km away" when sorting by distance from a reference place. */
+  distanceKm?: number;
 }) {
   const toggleVisited = useStore((s) => s.toggleVisited);
+  const toggleFavorite = useStore((s) => s.toggleFavorite);
   const deletePlace = useStore((s) => s.deletePlace);
   const togglePlaceCollection = useStore((s) => s.togglePlaceCollection);
   const [showCollections, setShowCollections] = useState(false);
@@ -51,6 +55,15 @@ export function PlaceCard({
           )}
           <div className="min-w-0">
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleFavorite(place.id)}
+                aria-label={place.favorite ? "Remove from favorites" : "Mark as favorite"}
+                className={`shrink-0 leading-none ${
+                  place.favorite ? "text-amber-400" : "text-neutral-300 hover:text-amber-300"
+                }`}
+              >
+                {place.favorite ? "★" : "☆"}
+              </button>
               <span>{CATEGORY_ICON[place.category] ?? "📍"}</span>
               <h3
                 className={`truncate font-semibold text-neutral-900 ${
@@ -62,6 +75,11 @@ export function PlaceCard({
             </div>
             <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-brand-600">
               {categoryLabel}
+              {distanceKm !== undefined && (
+                <span className="ml-2 text-neutral-400">
+                  · {distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`} away
+                </span>
+              )}
             </p>
             {place.address && (
               <p className="mt-1 text-sm text-neutral-500">{place.address}</p>

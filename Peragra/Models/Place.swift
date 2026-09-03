@@ -14,6 +14,7 @@ final class Place {
     var longitude: Double?
     var geocodeStatusRaw: String
     var visited: Bool
+    var favorite: Bool
     var createdAt: Date
 
     var trip: Trip?
@@ -41,6 +42,7 @@ final class Place {
         self.longitude = nil
         self.geocodeStatusRaw = GeocodeStatus.pending.rawValue
         self.visited = false
+        self.favorite = false
         self.createdAt = .now
         self.trip = trip
     }

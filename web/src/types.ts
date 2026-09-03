@@ -37,6 +37,7 @@ export interface Place {
   lng: number | null;
   geocodeStatus: GeocodeStatus;
   visited: boolean;
+  favorite: boolean;
   collectionIds: string[];
   createdAt: number;
 }

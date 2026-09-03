@@ -41,6 +41,7 @@ interface AppState {
     status: GeocodeStatus,
   ) => void;
   toggleVisited: (placeId: string) => void;
+  toggleFavorite: (placeId: string) => void;
 
   addCollection: (tripId: string, name: string) => Collection;
   deleteCollection: (collectionId: string) => void;
@@ -90,6 +91,7 @@ export const useStore = create<AppState>()(
           lng: null,
           geocodeStatus: "pending",
           visited: false,
+          favorite: false,
           collectionIds: input.collectionIds,
           createdAt: Date.now(),
         };
@@ -126,6 +128,14 @@ export const useStore = create<AppState>()(
         set((state) => ({
           places: state.places.map((p) =>
             p.id === placeId ? { ...p, visited: !p.visited } : p,
+          ),
+        }));
+      },
+
+      toggleFavorite: (placeId) => {
+        set((state) => ({
+          places: state.places.map((p) =>
+            p.id === placeId ? { ...p, favorite: !p.favorite } : p,
           ),
         }));
       },

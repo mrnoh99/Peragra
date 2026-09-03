@@ -4,6 +4,9 @@ import SwiftData
 struct PlaceRowView: View {
     @Bindable var place: Place
     let allCollections: [PlaceCollection]
+    /// Set only when the list is sorted by distance from a chosen place —
+    /// shown as a "N km away" label alongside the category.
+    let distanceMeters: Double?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
@@ -18,13 +21,30 @@ struct PlaceRowView: View {
                     .frame(width: 22)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(place.name)
-                        .font(.headline)
-                        .strikethrough(place.visited)
-                        .foregroundStyle(place.visited ? .secondary : .primary)
-                    Text(place.category.label.uppercased())
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
+                    HStack(spacing: 4) {
+                        Button {
+                            withAnimation { place.favorite.toggle() }
+                        } label: {
+                            Image(systemName: place.favorite ? "star.fill" : "star")
+                                .foregroundStyle(place.favorite ? .yellow : .secondary)
+                        }
+                        .buttonStyle(.plain)
+
+                        Text(place.name)
+                            .font(.headline)
+                            .strikethrough(place.visited)
+                            .foregroundStyle(place.visited ? .secondary : .primary)
+                    }
+                    HStack(spacing: 4) {
+                        Text(place.category.label.uppercased())
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Color.accentColor)
+                        if let distanceMeters {
+                            Text("· \(formattedDistance(distanceMeters)) away")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     if !place.address.isEmpty {
                         Text(place.address)
                             .font(.subheadline)
@@ -108,6 +128,13 @@ struct PlaceRowView: View {
         .sheet(isPresented: $showingEdit) {
             EditPlaceSheet(place: place)
         }
+    }
+
+    private func formattedDistance(_ meters: Double) -> String {
+        if meters < 1000 {
+            return "\(Int(meters.rounded())) m"
+        }
+        return String(format: "%.1f km", meters / 1000)
     }
 }
 
