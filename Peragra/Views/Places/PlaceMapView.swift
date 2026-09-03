@@ -4,8 +4,18 @@ import MapKit
 struct PlaceMapView: View {
     let places: [Place]
 
+    // Explicit, so this view's access level never depends on Swift's
+    // synthesized-memberwise-init rules around private stored properties
+    // elsewhere in the type (bit us once already on AddPlaceSheet).
+    init(places: [Place]) {
+        self.places = places
+    }
+
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var selectedPlace: Place?
+
+    // Computed, not stored, for the same reason.
+    private var mapSettings: MapSettings { MapSettings.shared }
 
     private var located: [Place] {
         places.filter { $0.latitude != nil && $0.longitude != nil }
@@ -33,6 +43,8 @@ struct PlaceMapView: View {
                     description: Text("Save a place with an address to see it here.")
                 )
                 .frame(maxHeight: .infinity)
+            } else if mapSettings.isGoogleActive, let apiKey = mapSettings.googleMapsAPIKey {
+                GoogleMapWebView(apiKey: apiKey, places: located.map(googleMarker))
             } else {
                 Map(position: $cameraPosition, selection: $selectedPlace) {
                     ForEach(located) { place in
@@ -60,6 +72,18 @@ struct PlaceMapView: View {
 
     private func coordinate(for place: Place) -> CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: place.latitude ?? 0, longitude: place.longitude ?? 0)
+    }
+
+    private func googleMarker(for place: Place) -> GoogleMapWebView.MarkerPlace {
+        GoogleMapWebView.MarkerPlace(
+            id: place.id.uuidString,
+            name: place.name,
+            address: place.address,
+            emoji: place.category.emoji,
+            visited: place.visited,
+            latitude: place.latitude ?? 0,
+            longitude: place.longitude ?? 0
+        )
     }
 
     private func fitCamera() {

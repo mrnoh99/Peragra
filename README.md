@@ -40,7 +40,9 @@ web) — they don't currently sync with each other.
   (name, address, category, notes) — fixing an extraction mistake
   re-geocodes it if the address changed.
 - **Map** — saved places are geocoded and plotted on an interactive map,
-  color-coded by category.
+  color-coded by category. Free by default (Leaflet/OpenStreetMap on web,
+  Apple MapKit on iOS) — switch to Google Maps in Settings with your own
+  Google Maps API key if you'd rather use that.
 - **Lists (collections)** — group places within a trip into custom lists and
   filter the listing/map by list.
 - **Local persistence** — no account or backend required.
@@ -51,7 +53,11 @@ Native Swift/SwiftUI app, targeting iOS 17+, iPhone-first.
 
 - SwiftData for local persistence (`Trip`, `Place`, `PlaceCollection` models)
 - MapKit (`Map`/`Marker`, iOS 17 API) for the map view, `CLGeocoder` for
-  address → coordinate lookups (no API key needed)
+  address → coordinate lookups (no API key needed) — the default. Opting
+  into Google Maps in Settings switches both: the map renders via the
+  Google Maps JS API loaded into a `WKWebView` (no native Google SDK
+  dependency), and geocoding calls the Google Geocoding API directly
+  instead, using the same user-supplied key.
 - `WKWebView` loading Instagram's public `embed.js` for inline post previews
 - Screenshots are picked via `PhotosPicker`; reading and organizing their
   text is done entirely by AI extraction, not on-device OCR (see Features)
@@ -84,15 +90,18 @@ directly, same as any normal Xcode project.
 Peragra.xcodeproj/            Committed Xcode project (source of truth)
 Peragra/
   App/PeragraApp.swift        App entry point, SwiftData container setup
-  Models/                     Trip, Place, PlaceCollection (@Model), PlaceCategory
-  Services/                    GeocodingService (CLGeocoder), InstagramLink (URL parsing),
+  Models/                     Trip, Place, PlaceCollection (@Model), PlaceCategory,
+                                AISettings, MapSettings
+  Services/                    GeocodingService (CLGeocoder/Google dispatch),
+                                GoogleGeocodingService, InstagramLink (URL parsing),
                                 CaptionParser (name/address heuristics),
                                 AIExtractionService (Anthropic API), KeychainService
   Views/
     Trips/                    Trips list, add-trip sheet, trip detail (Listing/Map tabs)
-    Places/                   Listing rows, map view, add/edit-place sheets, Instagram embed
-    SettingsSheet.swift       Anthropic API key entry
-  Assets.xcassets/            App icon placeholder + accent color
+    Places/                   Listing rows, map view (MapKit/Google dispatch),
+                                add/edit-place sheets, Instagram embed
+    SettingsSheet.swift       Anthropic API key + map provider settings
+  Assets.xcassets/            App icon + accent color
 ```
 
 ### iOS known limitations

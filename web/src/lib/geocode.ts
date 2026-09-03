@@ -1,24 +1,17 @@
+import { useMapSettingsStore } from "../store/useMapSettingsStore";
+import { geocodeWithGoogle } from "./googleGeocode";
+
 export interface GeocodeResult {
   lat: number;
   lng: number;
   displayName: string;
 }
 
-/**
- * Free-text geocoding via OpenStreetMap's Nominatim public API.
- * No API key required; used client-side for turning a place name/address
- * into map coordinates.
- */
-export async function geocodePlace(
+async function geocodeWithNominatim(
   query: string,
-  contextHint?: string,
 ): Promise<GeocodeResult | null> {
-  const trimmed = query.trim();
-  if (!trimmed) return null;
-
-  const fullQuery = contextHint ? `${trimmed}, ${contextHint}` : trimmed;
   const url = new URL("https://nominatim.openstreetmap.org/search");
-  url.searchParams.set("q", fullQuery);
+  url.searchParams.set("q", query);
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("limit", "1");
 
@@ -37,4 +30,27 @@ export async function geocodePlace(
     lng: Number.parseFloat(first.lon),
     displayName: first.display_name,
   };
+}
+
+/**
+ * Free-text geocoding, turning a place name/address into map coordinates.
+ * Uses the Google Geocoding API when the user has opted into Google Maps
+ * in Settings with their own API key; otherwise falls back to
+ * OpenStreetMap's Nominatim (no API key required — the default).
+ */
+export async function geocodePlace(
+  query: string,
+  contextHint?: string,
+): Promise<GeocodeResult | null> {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+  const fullQuery = contextHint ? `${trimmed}, ${contextHint}` : trimmed;
+
+  const { mapProvider, googleMapsApiKey } = useMapSettingsStore.getState();
+  if (mapProvider === "google" && googleMapsApiKey) {
+    const result = await geocodeWithGoogle(fullQuery, googleMapsApiKey);
+    return result ? { ...result, displayName: fullQuery } : null;
+  }
+
+  return geocodeWithNominatim(fullQuery);
 }

@@ -34,7 +34,9 @@ Same product as the native iOS app in `../Peragra`, built for the browser.
   saved place is editable after the fact (name, address, category, notes)
   — fixing an extraction mistake re-geocodes it if the address changed.
 - **Map** — saved places are geocoded (via OpenStreetMap Nominatim) and
-  plotted on an interactive Leaflet map, color-coded by category.
+  plotted on an interactive Leaflet map, color-coded by category. Free by
+  default — switch to Google Maps in Settings with your own Google Maps
+  API key if you'd rather use that (switches both the map and geocoding).
 - **Lists (collections)** — group places within a trip into custom lists and
   filter the listing/map by list.
 - **Local persistence** — everything is stored in the browser via
@@ -46,9 +48,12 @@ Same product as the native iOS app in `../Peragra`, built for the browser.
 - Tailwind CSS v4
 - Zustand (with `persist` middleware) for state
 - React Router
-- Leaflet / react-leaflet for maps
-- OpenStreetMap Nominatim for geocoding, Instagram's public `embed.js` for
-  post embeds — both called directly from the browser, no API keys required
+- Leaflet / react-leaflet for maps, OpenStreetMap Nominatim for geocoding —
+  the default, no API key required. Google Maps JS API + Google Geocoding
+  API as an opt-in alternative (own API key, entered in Settings) — loaded
+  as a plain script tag, no `@react-google-maps/api` dependency
+- Instagram's public `embed.js` for post embeds, called directly from the
+  browser like the map/geocoding APIs — no API keys required
 - `@anthropic-ai/sdk` (`dangerouslyAllowBrowser`) + Zod structured outputs
   for AI-powered extraction, called directly from the browser with the
   user's own API key — no backend. This is also the only path that reads

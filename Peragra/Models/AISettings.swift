@@ -6,19 +6,21 @@ import Observation
 final class AISettings {
     static let shared = AISettings()
 
+    private static let keychainKey = "anthropic-api-key"
+
     private(set) var apiKey: String?
 
     private init() {
-        apiKey = KeychainService.load()
+        apiKey = KeychainService.load(for: Self.keychainKey)
     }
 
     func setAPIKey(_ value: String?) {
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let trimmed, !trimmed.isEmpty {
-            KeychainService.save(trimmed)
+            KeychainService.save(trimmed, for: Self.keychainKey)
             apiKey = trimmed
         } else {
-            KeychainService.delete()
+            KeychainService.delete(for: Self.keychainKey)
             apiKey = nil
         }
     }

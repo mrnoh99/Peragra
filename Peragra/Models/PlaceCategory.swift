@@ -23,6 +23,20 @@ enum PlaceCategory: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Matches the emoji used for the same categories on the web app's
+    /// Leaflet/Google map markers, so both platforms read consistently.
+    var emoji: String {
+        switch self {
+        case .restaurant: return "🍽️"
+        case .cafe: return "☕"
+        case .attraction: return "🎡"
+        case .shopping: return "🛍️"
+        case .hotel: return "🏨"
+        case .nightlife: return "🌃"
+        case .other: return "📍"
+        }
+    }
+
     var symbolName: String {
         switch self {
         case .restaurant: return "fork.knife"
