@@ -32,6 +32,7 @@ interface AppState {
 
   addPlace: (input: NewPlaceInput) => Place;
   updatePlace: (placeId: string, patch: Partial<Place>) => void;
+  updatePlacesCategory: (placeIds: string[], category: PlaceCategory) => void;
   deletePlace: (placeId: string) => void;
   setPlaceCoords: (
     placeId: string,
@@ -97,6 +98,13 @@ export const useStore = create<AppState>()(
       updatePlace: (placeId, patch) => {
         set((state) => ({
           places: state.places.map((p) => (p.id === placeId ? { ...p, ...patch } : p)),
+        }));
+      },
+
+      updatePlacesCategory: (placeIds, category) => {
+        const idSet = new Set(placeIds);
+        set((state) => ({
+          places: state.places.map((p) => (idSet.has(p.id) ? { ...p, category } : p)),
         }));
       },
 

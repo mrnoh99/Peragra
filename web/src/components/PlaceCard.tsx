@@ -17,10 +17,16 @@ export function PlaceCard({
   place,
   collections,
   destination,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: {
   place: Place;
   collections: Collection[];
   destination: string;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const toggleVisited = useStore((s) => s.toggleVisited);
   const deletePlace = useStore((s) => s.deletePlace);
@@ -34,39 +40,49 @@ export function PlaceCard({
   return (
     <div className="rounded-xl border border-black/5 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span>{CATEGORY_ICON[place.category] ?? "📍"}</span>
-            <h3
-              className={`truncate font-semibold text-neutral-900 ${
-                place.visited ? "text-neutral-400 line-through" : ""
-              }`}
-            >
-              {place.name}
-            </h3>
-          </div>
-          <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-brand-600">
-            {categoryLabel}
-          </p>
-          {place.address && (
-            <p className="mt-1 text-sm text-neutral-500">{place.address}</p>
+        <div className="flex min-w-0 items-start gap-2">
+          {selectable && (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onToggleSelect}
+              className="mt-1.5 h-4 w-4 shrink-0"
+            />
           )}
-          {place.notes && <p className="mt-1 text-sm text-neutral-600">{place.notes}</p>}
-          {place.geocodeStatus === "failed" && (
-            <p className="mt-1 text-xs text-amber-600">
-              Couldn't locate this on the map — try adding a more specific address.
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span>{CATEGORY_ICON[place.category] ?? "📍"}</span>
+              <h3
+                className={`truncate font-semibold text-neutral-900 ${
+                  place.visited ? "text-neutral-400 line-through" : ""
+                }`}
+              >
+                {place.name}
+              </h3>
+            </div>
+            <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-brand-600">
+              {categoryLabel}
             </p>
-          )}
-          {place.instagramUrl && (
-            <a
-              href={place.instagramUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-pink-600 hover:underline"
-            >
-              📷 View original Instagram post
-            </a>
-          )}
+            {place.address && (
+              <p className="mt-1 text-sm text-neutral-500">{place.address}</p>
+            )}
+            {place.notes && <p className="mt-1 text-sm text-neutral-600">{place.notes}</p>}
+            {place.geocodeStatus === "failed" && (
+              <p className="mt-1 text-xs text-amber-600">
+                Couldn't locate this on the map — try adding a more specific address.
+              </p>
+            )}
+            {place.instagramUrl && (
+              <a
+                href={place.instagramUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-pink-600 hover:underline"
+              >
+                📷 View original Instagram post
+              </a>
+            )}
+          </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <button
