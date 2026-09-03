@@ -3,7 +3,7 @@ import SwiftData
 import CoreLocation
 
 private enum SortMode: String, CaseIterable, Identifiable {
-    case defaultOrder = "Default"
+    case defaultOrder = "By Category"
     case name = "Name"
     case distance = "Distance"
     var id: String { rawValue }
@@ -60,7 +60,16 @@ struct PlaceListingView: View {
     private var sorted: [Place] {
         switch sortMode {
         case .defaultOrder:
-            return filtered
+            // Grouped by category (in the app's usual category order),
+            // alphabetical by name within each group.
+            return filtered.sorted { a, b in
+                if a.category != b.category {
+                    let orderA = PlaceCategory.allCases.firstIndex(of: a.category) ?? 0
+                    let orderB = PlaceCategory.allCases.firstIndex(of: b.category) ?? 0
+                    return orderA < orderB
+                }
+                return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+            }
         case .name:
             return filtered.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         case .distance:

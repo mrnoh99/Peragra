@@ -6,6 +6,8 @@ import { PlaceCard } from "./PlaceCard";
 
 type SortMode = "default" | "name" | "distance";
 
+const CATEGORY_ORDER = new Map(PLACE_CATEGORIES.map((c, i) => [c.value, i]));
+
 export function ListingView({
   places,
   collections,
@@ -83,7 +85,14 @@ export function ListingView({
         return da - db;
       });
     }
-    return filtered;
+    // Default: grouped by category (in the app's usual category order),
+    // alphabetical by name within each group.
+    return [...filtered].sort((a, b) => {
+      if (a.category !== b.category) {
+        return CATEGORY_ORDER.get(a.category)! - CATEGORY_ORDER.get(b.category)!;
+      }
+      return a.name.localeCompare(b.name);
+    });
   }, [filtered, sortMode, distanceFrom]);
 
   return (
@@ -143,7 +152,7 @@ export function ListingView({
             onChange={(e) => setSortMode(e.target.value as SortMode)}
             className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           >
-            <option value="default">Default</option>
+            <option value="default">By Category</option>
             <option value="name">Name (A–Z)</option>
             <option value="distance">Distance from…</option>
           </select>
