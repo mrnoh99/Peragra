@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import UIKit
 
 /// Renders saved places on a Google Map, for people who've opted into
 /// Google Maps in Settings with their own API key. Implemented as a
@@ -25,11 +26,33 @@ struct GoogleMapWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let webView = WKWebView()
         webView.scrollView.isScrollEnabled = false
+        webView.navigationDelegate = context.coordinator
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         webView.loadHTMLString(Self.html(apiKey: apiKey, places: places), baseURL: URL(string: "https://maps.googleapis.com"))
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    /// Sends taps on the "Open in Google Maps" link out to the system
+    /// (Google Maps app or Safari) instead of navigating inside this
+    /// WebView, which would just replace the map with a bare page and
+    /// leave no way back.
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationAction: WKNavigationAction,
+            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+        ) {
+            if navigationAction.navigationType == .linkActivated, let url = navigationAction.request.url {
+                UIApplication.shared.open(url)
+                decisionHandler(.cancel)
+                return
+            }
+            decisionHandler(.allow)
+        }
     }
 
     private static func html(apiKey: String, places: [MarkerPlace]) -> String {
@@ -103,6 +126,15 @@ struct GoogleMapWebView: UIViewRepresentable {
                     addressEl.textContent = place.address;
                     content.appendChild(addressEl);
                   }
+                  const mapsUrl = "https://www.google.com/maps/search/?api=1&query=" +
+                    encodeURIComponent([place.name, place.address].filter(Boolean).join(", "));
+                  const linkEl = document.createElement("a");
+                  linkEl.href = mapsUrl;
+                  linkEl.textContent = "Open in Google Maps";
+                  linkEl.style.display = "block";
+                  linkEl.style.marginTop = "4px";
+                  linkEl.style.fontSize = "12px";
+                  content.appendChild(linkEl);
                   infoWindow.setContent(content);
                   infoWindow.open(map, marker);
                 });

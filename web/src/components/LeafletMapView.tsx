@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import type { Place } from "../types";
+import { googleMapsUrl } from "../lib/googleMapsUrl";
 
 const CATEGORY_ICON: Record<string, string> = {
   restaurant: "🍽️",
@@ -85,6 +86,14 @@ export function LeafletMapView({ places }: { places: Place[] }) {
                     {place.address && (
                       <p className="text-xs text-neutral-500">{place.address}</p>
                     )}
+                    <a
+                      href={googleMapsUrl(place)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-xs text-brand-600 underline"
+                    >
+                      Open in Google Maps
+                    </a>
                     {place.instagramUrl && (
                       <a
                         href={place.instagramUrl}

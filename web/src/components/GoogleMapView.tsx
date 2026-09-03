@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadGoogleMapsScript } from "../lib/googleMapsLoader";
+import { googleMapsUrl } from "../lib/googleMapsUrl";
 import type { Place } from "../types";
 
 const CATEGORY_ICON: Record<string, string> = {
@@ -67,6 +68,15 @@ export function GoogleMapView({ places, apiKey }: { places: Place[]; apiKey: str
               addressEl.textContent = place.address;
               content.appendChild(addressEl);
             }
+            const linkEl = document.createElement("a");
+            linkEl.href = googleMapsUrl(place);
+            linkEl.target = "_blank";
+            linkEl.rel = "noreferrer";
+            linkEl.textContent = "Open in Google Maps";
+            linkEl.style.display = "block";
+            linkEl.style.marginTop = "4px";
+            linkEl.style.fontSize = "12px";
+            content.appendChild(linkEl);
             infoWindow.setContent(content);
             infoWindow.open(map, marker);
           });

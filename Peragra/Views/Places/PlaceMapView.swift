@@ -119,6 +119,11 @@ private struct SelectedPlaceCard: View {
             if !place.address.isEmpty {
                 Text(place.address).font(.subheadline).foregroundStyle(.secondary)
             }
+            if let mapsURL = GoogleMapsOpener.url(for: place) {
+                Button("Open in Google Maps") { openURL(mapsURL) }
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Color.accentColor)
+            }
             if let url = place.instagramURL {
                 Button("View on Instagram") { openURL(url) }
                     .font(.caption.weight(.medium))
