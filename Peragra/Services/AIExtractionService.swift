@@ -39,7 +39,6 @@ enum AIExtractionError: LocalizedError {
 /// extension (mirrors web/src/lib/aiExtract.ts).
 enum AIExtractionService {
     private static let endpoint = URL(string: "https://factchat-cloud.mindlogic.ai/v1/gateway/chat/completions")!
-    private static let model = "claude-sonnet-5"
 
     private static let systemPrompt = """
     You extract place recommendations (restaurants, cafes, shops, attractions) from \
@@ -76,7 +75,7 @@ enum AIExtractionService {
         guard !trimmedKey.isEmpty else { throw AIExtractionError.missingAPIKey }
 
         let body: [String: Any] = [
-            "model": model,
+            "model": AISettings.shared.model,
             "messages": [
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": userContent],

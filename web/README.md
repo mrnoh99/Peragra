@@ -32,7 +32,9 @@ Same product as the native iOS app in `../Peragra`, built for the browser.
   third-party OpenAI-compatible gateway (factchat-cloud.mindlogic.ai)
   rather than Anthropic's own API, per explicit instruction — the key is
   one issued by that gateway, and caption/screenshot data passes through
-  it rather than going only to Anthropic.
+  it rather than going only to Anthropic. The model is also pickable in
+  Settings (Claude Sonnet 5 by default) from the gateway's own catalog, or
+  any other model ID it supports via a "Custom…" option.
 - **Listing** — every saved place as a card: category, address, notes,
   visited status, and a link back to the original Instagram post. Every
   saved place is editable after the fact (name, address, category, notes)

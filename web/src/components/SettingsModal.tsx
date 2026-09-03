@@ -1,12 +1,21 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Modal } from "./Modal";
+import { GATEWAY_MODELS } from "../lib/gatewayModels";
 import { useAISettingsStore } from "../store/useAISettingsStore";
 import { useMapSettingsStore, type MapProvider } from "../store/useMapSettingsStore";
+
+const CUSTOM_MODEL_VALUE = "__custom__";
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const apiKey = useAISettingsStore((s) => s.apiKey);
   const setApiKey = useAISettingsStore((s) => s.setApiKey);
   const [input, setInput] = useState(apiKey ?? "");
+
+  const model = useAISettingsStore((s) => s.model);
+  const setModel = useAISettingsStore((s) => s.setModel);
+  const isKnownModel = useMemo(() => GATEWAY_MODELS.some((m) => m.id === model), [model]);
+  const [modelSelectValue, setModelSelectValue] = useState(isKnownModel ? model : CUSTOM_MODEL_VALUE);
+  const [customModelInput, setCustomModelInput] = useState(isKnownModel ? "" : model);
 
   const mapProvider = useMapSettingsStore((s) => s.mapProvider);
   const setMapProvider = useMapSettingsStore((s) => s.setMapProvider);
@@ -56,6 +65,40 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               </button>
             )}
           </div>
+
+          <label className="mb-1 mt-4 block text-sm font-medium text-neutral-700">Model</label>
+          <select
+            value={modelSelectValue}
+            onChange={(e) => {
+              const value = e.target.value;
+              setModelSelectValue(value);
+              if (value !== CUSTOM_MODEL_VALUE) setModel(value);
+            }}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          >
+            {GATEWAY_MODELS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+            <option value={CUSTOM_MODEL_VALUE}>Custom…</option>
+          </select>
+          {modelSelectValue === CUSTOM_MODEL_VALUE && (
+            <input
+              value={customModelInput}
+              onChange={(e) => {
+                setCustomModelInput(e.target.value);
+                setModel(e.target.value);
+              }}
+              placeholder="model-id"
+              spellCheck={false}
+              className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          )}
+          <p className="mt-2 text-xs text-neutral-400">
+            The list above is from the gateway's own model catalog — pick "Custom…" for any other
+            ID it supports.
+          </p>
         </div>
 
         <div className="border-t border-neutral-100 pt-4">

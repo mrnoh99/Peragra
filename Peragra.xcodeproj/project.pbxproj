@@ -14,6 +14,7 @@
 		35624F0CA9E68832540B4790 /* GoogleMapWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7ED4E179AD24B6F86E577A6 /* GoogleMapWebView.swift */; };
 		37844E01AA604E5535516219 /* PlaceMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB844760848B91E7946DB225 /* PlaceMapView.swift */; };
 		4FEB4377B249D4E8FDDFF66F /* EditPlaceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C264C7A93EFFFAD7D5CB188 /* EditPlaceSheet.swift */; };
+		51C64D7BB7E7C26F899DDC50 /* GatewayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06814E248FCB3AB0A38050BB /* GatewayModels.swift */; };
 		58BF451C8ED81EBA0F79972F /* InstagramEmbedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A724FCCA820579F5A284A7A /* InstagramEmbedView.swift */; };
 		5D1744EAB307E60EBE13C935 /* PlaceListingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8BC485BB5A43C5FE5BF7D88 /* PlaceListingView.swift */; };
 		5FC04A3C96AA30459C221D9C /* CaptionParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 910E4474B483A1D7998FCD7A /* CaptionParser.swift */; };
@@ -37,6 +38,7 @@
 
 /* Begin PBXFileReference section */
 		01EE476FA99165081A0D4C7A /* MapSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MapSettings.swift; path = Peragra/Models/MapSettings.swift; sourceTree = "<group>"; };
+		06814E248FCB3AB0A38050BB /* GatewayModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GatewayModels.swift; path = Peragra/Models/GatewayModels.swift; sourceTree = "<group>"; };
 		09344DE79832AE4337D0FDBA /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsSheet.swift; path = Peragra/Views/SettingsSheet.swift; sourceTree = "<group>"; };
 		21B44480A4EA75D86D5BF876 /* PeragraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PeragraApp.swift; path = Peragra/App/PeragraApp.swift; sourceTree = "<group>"; };
 		27B84F76ADB57E07BE44A068 /* TripsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TripsListView.swift; path = Peragra/Views/Trips/TripsListView.swift; sourceTree = "<group>"; };
@@ -149,6 +151,7 @@
 				38284761B40F598FFC15CD78 /* PlaceCollection.swift */,
 				E1E34F8F9F0C225B0D4629E5 /* AISettings.swift */,
 				01EE476FA99165081A0D4C7A /* MapSettings.swift */,
+				06814E248FCB3AB0A38050BB /* GatewayModels.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -255,6 +258,7 @@
 				80754CE8B9D3CD5295842760 /* GoogleGeocodingService.swift in Sources */,
 				35624F0CA9E68832540B4790 /* GoogleMapWebView.swift in Sources */,
 				F7974463AE67093D8AF2EDC8 /* KMLService.swift in Sources */,
+				51C64D7BB7E7C26F899DDC50 /* GatewayModels.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

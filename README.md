@@ -37,7 +37,9 @@ web) — they don't currently sync with each other.
   (factchat-cloud.mindlogic.ai) rather than Anthropic's own API, per
   explicit instruction — the key is one issued by that gateway, and
   caption/screenshot data passes through it rather than going only to
-  Anthropic.
+  Anthropic. The model is also pickable in Settings (Claude Sonnet 5 by
+  default) from the gateway's own catalog, or any other model ID it
+  supports via a "Custom…" option.
 - **Listing** — every saved place as a card/row: category, address, notes,
   visited status, and a link back to the original Instagram post. Searchable
   and filterable by category. Every saved place is editable after the fact

@@ -7,9 +7,23 @@ struct SettingsSheet: View {
     // default value, so there's nothing else to assign here.
     init() {}
 
+    private static let customModelTag = "__custom__"
+
+    private static func initialModelSelection() -> String {
+        let current = AISettings.shared.model
+        return GatewayModels.all.contains(where: { $0.id == current }) ? current : customModelTag
+    }
+
+    private static func initialCustomModelInput() -> String {
+        let current = AISettings.shared.model
+        return GatewayModels.all.contains(where: { $0.id == current }) ? "" : current
+    }
+
     @Environment(\.dismiss) private var dismiss
     @State private var settings = AISettings.shared
     @State private var apiKeyInput: String = AISettings.shared.apiKey ?? ""
+    @State private var modelSelection: String = SettingsSheet.initialModelSelection()
+    @State private var customModelInput: String = SettingsSheet.initialCustomModelInput()
 
     @State private var mapSettings = MapSettings.shared
     @State private var mapProvider: MapProvider = MapSettings.shared.provider
@@ -22,10 +36,23 @@ struct SettingsSheet: View {
                     SecureField("API key", text: $apiKeyInput)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+
+                    Picker("Model", selection: $modelSelection) {
+                        ForEach(GatewayModels.all) { model in
+                            Text(model.label).tag(model.id)
+                        }
+                        Text("Custom…").tag(Self.customModelTag)
+                    }
+
+                    if modelSelection == Self.customModelTag {
+                        TextField("model-id", text: $customModelInput)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
                 } header: {
                     Text("AI extraction API key")
                 } footer: {
-                    Text("This app has no server — AI place extraction calls the gateway at factchat-cloud.mindlogic.ai directly from your device using this key, stored only in this device's Keychain. This is a third-party gateway, not Anthropic's own API — your caption/screenshot data passes through it. Leave blank to skip AI — the free pattern-matching extraction still works without a key.")
+                    Text("This app has no server — AI place extraction calls the gateway at factchat-cloud.mindlogic.ai directly from your device using this key, stored only in this device's Keychain. This is a third-party gateway, not Anthropic's own API — your caption/screenshot data passes through it. The model list is from the gateway's own catalog — pick \"Custom…\" for any other ID it supports. Leave the key blank to skip AI — the free pattern-matching extraction still works without one.")
                 }
 
                 if settings.apiKey != nil {
@@ -75,6 +102,8 @@ struct SettingsSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         settings.setAPIKey(apiKeyInput)
+                        let chosenModel = modelSelection == Self.customModelTag ? customModelInput : modelSelection
+                        settings.setModel(chosenModel)
                         mapSettings.setProvider(mapProvider)
                         mapSettings.setGoogleMapsAPIKey(googleMapsKeyInput)
                         dismiss()

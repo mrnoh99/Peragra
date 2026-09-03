@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { z } from "zod";
+import { useAISettingsStore } from "../store/useAISettingsStore";
 
 // Routed through a third-party OpenAI-compatible gateway
 // (factchat-cloud.mindlogic.ai) rather than Anthropic's own API — per
@@ -11,7 +12,6 @@ import { z } from "zod";
 // chat-completion form and validates the response against the schema below
 // rather than relying on any provider-specific structured-output extension.
 const GATEWAY_BASE_URL = "https://factchat-cloud.mindlogic.ai/v1/gateway";
-const GATEWAY_MODEL = "claude-sonnet-5";
 
 const PlacesSchema = z.object({
   places: z.array(
@@ -94,7 +94,7 @@ export async function extractPlacesFromText(
   const client = getClient(apiKey);
   try {
     const response = await client.chat.completions.create({
-      model: GATEWAY_MODEL,
+      model: useAISettingsStore.getState().model,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: captionText },
@@ -120,7 +120,7 @@ export async function extractPlacesFromImage(
   const client = getClient(apiKey);
   try {
     const response = await client.chat.completions.create({
-      model: GATEWAY_MODEL,
+      model: useAISettingsStore.getState().model,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         {
