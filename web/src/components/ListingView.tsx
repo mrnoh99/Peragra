@@ -2,6 +2,7 @@ import { useState } from "react";
 import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory } from "../types";
 import { useStore } from "../store/useStore";
 import { PlaceCard } from "./PlaceCard";
+import { googleMapsDirectionsUrl } from "../lib/googleMapsUrl";
 
 export function ListingView({
   places,
@@ -37,6 +38,13 @@ export function ListingView({
     updatePlacesCategory([...selectedIds], category);
     setSelectedIds(new Set());
     setIsSelecting(false);
+  }
+
+  function sendSelectedToGoogleMaps() {
+    // Keep the current list order (not selection-click order) so the
+    // resulting route reads top-to-bottom the way the list does.
+    const selectedPlaces = places.filter((p) => selectedIds.has(p.id));
+    window.open(googleMapsDirectionsUrl(selectedPlaces), "_blank", "noreferrer");
   }
 
   return (
@@ -76,6 +84,13 @@ export function ListingView({
               </option>
             ))}
           </select>
+          <button
+            onClick={sendSelectedToGoogleMaps}
+            disabled={selectedIds.size === 0}
+            className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+          >
+            🗺️ Send to Google Maps
+          </button>
         </div>
       )}
 

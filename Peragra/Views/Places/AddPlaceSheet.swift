@@ -23,6 +23,10 @@ private struct CandidateRow: Identifiable {
 }
 
 struct AddPlaceSheet: View {
+    /// Reading more screenshots than this in one AI pass gets slow and
+    /// costly for what's still just "a few saved posts" — this caps it.
+    private static let maxScreenshots = 3
+
     let trip: Trip
     var defaultCollection: PlaceCollection?
 
@@ -43,11 +47,12 @@ struct AddPlaceSheet: View {
     @State private var rows: [CandidateRow] = [CandidateRow()]
     @State private var isSaving = false
 
-    @State private var screenshotItem: PhotosPickerItem?
-    @State private var screenshotData: Data?
-    @State private var screenshotFileName: String?
+    @State private var screenshotItems: [PhotosPickerItem] = []
+    @State private var screenshotDatas: [Data] = []
     @State private var isLoadingScreenshot = false
-    @State private var isAILoading = false
+    /// Set while an AI extraction call is in flight; `total` > 1 when
+    /// reading multiple screenshots one at a time.
+    @State private var aiProgress: (current: Int, total: Int)?
     @State private var extractErrorMessage: String?
     @State private var extractResultMessage: String?
     @State private var isGuessingAddresses = false
@@ -75,14 +80,46 @@ struct AddPlaceSheet: View {
                     TextField("Paste the post's caption here…", text: $captionText, axis: .vertical)
                         .lineLimit(3...6)
 
-                    PhotosPicker(selection: $screenshotItem, matching: .images) {
-                        if isLoadingScreenshot {
-                            ProgressView()
-                        } else {
-                            Label(screenshotFileName == nil ? "Attach a screenshot" : "Replace screenshot", systemImage: "camera")
+                    if screenshotDatas.count < Self.maxScreenshots {
+                        PhotosPicker(
+                            selection: $screenshotItems,
+                            maxSelectionCount: Self.maxScreenshots - screenshotDatas.count,
+                            matching: .images
+                        ) {
+                            if isLoadingScreenshot {
+                                ProgressView()
+                            } else {
+                                Label(
+                                    screenshotDatas.isEmpty ? "Attach screenshots" : "Add another screenshot",
+                                    systemImage: "camera"
+                                )
+                            }
+                        }
+                        .disabled(isLoadingScreenshot)
+                    }
+
+                    ForEach(Array(screenshotDatas.enumerated()), id: \.offset) { index, data in
+                        HStack {
+                            if let uiImage = UIImage(data: data) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 32, height: 32)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                            Text("Screenshot \(index + 1)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button {
+                                screenshotDatas.remove(at: index)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .disabled(isLoadingScreenshot)
 
                     HStack {
                         Button("🔍 Find Places (Free)") { runPatternExtraction() }
@@ -93,19 +130,25 @@ struct AddPlaceSheet: View {
                             Button {
                                 Task { await runAIExtraction() }
                             } label: {
-                                if isAILoading {
+                                if let aiProgress, aiProgress.total > 1 {
+                                    Text("Reading \(min(aiProgress.current + 1, aiProgress.total))/\(aiProgress.total)…")
+                                } else if aiProgress != nil {
                                     ProgressView()
                                 } else {
                                     Text("✨ Find Places (AI)")
                                 }
                             }
-                            .disabled(isAILoading || (captionText.trimmingCharacters(in: .whitespaces).isEmpty && screenshotData == nil))
+                            .disabled(aiProgress != nil || (captionText.trimmingCharacters(in: .whitespaces).isEmpty && screenshotDatas.isEmpty))
                             .buttonStyle(.borderedProminent)
                         }
                     }
 
-                    if screenshotData != nil, aiSettings.apiKey == nil {
-                        Text("Add an AI extraction API key in Settings to read this screenshot — AI reads photos completely, since on-device text recognition struggles with stylized graphics.")
+                    if let aiProgress, aiProgress.total > 1 {
+                        ProgressView(value: Double(aiProgress.current), total: Double(aiProgress.total))
+                    }
+
+                    if !screenshotDatas.isEmpty, aiSettings.apiKey == nil {
+                        Text("Add an AI extraction API key in Settings to read these screenshots — AI reads photos completely, since on-device text recognition struggles with stylized graphics.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -215,11 +258,11 @@ struct AddPlaceSheet: View {
                 }
             }
             .disabled(isSaving)
-            .onChange(of: screenshotItem) { _, newItem in
-                guard let newItem else { return }
+            .onChange(of: screenshotItems) { _, newItems in
+                guard !newItems.isEmpty else { return }
                 Task {
-                    await loadScreenshot(newItem)
-                    screenshotItem = nil
+                    await loadScreenshots(newItems)
+                    screenshotItems = []
                 }
             }
             .fileImporter(
@@ -401,19 +444,30 @@ struct AddPlaceSheet: View {
         guard let apiKey = aiSettings.apiKey else { return }
         extractErrorMessage = nil
         extractResultMessage = nil
-        isAILoading = true
-        defer { isAILoading = false }
+        defer { aiProgress = nil }
 
         do {
             let results: [AIExtractedPlace]
-            if let screenshotData {
-                results = try await AIExtractionService.extractPlaces(
-                    apiKey: apiKey,
-                    imageData: screenshotData,
-                    mediaType: "image/jpeg"
-                )
+            if !screenshotDatas.isEmpty {
+                // Read one screenshot at a time (rather than in parallel)
+                // so progress reflects real completions, not just
+                // requests fired.
+                var allResults: [AIExtractedPlace] = []
+                aiProgress = (current: 0, total: screenshotDatas.count)
+                for (index, data) in screenshotDatas.enumerated() {
+                    let pageResults = try await AIExtractionService.extractPlaces(
+                        apiKey: apiKey,
+                        imageData: data,
+                        mediaType: "image/jpeg"
+                    )
+                    allResults.append(contentsOf: pageResults)
+                    aiProgress = (current: index + 1, total: screenshotDatas.count)
+                }
+                results = allResults
             } else if !captionText.trimmingCharacters(in: .whitespaces).isEmpty {
+                aiProgress = (current: 0, total: 1)
                 results = try await AIExtractionService.extractPlaces(apiKey: apiKey, captionText: captionText)
+                aiProgress = (current: 1, total: 1)
             } else {
                 extractErrorMessage = "Paste a caption or upload a screenshot first."
                 return
@@ -428,22 +482,24 @@ struct AddPlaceSheet: View {
         }
     }
 
-    private func loadScreenshot(_ item: PhotosPickerItem) async {
+    private func loadScreenshots(_ items: [PhotosPickerItem]) async {
         isLoadingScreenshot = true
         extractErrorMessage = nil
         extractResultMessage = nil
         defer { isLoadingScreenshot = false }
 
-        guard
-            let data = try? await item.loadTransferable(type: Data.self),
-            let image = UIImage(data: data),
-            let jpegData = image.jpegData(compressionQuality: 0.85)
-        else {
-            extractErrorMessage = "Couldn't read that image."
-            return
+        for item in items {
+            guard screenshotDatas.count < Self.maxScreenshots else { break }
+            guard
+                let data = try? await item.loadTransferable(type: Data.self),
+                let image = UIImage(data: data),
+                let jpegData = image.jpegData(compressionQuality: 0.85)
+            else {
+                extractErrorMessage = "Couldn't read one of those images."
+                continue
+            }
+            screenshotDatas.append(jpegData)
         }
-        screenshotData = jpegData
-        screenshotFileName = "screenshot.jpg"
     }
 
     private func save() async {

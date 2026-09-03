@@ -12,6 +12,7 @@ import {
   guessNearestAddress,
   isSupportedImageMediaType,
   AIExtractionError,
+  type AIExtractedPlace,
 } from "../lib/aiExtract";
 import { parseKmlPlaces } from "../lib/kml";
 import { useAISettingsStore } from "../store/useAISettingsStore";
@@ -35,6 +36,10 @@ interface CandidateRow {
   lat?: number;
   lng?: number;
 }
+
+/** Reading more screenshots than this in one AI pass gets slow and costly
+ * for what's still just "a few saved posts" — this caps it. */
+const MAX_SCREENSHOTS = 3;
 
 function makeRow(partial?: Partial<CandidateRow>): CandidateRow {
   return {
@@ -70,8 +75,10 @@ export function AddPlaceModal({
   const [rows, setRows] = useState<CandidateRow[]>([makeRow()]);
   const [saving, setSaving] = useState(false);
 
-  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
+  /** Set while an AI extraction call is in flight; `total` > 1 when
+   * reading multiple screenshots one at a time. */
+  const [aiProgress, setAiProgress] = useState<{ current: number; total: number } | null>(null);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extractResultMessage, setExtractResultMessage] = useState<string | null>(null);
   const [isGuessingAddresses, setIsGuessingAddresses] = useState(false);
@@ -187,12 +194,16 @@ export function AddPlaceModal({
   }
 
   function handleScreenshotChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setScreenshotFile(file);
+    const picked = Array.from(e.target.files ?? []);
+    if (picked.length === 0) return;
+    setScreenshotFiles((prev) => [...prev, ...picked].slice(0, MAX_SCREENSHOTS));
     setExtractError(null);
     setExtractResultMessage(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removeScreenshot(index: number) {
+    setScreenshotFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   function handleKmlFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -243,18 +254,28 @@ export function AddPlaceModal({
     if (!apiKey) return;
     setExtractError(null);
     setExtractResultMessage(null);
-    setAiLoading(true);
     try {
-      let results;
-      if (screenshotFile) {
-        const mediaType = screenshotFile.type;
-        if (!isSupportedImageMediaType(mediaType)) {
-          throw new AIExtractionError("That image format isn't supported — try a JPEG or PNG.");
+      let results: AIExtractedPlace[];
+      if (screenshotFiles.length > 0) {
+        // Read one screenshot at a time (rather than in parallel) so
+        // progress reflects real completions, not just requests fired.
+        const allResults: AIExtractedPlace[] = [];
+        setAiProgress({ current: 0, total: screenshotFiles.length });
+        for (const file of screenshotFiles) {
+          const mediaType = file.type;
+          if (!isSupportedImageMediaType(mediaType)) {
+            throw new AIExtractionError("That image format isn't supported — try a JPEG or PNG.");
+          }
+          const base64 = await fileToBase64(file);
+          const fileResults = await extractPlacesFromImage(apiKey, base64, mediaType);
+          allResults.push(...fileResults);
+          setAiProgress((prev) => (prev ? { current: prev.current + 1, total: prev.total } : prev));
         }
-        const base64 = await fileToBase64(screenshotFile);
-        results = await extractPlacesFromImage(apiKey, base64, mediaType);
+        results = allResults;
       } else if (captionText.trim()) {
+        setAiProgress({ current: 0, total: 1 });
         results = await extractPlacesFromText(apiKey, captionText);
+        setAiProgress({ current: 1, total: 1 });
       } else {
         setExtractError("Paste a caption or upload a screenshot first.");
         return;
@@ -263,7 +284,7 @@ export function AddPlaceModal({
     } catch (error) {
       setExtractError(error instanceof AIExtractionError ? error.message : "AI extraction failed.");
     } finally {
-      setAiLoading(false);
+      setAiProgress(null);
     }
   }
 
@@ -369,17 +390,35 @@ export function AddPlaceModal({
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              multiple
               onChange={handleScreenshotChange}
               className="hidden"
               id="caption-screenshot-input"
             />
-            <label
-              htmlFor="caption-screenshot-input"
-              className="cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
-            >
-              📷 {screenshotFile ? "Replace screenshot" : "Upload a screenshot"}
-            </label>
-            {screenshotFile && <span className="text-xs text-neutral-400">{screenshotFile.name}</span>}
+            {screenshotFiles.length < MAX_SCREENSHOTS && (
+              <label
+                htmlFor="caption-screenshot-input"
+                className="cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+              >
+                📷 {screenshotFiles.length === 0 ? "Upload screenshots" : "Add another screenshot"}
+              </label>
+            )}
+            {screenshotFiles.map((file, i) => (
+              <span
+                key={`${file.name}-${i}`}
+                className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-600"
+              >
+                {file.name}
+                <button
+                  type="button"
+                  onClick={() => removeScreenshot(i)}
+                  aria-label={`Remove ${file.name}`}
+                  className="text-neutral-400 hover:text-red-500"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
 
             <span className="mx-1 h-4 w-px bg-neutral-200" />
 
@@ -395,20 +434,36 @@ export function AddPlaceModal({
               <button
                 type="button"
                 onClick={handleAIExtract}
-                disabled={aiLoading || (!captionText.trim() && !screenshotFile)}
+                disabled={aiProgress !== null || (!captionText.trim() && screenshotFiles.length === 0)}
                 className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {aiLoading ? "Asking AI…" : "✨ Find places (AI)"}
+                {aiProgress
+                  ? aiProgress.total > 1
+                    ? `Reading screenshot ${Math.min(aiProgress.current + 1, aiProgress.total)}/${aiProgress.total}…`
+                    : "Asking AI…"
+                  : "✨ Find places (AI)"}
               </button>
             )}
           </div>
-          {screenshotFile && !apiKey && (
+          {screenshotFiles.length > 0 && screenshotFiles.length < MAX_SCREENSHOTS && (
+            <p className="mt-2 text-xs text-neutral-400">Up to {MAX_SCREENSHOTS} screenshots.</p>
+          )}
+          {screenshotFiles.length > 0 && !apiKey && (
             <p className="mt-2 text-xs text-neutral-400">
-              Add an AI extraction API key in Settings to read this screenshot — AI reads photos
+              Add an AI extraction API key in Settings to read these screenshots — AI reads photos
               completely, since on-device text recognition struggles with stylized graphics.
             </p>
           )}
         </div>
+
+        {aiProgress && aiProgress.total > 1 && (
+          <div className="h-1 w-full overflow-hidden rounded-full bg-neutral-100">
+            <div
+              className="h-full rounded-full bg-brand-500 transition-all"
+              style={{ width: `${(aiProgress.current / aiProgress.total) * 100}%` }}
+            />
+          </div>
+        )}
 
         {(extractResultMessage || extractError || isGuessingAddresses) && (
           <p className={`text-xs ${extractError ? "text-amber-600" : "text-neutral-400"}`}>

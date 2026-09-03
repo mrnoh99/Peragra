@@ -8,6 +8,7 @@ struct PlaceListingView: View {
     let distancesByID: [UUID: Double]
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openURL) private var openURL
     @State private var isSelecting = false
     @State private var selectedIDs: Set<UUID> = []
 
@@ -79,6 +80,14 @@ struct PlaceListingView: View {
                     .font(.subheadline.weight(.medium))
             }
             .disabled(selectedIDs.isEmpty)
+
+            Button {
+                sendSelectedToGoogleMaps()
+            } label: {
+                Label("Send to Maps", systemImage: "map")
+                    .font(.subheadline.weight(.medium))
+            }
+            .disabled(selectedIDs.isEmpty)
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
@@ -99,6 +108,14 @@ struct PlaceListingView: View {
         }
         selectedIDs.removeAll()
         isSelecting = false
+    }
+
+    private func sendSelectedToGoogleMaps() {
+        // Keep the current list order (not selection-tap order) so the
+        // resulting route reads top-to-bottom the way the list does.
+        let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
+        guard let url = GoogleMapsOpener.directionsURL(for: selectedPlaces) else { return }
+        openURL(url)
     }
 
     private func delete(at offsets: IndexSet) {
