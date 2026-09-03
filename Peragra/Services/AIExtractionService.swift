@@ -8,6 +8,8 @@ struct AIExtractedPlace: Decodable {
 enum AIExtractionError: LocalizedError {
     case missingAPIKey
     case invalidResponse
+    case authenticationFailed
+    case rateLimited
     case apiError(String)
     case decodingFailed
 
@@ -17,6 +19,10 @@ enum AIExtractionError: LocalizedError {
             return "No API key configured — add one in Settings."
         case .invalidResponse:
             return "Couldn't reach the AI extraction service."
+        case .authenticationFailed:
+            return "That API key was rejected — check it in Settings."
+        case .rateLimited:
+            return "Rate limited by the gateway — try again in a moment."
         case .apiError(let message):
             return "Gateway error: \(message)"
         case .decodingFailed:
@@ -38,7 +44,14 @@ enum AIExtractionError: LocalizedError {
 /// manually rather than relying on any provider-specific structured-output
 /// extension (mirrors web/src/lib/aiExtract.ts).
 enum AIExtractionService {
-    private static let endpoint = URL(string: "https://factchat-cloud.mindlogic.ai/v1/gateway/chat/completions")!
+    // Trailing slash matters — the gateway's documented endpoint is
+    // "/v1/gateway/chat/completions/" and a request without one risks a
+    // 404 or a broken POST-to-GET redirect on a Django-style backend that
+    // enforces trailing slashes (confirmed as a real discrepancy while
+    // testing the equivalent web request against a local mock server —
+    // the openai npm SDK's own path-building drops the trailing slash by
+    // default, which is what led to catching this here too).
+    private static let endpoint = URL(string: "https://factchat-cloud.mindlogic.ai/v1/gateway/chat/completions/")!
 
     private static let systemPrompt = """
     You extract place recommendations (restaurants, cafes, shops, attractions) from \
@@ -97,6 +110,8 @@ enum AIExtractionService {
         let json = rawJSON as? [String: Any]
 
         guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 401 { throw AIExtractionError.authenticationFailed }
+            if httpResponse.statusCode == 429 { throw AIExtractionError.rateLimited }
             let errorObject = json?["error"] as? [String: Any]
             let message = (errorObject?["message"] as? String) ?? (json?["error"] as? String)
             throw AIExtractionError.apiError(message ?? "HTTP \(httpResponse.statusCode)")

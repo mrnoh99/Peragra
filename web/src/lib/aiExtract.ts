@@ -7,11 +7,23 @@ import { useAISettingsStore } from "../store/useAISettingsStore";
 // explicit instruction. This means captions/screenshots sent for AI
 // extraction pass through that gateway, not just Anthropic directly, and
 // the API key entered in Settings is a key issued by that gateway, not an
-// Anthropic key. The gateway's actual feature support (vision passthrough,
-// JSON mode) is undocumented from here, so this prompts for JSON in plain
-// chat-completion form and validates the response against the schema below
-// rather than relying on any provider-specific structured-output extension.
+// Anthropic key. Per the gateway's own docs, JSON mode / structured
+// output isn't among its listed endpoints, so this prompts for JSON in
+// plain chat-completion form and validates the response against the
+// schema below rather than relying on a provider-specific extension.
 const GATEWAY_BASE_URL = "https://factchat-cloud.mindlogic.ai/v1/gateway";
+
+// The documented endpoint is "/v1/gateway/chat/completions/" — WITH a
+// trailing slash. The openai SDK's own client.chat.completions.create()
+// always requests the path without one (confirmed by testing against a
+// local mock server), which risks a 404 or a broken POST-to-GET redirect
+// on a Django-style backend that enforces trailing slashes. Calling the
+// SDK's lower-level client.post() with the exact path sidesteps that.
+const CHAT_COMPLETIONS_PATH = "/chat/completions/";
+
+interface GatewayChatCompletionResponse {
+  choices?: { message?: { content?: string | null } }[];
+}
 
 const PlacesSchema = z.object({
   places: z.array(
@@ -93,14 +105,16 @@ export async function extractPlacesFromText(
 ): Promise<AIExtractedPlace[]> {
   const client = getClient(apiKey);
   try {
-    const response = await client.chat.completions.create({
-      model: useAISettingsStore.getState().model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: captionText },
-      ],
+    const response = await client.post<GatewayChatCompletionResponse>(CHAT_COMPLETIONS_PATH, {
+      body: {
+        model: useAISettingsStore.getState().model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: captionText },
+        ],
+      },
     });
-    return parsePlacesResponse(response.choices[0]?.message.content);
+    return parsePlacesResponse(response.choices?.[0]?.message?.content);
   } catch (error) {
     if (error instanceof AIExtractionError) throw error;
     throw toAIExtractionError(error);
@@ -119,20 +133,22 @@ export async function extractPlacesFromImage(
 ): Promise<AIExtractedPlace[]> {
   const client = getClient(apiKey);
   try {
-    const response = await client.chat.completions.create({
-      model: useAISettingsStore.getState().model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Extract every place recommended in this screenshot's caption." },
-            { type: "image_url", image_url: { url: `data:${mediaType};base64,${imageBase64}` } },
-          ],
-        },
-      ],
+    const response = await client.post<GatewayChatCompletionResponse>(CHAT_COMPLETIONS_PATH, {
+      body: {
+        model: useAISettingsStore.getState().model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Extract every place recommended in this screenshot's caption." },
+              { type: "image_url", image_url: { url: `data:${mediaType};base64,${imageBase64}` } },
+            ],
+          },
+        ],
+      },
     });
-    return parsePlacesResponse(response.choices[0]?.message.content);
+    return parsePlacesResponse(response.choices?.[0]?.message?.content);
   } catch (error) {
     if (error instanceof AIExtractionError) throw error;
     throw toAIExtractionError(error);
