@@ -3,10 +3,15 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { AddPlaceModal } from "../components/AddPlaceModal";
 import { ListingView } from "../components/ListingView";
 import { MapView } from "../components/MapView";
+import { PlaceFilterBar, type SortMode } from "../components/PlaceFilterBar";
+import { distanceKm } from "../lib/distance";
 import { generateKML } from "../lib/kml";
 import { useStore } from "../store/useStore";
+import { PLACE_CATEGORIES, type Place, type PlaceCategory } from "../types";
 
 type Tab = "listing" | "map";
+
+const CATEGORY_ORDER = new Map(PLACE_CATEGORIES.map((c, i) => [c.value, i]));
 
 export function TripDetailPage() {
   const { tripId } = useParams<{ tripId: string }>();
@@ -31,6 +36,16 @@ export function TripDetailPage() {
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState("");
 
+  // Search/category/visited/favorites/sort — shared by the Listing and Map
+  // tabs (via PlaceFilterBar below) so switching tabs doesn't reset what
+  // you were looking at, and the map can be narrowed down the same way.
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<PlaceCategory | "all">("all");
+  const [hideVisited, setHideVisited] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>("default");
+  const [distanceFromId, setDistanceFromId] = useState<string>("");
+
   const activeCollection = useMemo(
     () => collections.find((c) => c.id === activeCollectionId) ?? null,
     [collections, activeCollectionId],
@@ -46,18 +61,90 @@ export function TripDetailPage() {
     [places, activeCollectionId],
   );
 
-  const visitedCount = useMemo(() => places.filter((p) => p.visited).length, [places]);
-  const locatedCount = useMemo(
-    () => visiblePlaces.filter((p) => p.lat !== null).length,
+  // Everything except the category filter itself — used both to build the
+  // list and to count how many places each category option would show, so
+  // those counts reflect the other active filters rather than going stale
+  // next to them.
+  const preCategoryFiltered = useMemo(() => {
+    return visiblePlaces.filter((p) => {
+      if (hideVisited && p.visited) return false;
+      if (favoritesOnly && !p.favorite) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        if (
+          !p.name.toLowerCase().includes(q) &&
+          !p.address.toLowerCase().includes(q) &&
+          !p.notes.toLowerCase().includes(q)
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [visiblePlaces, hideVisited, favoritesOnly, search]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<PlaceCategory, number>();
+    for (const p of preCategoryFiltered) {
+      counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
+    }
+    return counts;
+  }, [preCategoryFiltered]);
+
+  const categoryFiltered = useMemo(() => {
+    if (categoryFilter === "all") return preCategoryFiltered;
+    return preCategoryFiltered.filter((p) => p.category === categoryFilter);
+  }, [preCategoryFiltered, categoryFilter]);
+
+  const distanceFrom = useMemo(() => {
+    const ref = visiblePlaces.find((p) => p.id === distanceFromId);
+    return ref && ref.lat !== null && ref.lng !== null ? { lat: ref.lat, lng: ref.lng } : null;
+  }, [visiblePlaces, distanceFromId]);
+
+  const sorted = useMemo(() => {
+    if (sortMode === "name") {
+      return [...categoryFiltered].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    if (sortMode === "distance" && distanceFrom) {
+      return [...categoryFiltered].sort((a, b) => {
+        const da = a.lat !== null && a.lng !== null ? distanceKm(distanceFrom, { lat: a.lat, lng: a.lng }) : Infinity;
+        const db = b.lat !== null && b.lng !== null ? distanceKm(distanceFrom, { lat: b.lat, lng: b.lng }) : Infinity;
+        return da - db;
+      });
+    }
+    // Default: grouped by category (in the app's usual category order),
+    // alphabetical by name within each group.
+    return [...categoryFiltered].sort((a, b) => {
+      if (a.category !== b.category) {
+        return CATEGORY_ORDER.get(a.category)! - CATEGORY_ORDER.get(b.category)!;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [categoryFiltered, sortMode, distanceFrom]);
+
+  const distancesById = useMemo(() => {
+    if (sortMode !== "distance" || !distanceFrom) return new Map<string, number>();
+    const map = new Map<string, number>();
+    for (const p of sorted) {
+      if (p.lat !== null && p.lng !== null) map.set(p.id, distanceKm(distanceFrom, { lat: p.lat, lng: p.lng }));
+    }
+    return map;
+  }, [sorted, sortMode, distanceFrom]);
+
+  const locatablePlaces = useMemo(
+    () => visiblePlaces.filter((p): p is Place & { lat: number; lng: number } => p.lat !== null && p.lng !== null),
     [visiblePlaces],
   );
+
+  const visitedCount = useMemo(() => places.filter((p) => p.visited).length, [places]);
+  const locatedCount = useMemo(() => sorted.filter((p) => p.lat !== null).length, [sorted]);
 
   function exportToGoogleMaps() {
     if (!trip) return;
     const title = activeCollection
       ? `Peragra - ${trip.name} - ${activeCollection.name}`
       : `Peragra - ${trip.name}`;
-    const kml = generateKML(title, visiblePlaces);
+    const kml = generateKML(title, sorted);
     const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -235,15 +322,32 @@ export function TripDetailPage() {
                 Save your first place
               </button>
             </div>
-          ) : tab === "listing" ? (
-            <ListingView
-              places={places}
-              collections={collections}
-              activeCollectionId={activeCollectionId}
-              destination={trip.destination}
-            />
           ) : (
-            <MapView places={visiblePlaces} />
+            <>
+              <PlaceFilterBar
+                search={search}
+                onSearchChange={setSearch}
+                categoryFilter={categoryFilter}
+                onCategoryFilterChange={setCategoryFilter}
+                categoryCounts={categoryCounts}
+                totalCount={preCategoryFiltered.length}
+                hideVisited={hideVisited}
+                onHideVisitedChange={setHideVisited}
+                favoritesOnly={favoritesOnly}
+                onFavoritesOnlyChange={setFavoritesOnly}
+                sortMode={sortMode}
+                onSortModeChange={setSortMode}
+                distanceFromId={distanceFromId}
+                onDistanceFromIdChange={setDistanceFromId}
+                distanceFromResolved={distanceFrom !== null}
+                locatablePlaces={locatablePlaces}
+              />
+              {tab === "listing" ? (
+                <ListingView places={sorted} collections={collections} destination={trip.destination} distancesById={distancesById} />
+              ) : (
+                <MapView places={sorted} />
+              )}
+            </>
           )}
         </div>
       </div>

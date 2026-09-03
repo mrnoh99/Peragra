@@ -1,30 +1,20 @@
-import { useMemo, useState } from "react";
-import { distanceKm } from "../lib/distance";
+import { useState } from "react";
 import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory } from "../types";
 import { useStore } from "../store/useStore";
 import { PlaceCard } from "./PlaceCard";
 
-type SortMode = "default" | "name" | "distance";
-
-const CATEGORY_ORDER = new Map(PLACE_CATEGORIES.map((c, i) => [c.value, i]));
-
 export function ListingView({
   places,
   collections,
-  activeCollectionId,
   destination,
+  distancesById,
 }: {
+  /** Already filtered and sorted by the parent (shared with the Map tab). */
   places: Place[];
   collections: Collection[];
-  activeCollectionId: string | null;
   destination: string;
+  distancesById: Map<string, number>;
 }) {
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<PlaceCategory | "all">("all");
-  const [hideVisited, setHideVisited] = useState(false);
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>("default");
-  const [distanceFromId, setDistanceFromId] = useState<string>("");
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
@@ -49,105 +39,9 @@ export function ListingView({
     setIsSelecting(false);
   }
 
-  // Everything except the category filter itself — used both to build the
-  // list and to count how many places each category option would show,
-  // so those counts reflect the other active filters (search, favorites,
-  // ...) rather than going stale next to them.
-  const preCategoryFiltered = useMemo(() => {
-    return places.filter((p) => {
-      if (activeCollectionId && !p.collectionIds.includes(activeCollectionId)) return false;
-      if (hideVisited && p.visited) return false;
-      if (favoritesOnly && !p.favorite) return false;
-      if (search.trim()) {
-        const q = search.trim().toLowerCase();
-        if (
-          !p.name.toLowerCase().includes(q) &&
-          !p.address.toLowerCase().includes(q) &&
-          !p.notes.toLowerCase().includes(q)
-        ) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [places, activeCollectionId, hideVisited, favoritesOnly, search]);
-
-  const categoryCounts = useMemo(() => {
-    const counts = new Map<PlaceCategory, number>();
-    for (const p of preCategoryFiltered) {
-      counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
-    }
-    return counts;
-  }, [preCategoryFiltered]);
-
-  const filtered = useMemo(() => {
-    if (categoryFilter === "all") return preCategoryFiltered;
-    return preCategoryFiltered.filter((p) => p.category === categoryFilter);
-  }, [preCategoryFiltered, categoryFilter]);
-
-  const distanceFrom = useMemo(() => {
-    const ref = places.find((p) => p.id === distanceFromId);
-    return ref && ref.lat !== null && ref.lng !== null ? { lat: ref.lat, lng: ref.lng } : null;
-  }, [places, distanceFromId]);
-
-  const sorted = useMemo(() => {
-    if (sortMode === "name") {
-      return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-    }
-    if (sortMode === "distance" && distanceFrom) {
-      return [...filtered].sort((a, b) => {
-        const da = a.lat !== null && a.lng !== null ? distanceKm(distanceFrom, { lat: a.lat, lng: a.lng }) : Infinity;
-        const db = b.lat !== null && b.lng !== null ? distanceKm(distanceFrom, { lat: b.lat, lng: b.lng }) : Infinity;
-        return da - db;
-      });
-    }
-    // Default: grouped by category (in the app's usual category order),
-    // alphabetical by name within each group.
-    return [...filtered].sort((a, b) => {
-      if (a.category !== b.category) {
-        return CATEGORY_ORDER.get(a.category)! - CATEGORY_ORDER.get(b.category)!;
-      }
-      return a.name.localeCompare(b.name);
-    });
-  }, [filtered, sortMode, distanceFrom]);
-
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search saved places…"
-          className="min-w-[180px] flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-        />
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value as PlaceCategory | "all")}
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-        >
-          <option value="all">All categories ({preCategoryFiltered.length})</option>
-          {PLACE_CATEGORIES.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label} ({categoryCounts.get(c.value) ?? 0})
-            </option>
-          ))}
-        </select>
-        <label className="flex items-center gap-1.5 text-sm text-neutral-600">
-          <input
-            type="checkbox"
-            checked={hideVisited}
-            onChange={(e) => setHideVisited(e.target.checked)}
-          />
-          Hide visited
-        </label>
-        <label className="flex items-center gap-1.5 text-sm text-neutral-600">
-          <input
-            type="checkbox"
-            checked={favoritesOnly}
-            onChange={(e) => setFavoritesOnly(e.target.checked)}
-          />
-          ★ Favorites only
-        </label>
+      <div className="mb-4 flex justify-end">
         <button
           onClick={toggleSelecting}
           className={`rounded-lg border px-3 py-2 text-sm font-medium ${
@@ -158,42 +52,6 @@ export function ListingView({
         >
           {isSelecting ? "Cancel" : "Select"}
         </button>
-      </div>
-
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-1.5 text-sm text-neutral-600">
-          Sort by
-          <select
-            value={sortMode}
-            onChange={(e) => setSortMode(e.target.value as SortMode)}
-            className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-          >
-            <option value="default">By Category</option>
-            <option value="name">Name (A–Z)</option>
-            <option value="distance">Distance from…</option>
-          </select>
-        </label>
-        {sortMode === "distance" && (
-          <select
-            value={distanceFromId}
-            onChange={(e) => setDistanceFromId(e.target.value)}
-            className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-          >
-            <option value="">Choose a place…</option>
-            {places
-              .filter((p) => p.lat !== null && p.lng !== null)
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-          </select>
-        )}
-        {sortMode === "distance" && !distanceFrom && distanceFromId === "" && (
-          <span className="text-xs text-neutral-400">
-            Pick a located place to sort the rest by distance from it.
-          </span>
-        )}
       </div>
 
       {isSelecting && (
@@ -221,13 +79,13 @@ export function ListingView({
         </div>
       )}
 
-      {sorted.length === 0 ? (
+      {places.length === 0 ? (
         <p className="rounded-xl border border-dashed border-neutral-300 bg-white/50 py-10 text-center text-sm text-neutral-500">
           No places match yet.
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {sorted.map((place) => (
+          {places.map((place) => (
             <PlaceCard
               key={place.id}
               place={place}
@@ -236,11 +94,7 @@ export function ListingView({
               selectable={isSelecting}
               selected={selectedIds.has(place.id)}
               onToggleSelect={() => toggleSelected(place.id)}
-              distanceKm={
-                sortMode === "distance" && distanceFrom && place.lat !== null && place.lng !== null
-                  ? distanceKm(distanceFrom, { lat: place.lat, lng: place.lng })
-                  : undefined
-              }
+              distanceKm={distancesById.get(place.id)}
             />
           ))}
         </div>
