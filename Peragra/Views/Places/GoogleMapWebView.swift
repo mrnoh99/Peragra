@@ -22,6 +22,9 @@ struct GoogleMapWebView: UIViewRepresentable {
 
     let apiKey: String
     let places: [MarkerPlace]
+    /// The trip's destination city — used as a fallback qualifier for a
+    /// marker's "Open in Google Maps" link when that place has no address.
+    let tripDestination: String
 
     func makeUIView(context: Context) -> WKWebView {
         let webView = WKWebView()
@@ -31,7 +34,10 @@ struct GoogleMapWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        webView.loadHTMLString(Self.html(apiKey: apiKey, places: places), baseURL: URL(string: "https://maps.googleapis.com"))
+        webView.loadHTMLString(
+            Self.html(apiKey: apiKey, places: places, tripDestination: tripDestination),
+            baseURL: URL(string: "https://maps.googleapis.com")
+        )
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -55,12 +61,18 @@ struct GoogleMapWebView: UIViewRepresentable {
         }
     }
 
-    private static func html(apiKey: String, places: [MarkerPlace]) -> String {
+    private static func html(apiKey: String, places: [MarkerPlace], tripDestination: String) -> String {
         let placesJSON: String
         if let data = try? JSONEncoder().encode(places), let json = String(data: data, encoding: .utf8) {
             placesJSON = json.replacingOccurrences(of: "</", with: "<\\/")
         } else {
             placesJSON = "[]"
+        }
+        let tripDestinationJSON: String
+        if let data = try? JSONEncoder().encode(tripDestination), let json = String(data: data, encoding: .utf8) {
+            tripDestinationJSON = json.replacingOccurrences(of: "</", with: "<\\/")
+        } else {
+            tripDestinationJSON = "\"\""
         }
 
         return """
@@ -76,6 +88,7 @@ struct GoogleMapWebView: UIViewRepresentable {
           <div id="map"></div>
           <script>
             const places = \(placesJSON);
+            const tripDestination = \(tripDestinationJSON);
             let mapReady = false;
 
             // A bad/restricted API key never calls initMap and doesn't
@@ -126,8 +139,15 @@ struct GoogleMapWebView: UIViewRepresentable {
                     addressEl.textContent = place.address;
                     content.appendChild(addressEl);
                   }
+                  // A bare business name is often too ambiguous for Google
+                  // Maps to resolve into an actual point when there's no
+                  // address to go with it — fall back to qualifying it
+                  // with the trip's destination city instead.
+                  const mapsQuery = place.address
+                    ? [place.name, place.address].filter(Boolean).join(", ")
+                    : [place.name, tripDestination].filter(Boolean).join(", ");
                   const mapsUrl = "https://www.google.com/maps/search/?api=1&query=" +
-                    encodeURIComponent([place.name, place.address].filter(Boolean).join(", "));
+                    encodeURIComponent(mapsQuery);
                   const linkEl = document.createElement("a");
                   linkEl.href = mapsUrl;
                   linkEl.textContent = "Open in Google Maps";

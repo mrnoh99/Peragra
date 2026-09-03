@@ -10,7 +10,7 @@ import type { Place } from "../types";
  * needs the user's own API key). Falls back to free automatically if
  * Google is selected but no key is set.
  */
-export function MapView({ places }: { places: Place[] }) {
+export function MapView({ places, destination }: { places: Place[]; destination: string }) {
   const mapProvider = useMapSettingsStore((s) => s.mapProvider);
   const googleMapsApiKey = useMapSettingsStore((s) => s.googleMapsApiKey);
 
@@ -18,7 +18,7 @@ export function MapView({ places }: { places: Place[] }) {
   const unlocated = places.length - locatedCount;
 
   if (mapProvider !== "google" || !googleMapsApiKey) {
-    return <LeafletMapView places={places} />;
+    return <LeafletMapView places={places} destination={destination} />;
   }
 
   return (
@@ -35,7 +35,7 @@ export function MapView({ places }: { places: Place[] }) {
             No located places yet — save a place with an address to see it here.
           </div>
         ) : (
-          <GoogleMapView places={places} apiKey={googleMapsApiKey} />
+          <GoogleMapView places={places} apiKey={googleMapsApiKey} destination={destination} />
         )}
       </div>
     </div>

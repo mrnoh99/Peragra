@@ -345,7 +345,7 @@ export function TripDetailPage() {
               {tab === "listing" ? (
                 <ListingView places={sorted} collections={collections} destination={trip.destination} distancesById={distancesById} />
               ) : (
-                <MapView places={sorted} />
+                <MapView places={sorted} destination={trip.destination} />
               )}
             </>
           )}

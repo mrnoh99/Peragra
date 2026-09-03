@@ -1,7 +1,18 @@
 import type { Place } from "../types";
 
-function placeQuery(place: Place): string {
-  return [place.name, place.address].filter(Boolean).join(", ");
+/**
+ * A search/route query for one place. Prefers "name, address"; when a
+ * place has no address on file, a bare name is often too ambiguous for
+ * Google Maps to resolve into an actual routable point (confirmed by a
+ * real "can't find a way to the specified destination" failure on a
+ * name-only waypoint) — qualifying it with the trip's destination city
+ * gives Maps something to disambiguate against.
+ */
+function placeQuery(place: Place, tripDestination?: string): string {
+  if (place.address) {
+    return [place.name, place.address].filter(Boolean).join(", ");
+  }
+  return [place.name, tripDestination].filter(Boolean).join(", ");
 }
 
 /**
@@ -10,8 +21,8 @@ function placeQuery(place: Place): string {
  * address" rather than the geocoded lat/lng, so the map shows a readable
  * label instead of raw coordinates.
  */
-export function googleMapsUrl(place: Place): string {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeQuery(place))}`;
+export function googleMapsUrl(place: Place, tripDestination?: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeQuery(place, tripDestination))}`;
 }
 
 /**
@@ -19,8 +30,8 @@ export function googleMapsUrl(place: Place): string {
  * last one as the destination, everything before it as waypoints. Origin
  * is left unset so Google Maps starts from wherever the user currently is.
  */
-export function googleMapsDirectionsUrl(places: Place[]): string {
-  const queries = places.map(placeQuery).filter((q) => q.length > 0);
+export function googleMapsDirectionsUrl(places: Place[], tripDestination?: string): string {
+  const queries = places.map((p) => placeQuery(p, tripDestination)).filter((q) => q.length > 0);
   if (queries.length === 0) return "https://www.google.com/maps";
 
   const destination = queries[queries.length - 1];

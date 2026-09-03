@@ -44,7 +44,7 @@ export function ListingView({
     // Keep the current list order (not selection-click order) so the
     // resulting route reads top-to-bottom the way the list does.
     const selectedPlaces = places.filter((p) => selectedIds.has(p.id));
-    window.open(googleMapsDirectionsUrl(selectedPlaces), "_blank", "noreferrer");
+    window.open(googleMapsDirectionsUrl(selectedPlaces, destination), "_blank", "noreferrer");
   }
 
   return (

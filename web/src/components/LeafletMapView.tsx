@@ -42,7 +42,7 @@ function FitBounds({ points }: { points: [number, number][] }) {
   return null;
 }
 
-export function LeafletMapView({ places }: { places: Place[] }) {
+export function LeafletMapView({ places, destination }: { places: Place[]; destination: string }) {
   const located = useMemo(
     () => places.filter((p): p is Place & { lat: number; lng: number } => p.lat !== null && p.lng !== null),
     [places],
@@ -87,7 +87,7 @@ export function LeafletMapView({ places }: { places: Place[] }) {
                       <p className="text-xs text-neutral-500">{place.address}</p>
                     )}
                     <a
-                      href={googleMapsUrl(place)}
+                      href={googleMapsUrl(place, destination)}
                       target="_blank"
                       rel="noreferrer"
                       className="block text-xs text-brand-600 underline"

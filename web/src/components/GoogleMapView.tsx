@@ -20,7 +20,15 @@ const CATEGORY_ICON: Record<string, string> = {
  * adding wrapper libraries where a plain script tag + imperative API call
  * does the job, same as the Instagram embed).
  */
-export function GoogleMapView({ places, apiKey }: { places: Place[]; apiKey: string }) {
+export function GoogleMapView({
+  places,
+  apiKey,
+  destination,
+}: {
+  places: Place[];
+  apiKey: string;
+  destination: string;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loadError, setLoadError] = useState(false);
   const located = useMemo(
@@ -69,7 +77,7 @@ export function GoogleMapView({ places, apiKey }: { places: Place[]; apiKey: str
               content.appendChild(addressEl);
             }
             const linkEl = document.createElement("a");
-            linkEl.href = googleMapsUrl(place);
+            linkEl.href = googleMapsUrl(place, destination);
             linkEl.target = "_blank";
             linkEl.rel = "noreferrer";
             linkEl.textContent = "Open in Google Maps";
@@ -91,7 +99,7 @@ export function GoogleMapView({ places, apiKey }: { places: Place[]; apiKey: str
     return () => {
       cancelled = true;
     };
-  }, [apiKey, located]);
+  }, [apiKey, located, destination]);
 
   if (loadError) {
     return (

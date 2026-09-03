@@ -3,12 +3,14 @@ import MapKit
 
 struct PlaceMapView: View {
     let places: [Place]
+    let destination: String
 
     // Explicit, so this view's access level never depends on Swift's
     // synthesized-memberwise-init rules around private stored properties
     // elsewhere in the type (bit us once already on AddPlaceSheet).
-    init(places: [Place]) {
+    init(places: [Place], destination: String) {
         self.places = places
+        self.destination = destination
     }
 
     @State private var cameraPosition: MapCameraPosition = .automatic
@@ -44,7 +46,7 @@ struct PlaceMapView: View {
                 )
                 .frame(maxHeight: .infinity)
             } else if mapSettings.isGoogleActive, let apiKey = mapSettings.googleMapsAPIKey {
-                GoogleMapWebView(apiKey: apiKey, places: located.map(googleMarker))
+                GoogleMapWebView(apiKey: apiKey, places: located.map(googleMarker), tripDestination: destination)
             } else {
                 Map(position: $cameraPosition, selection: $selectedPlace) {
                     ForEach(located) { place in
@@ -59,7 +61,7 @@ struct PlaceMapView: View {
                 }
                 .safeAreaInset(edge: .bottom) {
                     if let selectedPlace {
-                        SelectedPlaceCard(place: selectedPlace)
+                        SelectedPlaceCard(place: selectedPlace, destination: destination)
                             .padding()
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
@@ -111,6 +113,7 @@ struct PlaceMapView: View {
 
 private struct SelectedPlaceCard: View {
     let place: Place
+    let destination: String
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -119,7 +122,7 @@ private struct SelectedPlaceCard: View {
             if !place.address.isEmpty {
                 Text(place.address).font(.subheadline).foregroundStyle(.secondary)
             }
-            if let mapsURL = GoogleMapsOpener.url(for: place) {
+            if let mapsURL = GoogleMapsOpener.url(for: place, tripDestination: destination) {
                 Button("Open in Google Maps") { openURL(mapsURL) }
                     .font(.caption.weight(.medium))
                     .foregroundStyle(Color.accentColor)

@@ -159,9 +159,9 @@ struct TripDetailView: View {
                     locatablePlaces: locatablePlaces
                 )
                 if tab == .listing {
-                    PlaceListingView(places: sortedPlaces, allCollections: collections, distancesByID: distancesByID)
+                    PlaceListingView(places: sortedPlaces, allCollections: collections, distancesByID: distancesByID, destination: trip.destination)
                 } else {
-                    PlaceMapView(places: sortedPlaces)
+                    PlaceMapView(places: sortedPlaces, destination: trip.destination)
                 }
             }
         }

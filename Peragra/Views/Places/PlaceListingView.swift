@@ -6,6 +6,7 @@ struct PlaceListingView: View {
     let places: [Place]
     let allCollections: [PlaceCollection]
     let distancesByID: [UUID: Double]
+    let destination: String
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
@@ -46,7 +47,7 @@ struct PlaceListingView: View {
                                 .buttonStyle(.plain)
                                 .padding(.top, 6)
                             }
-                            PlaceRowView(place: place, allCollections: allCollections, distanceMeters: distancesByID[place.id])
+                            PlaceRowView(place: place, allCollections: allCollections, distanceMeters: distancesByID[place.id], destination: destination)
                         }
                     }
                     .onDelete(perform: isSelecting ? nil : delete)
@@ -114,7 +115,7 @@ struct PlaceListingView: View {
         // Keep the current list order (not selection-tap order) so the
         // resulting route reads top-to-bottom the way the list does.
         let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
-        guard let url = GoogleMapsOpener.directionsURL(for: selectedPlaces) else { return }
+        guard let url = GoogleMapsOpener.directionsURL(for: selectedPlaces, tripDestination: destination) else { return }
         openURL(url)
     }
 

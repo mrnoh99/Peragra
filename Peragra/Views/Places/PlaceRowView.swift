@@ -8,6 +8,9 @@ struct PlaceRowView: View {
     /// Set only when the list is sorted by distance from a chosen place —
     /// shown as a "N km away" label alongside the category.
     let distanceMeters: Double?
+    /// The trip's destination city — used as a fallback qualifier for the
+    /// "Open in Google Maps" link when this place has no address.
+    let destination: String
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
@@ -87,7 +90,7 @@ struct PlaceRowView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let mapsURL = GoogleMapsOpener.url(for: place) {
+            if let mapsURL = GoogleMapsOpener.url(for: place, tripDestination: destination) {
                 Button {
                     openURL(mapsURL)
                 } label: {

@@ -135,7 +135,7 @@ export function PlaceCard({
               </p>
             )}
             <a
-              href={googleMapsUrl(place)}
+              href={googleMapsUrl(place, destination)}
               target="_blank"
               rel="noreferrer"
               className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
