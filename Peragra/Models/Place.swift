@@ -7,6 +7,7 @@ final class Place {
     var name: String
     var categoryRaw: String
     var address: String
+    var phone: String?
     var notes: String
     var instagramURLString: String?
     var latitude: Double?
@@ -24,6 +25,7 @@ final class Place {
         name: String,
         category: PlaceCategory,
         address: String,
+        phone: String? = nil,
         notes: String,
         instagramURLString: String?,
         trip: Trip?
@@ -32,6 +34,7 @@ final class Place {
         self.name = name
         self.categoryRaw = category.rawValue
         self.address = address
+        self.phone = phone
         self.notes = notes
         self.instagramURLString = instagramURLString
         self.latitude = nil

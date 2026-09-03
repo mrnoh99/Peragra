@@ -3,6 +3,11 @@ import Foundation
 struct AIExtractedPlace: Decodable {
     let name: String
     let address: String?
+    let telephone: String?
+    // Anything else recognized about this specific place (hours, price, a
+    // recommended item, why it was recommended, ...) — combined with the
+    // form's own manual notes field at save time, not a replacement for it.
+    let notes: String?
 }
 
 enum AIExtractionError: LocalizedError {
@@ -56,12 +61,22 @@ enum AIExtractionService {
     private static let systemPrompt = """
     You extract place recommendations (restaurants, cafes, shops, attractions) from \
     an Instagram post's caption text or a screenshot of one. Return every distinct \
-    place mentioned, each with its name and, if given, its full address exactly as \
-    written. If no address is given for a place, use null — never guess or invent \
-    one. If nothing in the text describes an actual place, return an empty list.
+    place mentioned, each with these fields:
+    - name: the place's name
+    - address: its full address exactly as written, or null if none was given
+    - telephone: its phone number exactly as written, or null if none was given
+    - notes: anything else relevant to that specific place — hours, price, a \
+    recommended menu item, why it was recommended, a rating, and so on — as short \
+    free text, or null if nothing else was said about it. Don't repeat the \
+    name/address/telephone here, and don't include generic caption text that isn't \
+    about this specific place (like unrelated hashtags).
+
+    Never guess or invent any of these — use null when something wasn't actually \
+    given. If nothing in the text describes an actual place, return an empty list.
 
     Respond with ONLY a single JSON object, no other text, no markdown code fence, \
-    matching exactly this shape: {"places": [{"name": string, "address": string | null}]}
+    matching exactly this shape: {"places": [{"name": string, "address": string | null, \
+    "telephone": string | null, "notes": string | null}]}
     """
 
     private static let addressGuessSystemPrompt = """
@@ -76,6 +91,21 @@ enum AIExtractionService {
     Respond with ONLY a single JSON object, no other text, no markdown code fence, \
     matching exactly this shape: {"addresses": (string | null)[]}, with exactly one \
     entry per input place, in the same order.
+    """
+
+    private static let nearestLocationSystemPrompt = """
+    You are given a travel destination and everything known about a single saved \
+    place — its name and, if available, an address (which may be incomplete, \
+    garbled, or simply wrong, since it couldn't be located on a map) and other \
+    notes about it. Using all of that, if you have a reasonably confident guess at \
+    a real, specific location for this place at or near the given destination, \
+    respond with your single best-guess full address for it — ideally the correct \
+    one, but the closest plausible real location is still useful when you're not \
+    sure of the exact spot. If you have no reasonable basis for a guess at all, \
+    respond with null rather than inventing one.
+
+    Respond with ONLY a single JSON object, no other text, no markdown code fence, \
+    matching exactly this shape: {"address": string | null}
     """
 
     static func extractPlaces(apiKey: String, captionText: String) async throws -> [AIExtractedPlace] {
@@ -112,6 +142,33 @@ enum AIExtractionService {
         let userContent = "Destination: \(destination)\n\nPlaces:\n\(placesList)"
         let text = try await performChatRequest(apiKey: apiKey, systemPrompt: addressGuessSystemPrompt, userContent: userContent)
         return try parseAddressGuesses(from: text, count: placeNames.count)
+    }
+
+    /// Best-effort fallback for when ordinary geocoding fails on a place's
+    /// own address/name: asks AI for its single best guess at the nearest
+    /// plausible real address, using everything known about the place
+    /// (its name, the address that failed to geocode, and any other
+    /// notes) rather than just the name alone. Returns nil when the model
+    /// has no reasonable basis for a guess.
+    static func guessNearestAddress(
+        apiKey: String,
+        destination: String,
+        name: String,
+        address: String?,
+        telephone: String?,
+        notes: String?
+    ) async throws -> String? {
+        let details = [
+            "Name: \(name)",
+            address.map { "Address given (could not be located on a map): \($0)" },
+            telephone.map { "Phone: \($0)" },
+            notes.map { "Other notes: \($0)" },
+        ]
+        .compactMap { $0 }
+        .joined(separator: "\n")
+        let userContent = "Destination: \(destination)\n\n\(details)"
+        let text = try await performChatRequest(apiKey: apiKey, systemPrompt: nearestLocationSystemPrompt, userContent: userContent)
+        return try parseNearestLocation(from: text)
     }
 
     private static func performChatRequest(apiKey: String, systemPrompt: String, userContent: Any) async throws -> String {
@@ -206,5 +263,21 @@ enum AIExtractionService {
         // Pad/truncate defensively in case the model didn't return exactly
         // one entry per input place.
         return (0..<count).map { $0 < decoded.addresses.count ? decoded.addresses[$0] : nil }
+    }
+
+    private static func parseNearestLocation(from text: String) throws -> String? {
+        let jsonText = stripMarkdownFence(from: text)
+        guard let textData = jsonText.data(using: .utf8) else {
+            throw AIExtractionError.decodingFailed
+        }
+
+        struct NearestLocationResponse: Decodable {
+            let address: String?
+        }
+
+        guard let decoded = try? JSONDecoder().decode(NearestLocationResponse.self, from: textData) else {
+            throw AIExtractionError.decodingFailed
+        }
+        return decoded.address
     }
 }

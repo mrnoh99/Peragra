@@ -11,6 +11,7 @@ interface NewPlaceInput {
   name: string;
   category: PlaceCategory;
   address: string;
+  phone: string | null;
   notes: string;
   instagramUrl: string | null;
   collectionIds: string[];
@@ -82,6 +83,7 @@ export const useStore = create<AppState>()(
           name: input.name,
           category: input.category,
           address: input.address,
+          phone: input.phone,
           notes: input.notes,
           instagramUrl: input.instagramUrl,
           lat: null,

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Modal } from "./Modal";
+import { guessNearestAddress } from "../lib/aiExtract";
 import { geocodePlace } from "../lib/geocode";
+import { useAISettingsStore } from "../store/useAISettingsStore";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type Place, type PlaceCategory } from "../types";
 
@@ -15,10 +17,12 @@ export function EditPlaceModal({
 }) {
   const updatePlace = useStore((s) => s.updatePlace);
   const setPlaceCoords = useStore((s) => s.setPlaceCoords);
+  const apiKey = useAISettingsStore((s) => s.apiKey);
 
   const [name, setName] = useState(place.name);
   const [category, setCategory] = useState<PlaceCategory>(place.category);
   const [address, setAddress] = useState(place.address);
+  const [phone, setPhone] = useState(place.phone ?? "");
   const [notes, setNotes] = useState(place.notes);
   const [saving, setSaving] = useState(false);
 
@@ -29,26 +33,56 @@ export function EditPlaceModal({
     if (!canSubmit) return;
     setSaving(true);
 
+    const trimmedName = name.trim();
     const trimmedAddress = address.trim();
+    const trimmedPhone = phone.trim();
     updatePlace(place.id, {
-      name: name.trim(),
+      name: trimmedName,
       category,
       address: trimmedAddress,
+      phone: trimmedPhone || null,
       notes: notes.trim(),
     });
 
     // Only re-geocode when the address actually changed — otherwise leave
     // the existing coordinates (and geocodeStatus) alone.
     if (trimmedAddress !== place.address) {
+      const query = trimmedAddress || trimmedName;
+      let located = false;
       try {
-        const query = trimmedAddress || name.trim();
         const result = await geocodePlace(query, destination);
         if (result) {
           setPlaceCoords(place.id, { lat: result.lat, lng: result.lng }, "located");
-        } else {
-          setPlaceCoords(place.id, null, "failed");
+          located = true;
         }
       } catch {
+        // fall through to the AI estimate below
+      }
+
+      // Best-effort fallback: ask AI for the nearest plausible real
+      // address using everything known about the place, then geocode
+      // that guess, rather than leaving it unlocated.
+      if (!located && apiKey) {
+        try {
+          const guessedAddress = await guessNearestAddress(apiKey, destination, {
+            name: trimmedName,
+            address: trimmedAddress || null,
+            telephone: trimmedPhone || null,
+            notes: notes.trim() || null,
+          });
+          if (guessedAddress) {
+            const estimate = await geocodePlace(guessedAddress, destination);
+            if (estimate) {
+              setPlaceCoords(place.id, { lat: estimate.lat, lng: estimate.lng }, "estimated");
+              located = true;
+            }
+          }
+        } catch {
+          // fall through to "failed" below
+        }
+      }
+
+      if (!located) {
         setPlaceCoords(place.id, null, "failed");
       }
     }
@@ -94,6 +128,18 @@ export function EditPlaceModal({
               ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-neutral-700">
+            Phone <span className="font-normal text-neutral-400">(optional)</span>
+          </label>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Phone number"
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          />
         </div>
 
         <div>

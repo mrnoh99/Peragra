@@ -30,6 +30,11 @@ struct PlaceRowView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
+                    if let phone = place.phone, !phone.isEmpty {
+                        Text("☎ \(phone)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
                 Button {
@@ -52,6 +57,12 @@ struct PlaceRowView: View {
                 Label("Couldn't locate this on the map — try a more specific address.", systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(.orange)
+            }
+
+            if place.geocodeStatus == .estimated {
+                Label("Approximate location — AI's best guess, since the given address couldn't be found on the map.", systemImage: "mappin.and.ellipse")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             if let url = place.instagramURL {

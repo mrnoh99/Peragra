@@ -17,7 +17,12 @@ export const PLACE_CATEGORIES: { value: PlaceCategory; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
-export type GeocodeStatus = "pending" | "located" | "failed" | "manual";
+// "estimated" marks a place located via an AI best-guess address rather
+// than a real geocoder match on the address/name the user gave — used
+// when ordinary geocoding fails and AI is asked to guess the nearest
+// plausible location instead. Distinguished from "located" so the UI can
+// flag it as approximate rather than implying precision it doesn't have.
+export type GeocodeStatus = "pending" | "located" | "estimated" | "failed" | "manual";
 
 export interface Place {
   id: string;
@@ -25,6 +30,7 @@ export interface Place {
   name: string;
   category: PlaceCategory;
   address: string;
+  phone: string | null;
   notes: string;
   instagramUrl: string | null;
   lat: number | null;

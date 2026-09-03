@@ -66,10 +66,17 @@ export function PlaceCard({
             {place.address && (
               <p className="mt-1 text-sm text-neutral-500">{place.address}</p>
             )}
+            {place.phone && <p className="mt-0.5 text-sm text-neutral-500">☎ {place.phone}</p>}
             {place.notes && <p className="mt-1 text-sm text-neutral-600">{place.notes}</p>}
             {place.geocodeStatus === "failed" && (
               <p className="mt-1 text-xs text-amber-600">
                 Couldn't locate this on the map — try adding a more specific address.
+              </p>
+            )}
+            {place.geocodeStatus === "estimated" && (
+              <p className="mt-1 text-xs text-neutral-400">
+                📍 Approximate location — AI's best guess, since the given address couldn't be
+                found on the map.
               </p>
             )}
             {place.instagramUrl && (

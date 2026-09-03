@@ -65,5 +65,11 @@ enum PlaceCategory: String, Codable, CaseIterable, Identifiable {
 enum GeocodeStatus: String, Codable {
     case pending
     case located
+    // Located via an AI best-guess address rather than a real geocoder
+    // match on the address/name given — used when ordinary geocoding
+    // fails and AI is asked to guess the nearest plausible location
+    // instead. Distinguished from `.located` so the UI can flag it as
+    // approximate rather than implying precision it doesn't have.
+    case estimated
     case failed
 }

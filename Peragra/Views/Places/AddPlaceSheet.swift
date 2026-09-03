@@ -9,6 +9,11 @@ private struct CandidateRow: Identifiable {
     var selected = true
     var name = ""
     var address = ""
+    var phone = ""
+    // Anything else recognized about this specific place (hours, price, a
+    // recommended item, why it was recommended, ...) — combined with the
+    // form's own manual notes field at save time, not a replacement for it.
+    var notes = ""
     var category: PlaceCategory = .restaurant
     // Set only for places imported from a KML file — they already carry
     // real coordinates from Google Maps, so saving skips geocoding by
@@ -248,6 +253,12 @@ struct AddPlaceSheet: View {
                 }
                 .font(.subheadline)
                 .pickerStyle(.menu)
+                TextField("Phone (optional)", text: row.phone)
+                    .font(.subheadline)
+                    .keyboardType(.phonePad)
+                TextField("Other details (hours, menu, why recommended, ...)", text: row.notes)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -263,11 +274,19 @@ struct AddPlaceSheet: View {
         }
     }
 
-    private func replaceRows(with places: [(name: String?, address: String?)], source: ExtractionSource) {
+    private func replaceRows(
+        with places: [(name: String?, address: String?, telephone: String?, notes: String?)],
+        source: ExtractionSource
+    ) {
         let usable = places.filter { $0.name != nil }
         if !usable.isEmpty {
             rows = usable.map { place in
-                CandidateRow(name: place.name ?? "", address: place.address ?? "")
+                CandidateRow(
+                    name: place.name ?? "",
+                    address: place.address ?? "",
+                    phone: place.telephone ?? "",
+                    notes: place.notes ?? ""
+                )
             }
         }
 
@@ -375,7 +394,7 @@ struct AddPlaceSheet: View {
         extractErrorMessage = nil
         extractResultMessage = nil
         let results = CaptionParser.parseMultiple(captionText)
-        replaceRows(with: results.map { ($0.name, $0.address) }, source: .pattern)
+        replaceRows(with: results.map { ($0.name, $0.address, nil, nil) }, source: .pattern)
     }
 
     private func runAIExtraction() async {
@@ -399,7 +418,10 @@ struct AddPlaceSheet: View {
                 extractErrorMessage = "Paste a caption or upload a screenshot first."
                 return
             }
-            replaceRows(with: results.map { (name: $0.name as String?, address: $0.address) }, source: .ai)
+            replaceRows(
+                with: results.map { (name: $0.name as String?, address: $0.address, telephone: $0.telephone, notes: $0.notes) },
+                source: .ai
+            )
         } catch {
             extractResultMessage = nil
             extractErrorMessage = (error as? LocalizedError)?.errorDescription ?? "AI extraction failed."
@@ -429,11 +451,20 @@ struct AddPlaceSheet: View {
         let toSave = rows.filter { $0.selected && !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
 
         for row in toSave {
+            let trimmedPhone = row.phone.trimmingCharacters(in: .whitespaces)
+            let combinedNotes = [
+                row.notes.trimmingCharacters(in: .whitespacesAndNewlines),
+                notes.trimmingCharacters(in: .whitespacesAndNewlines),
+            ]
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n\n")
+
             let place = Place(
                 name: row.name.trimmingCharacters(in: .whitespaces),
                 category: row.category,
                 address: row.address.trimmingCharacters(in: .whitespaces),
-                notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
+                phone: trimmedPhone.isEmpty ? nil : trimmedPhone,
+                notes: combinedNotes,
                 instagramURLString: normalizedInstagramURL?.absoluteString,
                 trip: trip
             )
@@ -451,19 +482,54 @@ struct AddPlaceSheet: View {
                 continue
             }
 
-            let query = row.address.trimmingCharacters(in: .whitespaces).isEmpty
-                ? row.name.trimmingCharacters(in: .whitespaces)
-                : row.address.trimmingCharacters(in: .whitespaces)
-            if let result = await GeocodingService.geocode(query: query, contextHint: trip.destination) {
-                place.latitude = result.latitude
-                place.longitude = result.longitude
-                place.geocodeStatus = .located
-            } else {
-                place.geocodeStatus = .failed
-            }
+            await geocodeAndStore(place, row: row)
         }
 
         isSaving = false
         dismiss()
+    }
+
+    /// Geocodes a row's own address/name; if that fails and an AI API key
+    /// is configured, falls back to asking AI for its best guess at the
+    /// nearest plausible real address (using the row's name, address,
+    /// phone, and notes as context) and geocodes that instead — marked
+    /// `.estimated` rather than `.located` so the UI can flag it as
+    /// approximate. Only `.failed` once both the real geocode and the AI
+    /// estimate come up empty (or there's no API key to try at all).
+    private func geocodeAndStore(_ place: Place, row: CandidateRow) async {
+        let trimmedAddress = row.address.trimmingCharacters(in: .whitespaces)
+        let trimmedName = row.name.trimmingCharacters(in: .whitespaces)
+        let query = trimmedAddress.isEmpty ? trimmedName : trimmedAddress
+
+        if let result = await GeocodingService.geocode(query: query, contextHint: trip.destination) {
+            place.latitude = result.latitude
+            place.longitude = result.longitude
+            place.geocodeStatus = .located
+            return
+        }
+
+        if let apiKey = aiSettings.apiKey {
+            do {
+                let guessedAddress = try await AIExtractionService.guessNearestAddress(
+                    apiKey: apiKey,
+                    destination: trip.destination,
+                    name: trimmedName,
+                    address: trimmedAddress.isEmpty ? nil : trimmedAddress,
+                    telephone: row.phone.trimmingCharacters(in: .whitespaces).isEmpty ? nil : row.phone,
+                    notes: row.notes.trimmingCharacters(in: .whitespaces).isEmpty ? nil : row.notes
+                )
+                if let guessedAddress,
+                   let estimate = await GeocodingService.geocode(query: guessedAddress, contextHint: trip.destination) {
+                    place.latitude = estimate.latitude
+                    place.longitude = estimate.longitude
+                    place.geocodeStatus = .estimated
+                    return
+                }
+            } catch {
+                // fall through to .failed below
+            }
+        }
+
+        place.geocodeStatus = .failed
     }
 }

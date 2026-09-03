@@ -9,6 +9,7 @@ import {
   extractPlacesFromText,
   fileToBase64,
   guessMissingAddresses,
+  guessNearestAddress,
   isSupportedImageMediaType,
   AIExtractionError,
 } from "../lib/aiExtract";
@@ -22,6 +23,11 @@ interface CandidateRow {
   selected: boolean;
   name: string;
   address: string;
+  phone: string;
+  // Anything else recognized about this specific place (hours, price, a
+  // recommended item, why it was recommended, ...) — combined with the
+  // form's own manual Notes field at save time, not a replacement for it.
+  notes: string;
   category: PlaceCategory;
   // Set only for places imported from a KML file — they already carry
   // real coordinates from Google Maps, so saving skips geocoding by
@@ -36,6 +42,8 @@ function makeRow(partial?: Partial<CandidateRow>): CandidateRow {
     selected: true,
     name: "",
     address: "",
+    phone: "",
+    notes: "",
     category: "restaurant",
     ...partial,
   };
@@ -123,13 +131,25 @@ export function AddPlaceModal({
   }
 
   function replaceRowsFromExtraction(
-    places: { name: string | null; address: string | null }[],
+    places: {
+      name: string | null;
+      address: string | null;
+      telephone?: string | null;
+      notes?: string | null;
+    }[],
     source: "pattern" | "ai",
   ) {
     const usable = places.filter((p) => p.name);
     let newRows: CandidateRow[] = [];
     if (usable.length > 0) {
-      newRows = usable.map((p) => makeRow({ name: p.name ?? "", address: p.address ?? "" }));
+      newRows = usable.map((p) =>
+        makeRow({
+          name: p.name ?? "",
+          address: p.address ?? "",
+          phone: p.telephone ?? "",
+          notes: p.notes ?? "",
+        }),
+      );
       setRows(newRows);
     }
 
@@ -247,6 +267,50 @@ export function AddPlaceModal({
     }
   }
 
+  /**
+   * Geocodes a row's own address/name; if that fails and an AI API key is
+   * configured, falls back to asking AI for its best guess at the nearest
+   * plausible real address (using the row's name, address, phone, and
+   * notes as context) and geocodes that instead — marked "estimated"
+   * rather than "located" so the UI can flag it as approximate. Only
+   * "failed" once both the real geocode and the AI estimate come up
+   * empty (or there's no API key to try the estimate with at all).
+   */
+  async function geocodeAndStore(placeId: string, row: CandidateRow) {
+    const query = row.address.trim() || row.name.trim();
+    try {
+      const result = await geocodePlace(query, destination);
+      if (result) {
+        setPlaceCoords(placeId, { lat: result.lat, lng: result.lng }, "located");
+        return;
+      }
+    } catch {
+      // fall through to the AI estimate below
+    }
+
+    if (apiKey) {
+      try {
+        const guessedAddress = await guessNearestAddress(apiKey, destination, {
+          name: row.name.trim(),
+          address: row.address.trim() || null,
+          telephone: row.phone.trim() || null,
+          notes: row.notes.trim() || null,
+        });
+        if (guessedAddress) {
+          const estimate = await geocodePlace(guessedAddress, destination);
+          if (estimate) {
+            setPlaceCoords(placeId, { lat: estimate.lat, lng: estimate.lng }, "estimated");
+            return;
+          }
+        }
+      } catch {
+        // fall through to "failed" below
+      }
+    }
+
+    setPlaceCoords(placeId, null, "failed");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const toSave = rows.filter((r) => r.selected && r.name.trim());
@@ -254,12 +318,14 @@ export function AddPlaceModal({
     setSaving(true);
 
     for (const row of toSave) {
+      const combinedNotes = [row.notes.trim(), notes.trim()].filter(Boolean).join("\n\n");
       const place = addPlace({
         tripId,
         name: row.name.trim(),
         category: row.category,
         address: row.address.trim(),
-        notes: notes.trim(),
+        phone: row.phone.trim() || null,
+        notes: combinedNotes,
         instagramUrl,
         collectionIds: defaultCollectionId ? [defaultCollectionId] : [],
       });
@@ -271,17 +337,7 @@ export function AddPlaceModal({
         continue;
       }
 
-      try {
-        const query = row.address.trim() || row.name.trim();
-        const result = await geocodePlace(query, destination);
-        if (result) {
-          setPlaceCoords(place.id, { lat: result.lat, lng: result.lng }, "located");
-        } else {
-          setPlaceCoords(place.id, null, "failed");
-        }
-      } catch {
-        setPlaceCoords(place.id, null, "failed");
-      }
+      await geocodeAndStore(place.id, row);
     }
 
     setSaving(false);
@@ -430,6 +486,18 @@ export function AddPlaceModal({
                         ))}
                       </select>
                     </div>
+                    <input
+                      value={row.phone}
+                      onChange={(e) => updateRow(row.id, { phone: e.target.value })}
+                      placeholder="Phone (optional)"
+                      className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    />
+                    <input
+                      value={row.notes}
+                      onChange={(e) => updateRow(row.id, { notes: e.target.value })}
+                      placeholder="Other details (hours, menu, why recommended, ...)"
+                      className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm text-neutral-600 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    />
                   </div>
                   <button
                     type="button"

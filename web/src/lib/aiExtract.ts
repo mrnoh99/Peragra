@@ -33,6 +33,17 @@ const PlacesSchema = z.object({
         .string()
         .nullable()
         .describe("The place's full address as written, or null if none was given"),
+      telephone: z
+        .string()
+        .nullable()
+        .describe("The place's phone number as written, or null if none was given"),
+      notes: z
+        .string()
+        .nullable()
+        .describe(
+          "Any other detail about this specific place worth keeping (hours, price, a recommended " +
+            "menu item, why it was recommended, a rating, etc.), as free text, or null if nothing else was said",
+        ),
     }),
   ),
 });
@@ -40,6 +51,8 @@ const PlacesSchema = z.object({
 export interface AIExtractedPlace {
   name: string;
   address: string | null;
+  telephone: string | null;
+  notes: string | null;
 }
 
 export class AIExtractionError extends Error {}
@@ -49,11 +62,19 @@ type ImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 const SYSTEM_PROMPT =
   "You extract place recommendations (restaurants, cafes, shops, attractions) from " +
   "an Instagram post's caption text or a screenshot of one. Return every distinct " +
-  "place mentioned, each with its name and, if given, its full address exactly as " +
-  "written. If no address is given for a place, use null — never guess or invent " +
-  "one. If nothing in the text describes an actual place, return an empty list.\n\n" +
-  "Respond with ONLY a single JSON object, no other text, no markdown code fence, " +
-  'matching exactly this shape: {"places": [{"name": string, "address": string | null}]}';
+  "place mentioned, each with these fields:\n" +
+  "- name: the place's name\n" +
+  "- address: its full address exactly as written, or null if none was given\n" +
+  "- telephone: its phone number exactly as written, or null if none was given\n" +
+  "- notes: anything else relevant to that specific place — hours, price, a recommended " +
+  "menu item, why it was recommended, a rating, and so on — as short free text, or null if " +
+  "nothing else was said about it. Don't repeat the name/address/telephone here, and don't " +
+  "include generic caption text that isn't about this specific place (like unrelated hashtags).\n\n" +
+  "Never guess or invent any of these — use null when something wasn't actually given. If " +
+  "nothing in the text describes an actual place, return an empty list.\n\n" +
+  "Respond with ONLY a single JSON object, no other text, no markdown code fence, matching " +
+  'exactly this shape: {"places": [{"name": string, "address": string | null, ' +
+  '"telephone": string | null, "notes": string | null}]}';
 
 const ADDRESS_GUESS_SYSTEM_PROMPT =
   "You are given a travel destination and a numbered list of place names " +
@@ -70,6 +91,40 @@ const ADDRESS_GUESS_SYSTEM_PROMPT =
 const AddressGuessSchema = z.object({
   addresses: z.array(z.string().nullable()),
 });
+
+const NEAREST_LOCATION_SYSTEM_PROMPT =
+  "You are given a travel destination and everything known about a single saved place — " +
+  "its name and, if available, an address (which may be incomplete, garbled, or simply wrong, " +
+  "since it couldn't be located on a map) and other notes about it. Using all of that, if you " +
+  "have a reasonably confident guess at a real, specific location for this place at or near the " +
+  "given destination, respond with your single best-guess full address for it — ideally the " +
+  "correct one, but the closest plausible real location is still useful when you're not sure of " +
+  "the exact spot. If you have no reasonable basis for a guess at all, respond with null rather " +
+  "than inventing one.\n\n" +
+  "Respond with ONLY a single JSON object, no other text, no markdown code fence, matching " +
+  'exactly this shape: {"address": string | null}';
+
+const NearestLocationSchema = z.object({
+  address: z.string().nullable(),
+});
+
+/**
+ * Strips a markdown code fence around JSON despite the prompt asking for
+ * none — models routed through arbitrary gateways don't reliably follow
+ * that — then JSON.parses the result.
+ */
+function parseJsonContent(content: string | null | undefined): unknown {
+  if (!content) {
+    throw new AIExtractionError("The AI extraction service returned an empty response.");
+  }
+  const fenced = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  const jsonText = fenced ? fenced[1] : content;
+  try {
+    return JSON.parse(jsonText);
+  } catch {
+    throw new AIExtractionError("The AI extraction service didn't return valid JSON.");
+  }
+}
 
 function getClient(apiKey: string): OpenAI {
   return new OpenAI({ apiKey, baseURL: GATEWAY_BASE_URL, dangerouslyAllowBrowser: true });
@@ -88,25 +143,9 @@ function toAIExtractionError(error: unknown): AIExtractionError {
   return new AIExtractionError("Couldn't reach the AI extraction service.");
 }
 
-/**
- * Parses the model's reply as the {places: [...]} shape, tolerating a
- * markdown code fence around the JSON despite the prompt asking for none —
- * models routed through arbitrary gateways don't reliably follow that.
- */
+/** Parses the model's reply as the {places: [...]} shape. */
 function parsePlacesResponse(content: string | null | undefined): AIExtractedPlace[] {
-  if (!content) {
-    throw new AIExtractionError("The AI extraction service returned an empty response.");
-  }
-  const fenced = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  const jsonText = fenced ? fenced[1] : content;
-
-  let parsedJSON: unknown;
-  try {
-    parsedJSON = JSON.parse(jsonText);
-  } catch {
-    throw new AIExtractionError("The AI extraction service didn't return valid JSON.");
-  }
-
+  const parsedJSON = parseJsonContent(content);
   const result = PlacesSchema.safeParse(parsedJSON);
   if (!result.success) {
     throw new AIExtractionError("The AI extraction service returned an unexpected response shape.");
@@ -200,20 +239,7 @@ export async function guessMissingAddresses(
         ],
       },
     });
-    const content = response.choices?.[0]?.message?.content;
-    if (!content) {
-      throw new AIExtractionError("The AI extraction service returned an empty response.");
-    }
-    const fenced = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    const jsonText = fenced ? fenced[1] : content;
-
-    let parsedJSON: unknown;
-    try {
-      parsedJSON = JSON.parse(jsonText);
-    } catch {
-      throw new AIExtractionError("The AI extraction service didn't return valid JSON.");
-    }
-
+    const parsedJSON = parseJsonContent(response.choices?.[0]?.message?.content);
     const result = AddressGuessSchema.safeParse(parsedJSON);
     if (!result.success) {
       throw new AIExtractionError("The AI extraction service returned an unexpected response shape.");
@@ -222,6 +248,50 @@ export async function guessMissingAddresses(
     // entry per input — a mismatched count shouldn't crash the merge back
     // into the candidate rows.
     return placeNames.map((_, i) => result.data.addresses[i] ?? null);
+  } catch (error) {
+    if (error instanceof AIExtractionError) throw error;
+    throw toAIExtractionError(error);
+  }
+}
+
+/**
+ * Best-effort fallback for when ordinary geocoding fails on a place's own
+ * address/name: asks AI for its single best guess at the nearest plausible
+ * real address, using everything known about the place (its name, the
+ * address that failed to geocode, and any other notes) rather than just
+ * the name alone. Returns null when the model has no reasonable basis for
+ * a guess, or when the guess call itself fails.
+ */
+export async function guessNearestAddress(
+  apiKey: string,
+  destination: string,
+  place: { name: string; address?: string | null; telephone?: string | null; notes?: string | null },
+): Promise<string | null> {
+  const client = getClient(apiKey);
+  const details = [
+    `Name: ${place.name}`,
+    place.address ? `Address given (could not be located on a map): ${place.address}` : null,
+    place.telephone ? `Phone: ${place.telephone}` : null,
+    place.notes ? `Other notes: ${place.notes}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  try {
+    const response = await client.post<GatewayChatCompletionResponse>(CHAT_COMPLETIONS_PATH, {
+      body: {
+        model: useAISettingsStore.getState().model,
+        messages: [
+          { role: "system", content: NEAREST_LOCATION_SYSTEM_PROMPT },
+          { role: "user", content: `Destination: ${destination}\n\n${details}` },
+        ],
+      },
+    });
+    const parsedJSON = parseJsonContent(response.choices?.[0]?.message?.content);
+    const result = NearestLocationSchema.safeParse(parsedJSON);
+    if (!result.success) {
+      throw new AIExtractionError("The AI extraction service returned an unexpected response shape.");
+    }
+    return result.data.address;
   } catch (error) {
     if (error instanceof AIExtractionError) throw error;
     throw toAIExtractionError(error);
