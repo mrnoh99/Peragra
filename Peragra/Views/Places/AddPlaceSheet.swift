@@ -66,28 +66,6 @@ struct AddPlaceSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("https://www.instagram.com/p/...", text: $instagramInput)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-
-                    if !instagramInput.isEmpty && normalizedInstagramURL == nil {
-                        Label("That doesn't look like an instagram.com/p/... or /reel/... link.", systemImage: "exclamationmark.triangle")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-                    if let url = normalizedInstagramURL {
-                        InstagramEmbedView(url: url)
-                            .frame(height: 420)
-                            .listRowInsets(EdgeInsets())
-                    }
-                } header: {
-                    Text("Instagram post link (optional)")
-                } footer: {
-                    Text("Paste the link from a post you saved. Instagram doesn't let apps read your Saved collection directly, so bring the link over and we'll show the post alongside your notes.")
-                }
-
-                Section {
                     TextField("Paste the post's caption here…", text: $captionText, axis: .vertical)
                         .lineLimit(3...6)
 
@@ -141,6 +119,28 @@ struct AddPlaceSheet: View {
                     Text("Import from Google Maps (optional)")
                 } footer: {
                     Text("Google has no API for reading a Saved-places list directly — export one as KML from Google My Maps (mymaps.google.com) and upload it here. Imported places already carry real coordinates, so they skip geocoding entirely.")
+                }
+
+                Section {
+                    TextField("https://www.instagram.com/p/...", text: $instagramInput)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+
+                    if !instagramInput.isEmpty && normalizedInstagramURL == nil {
+                        Label("That doesn't look like an instagram.com/p/... or /reel/... link.", systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    if let url = normalizedInstagramURL {
+                        InstagramEmbedView(url: url)
+                            .frame(height: 420)
+                            .listRowInsets(EdgeInsets())
+                    }
+                } header: {
+                    Text("Instagram post link (optional, just a reference)")
+                } footer: {
+                    Text("Instagram doesn't let apps read a post's info from its link, so this doesn't fill in anything above — use caption text or a screenshot for that. Paste it only if you want the original post embedded here for reference.")
                 }
 
                 if extractErrorMessage != nil || extractResultMessage != nil {

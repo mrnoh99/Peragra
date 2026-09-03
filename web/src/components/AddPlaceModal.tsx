@@ -243,34 +243,6 @@ export function AddPlaceModal({
   return (
     <Modal title="Save places" onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-neutral-700">
-            Instagram post link{" "}
-            <span className="font-normal text-neutral-400">(optional)</span>
-          </label>
-          <input
-            value={instagramInput}
-            onChange={(e) => setInstagramInput(e.target.value)}
-            placeholder="https://www.instagram.com/p/..."
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-          />
-          <p className="mt-1 text-xs text-neutral-400">
-            Paste the link from a post you saved. Instagram doesn't let apps read your Saved
-            collection directly, so bring the link over and we'll show the post alongside your
-            notes.
-          </p>
-          {instagramInput && !instagramUrl && (
-            <p className="mt-1 text-xs text-amber-600">
-              That doesn't look like an instagram.com/p/... or /reel/... link.
-            </p>
-          )}
-          {instagramUrl && (
-            <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-neutral-200 p-2">
-              <InstagramEmbed url={instagramUrl} />
-            </div>
-          )}
-        </div>
-
         <div className="rounded-lg border border-dashed border-neutral-300 p-3">
           <label className="mb-1 block text-sm font-medium text-neutral-700">
             Caption text <span className="font-normal text-neutral-400">(optional)</span>
@@ -365,6 +337,34 @@ export function AddPlaceModal({
           >
             📥 Upload a .kml file
           </label>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-neutral-700">
+            Instagram post link{" "}
+            <span className="font-normal text-neutral-400">(optional, just a reference)</span>
+          </label>
+          <input
+            value={instagramInput}
+            onChange={(e) => setInstagramInput(e.target.value)}
+            placeholder="https://www.instagram.com/p/..."
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          />
+          <p className="mt-1 text-xs text-neutral-400">
+            Instagram doesn't let apps read a post's info from its link, so this doesn't fill in
+            anything above — use caption text or a screenshot for that. Paste it only if you want
+            the original post embedded here for reference.
+          </p>
+          {instagramInput && !instagramUrl && (
+            <p className="mt-1 text-xs text-amber-600">
+              That doesn't look like an instagram.com/p/... or /reel/... link.
+            </p>
+          )}
+          {instagramUrl && (
+            <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-neutral-200 p-2">
+              <InstagramEmbed url={instagramUrl} />
+            </div>
+          )}
         </div>
 
         {(extractResultMessage || extractError) && (
