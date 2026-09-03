@@ -34,18 +34,25 @@ enum KMLService {
             .replacingOccurrences(of: "'", with: "&apos;")
     }
 
+    // Built from joined arrays rather than Swift multi-line string
+    // literals — a multi-line literal requires every line (interpolated
+    // ones included) to be indented at least as much as the closing
+    // `"""`, which broke here once when nested inside the `.compactMap`
+    // closure below caused a real "Insufficient indentation" compile
+    // error; arrays of lines joined by "\n" don't have that failure mode.
     private static func placemarkXML(_ place: Place) -> String {
         let descriptionParts = [place.address, place.notes].filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         let description = descriptionParts.joined(separator: " — ")
-        let descriptionLine = description.isEmpty ? "" : "\n        <description>\(escapeXML(description))</description>"
         // KML coordinate order is longitude,latitude[,altitude] — the
         // reverse of how this app (and most UIs) writes lat/lng.
-        return """
-                <Placemark>
-                  <name>\(escapeXML(place.name))</name>\(descriptionLine)
-                  <Point><coordinates>\(place.longitude ?? 0),\(place.latitude ?? 0),0</coordinates></Point>
-                </Placemark>
-            """
+        let lines: [String?] = [
+            "      <Placemark>",
+            "        <name>\(escapeXML(place.name))</name>",
+            description.isEmpty ? nil : "        <description>\(escapeXML(description))</description>",
+            "        <Point><coordinates>\(place.longitude ?? 0),\(place.latitude ?? 0),0</coordinates></Point>",
+            "      </Placemark>",
+        ]
+        return lines.compactMap { $0 }.joined(separator: "\n")
     }
 
     static func generateKML(title: String, places: [Place]) -> String {
@@ -56,25 +63,26 @@ enum KMLService {
                 let categoryPlaces = located.filter { $0.category == category }
                 guard !categoryPlaces.isEmpty else { return nil }
                 let placemarks = categoryPlaces.map(placemarkXML).joined(separator: "\n")
-                return """
-                    <Folder>
-                      <name>\(escapeXML(category.label))</name>
-                \(placemarks)
-                    </Folder>
-                    """
+                return [
+                    "    <Folder>",
+                    "      <name>\(escapeXML(category.label))</name>",
+                    placemarks,
+                    "    </Folder>",
+                ].joined(separator: "\n")
             }
             .joined(separator: "\n")
 
-        return """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <kml xmlns="http://www.opengis.net/kml/2.2">
-              <Document>
-                <name>\(escapeXML(title))</name>
-            \(folders)
-              </Document>
-            </kml>
-
-            """
+        let lines = [
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+            "<kml xmlns=\"http://www.opengis.net/kml/2.2\">",
+            "  <Document>",
+            "    <name>\(escapeXML(title))</name>",
+            folders,
+            "  </Document>",
+            "</kml>",
+            "",
+        ]
+        return lines.joined(separator: "\n")
     }
 
     static func parsePlaces(from data: Data) -> [KmlPlace] {
