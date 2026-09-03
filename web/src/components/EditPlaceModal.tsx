@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Modal } from "./Modal";
 import { guessNearestAddress } from "../lib/aiExtract";
 import { geocodePlace } from "../lib/geocode";
-import { useAISettingsStore } from "../store/useAISettingsStore";
+import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type Place, type PlaceCategory } from "../types";
 
@@ -17,7 +17,7 @@ export function EditPlaceModal({
 }) {
   const updatePlace = useStore((s) => s.updatePlace);
   const setPlaceCoords = useStore((s) => s.setPlaceCoords);
-  const apiKey = useAISettingsStore((s) => s.apiKey);
+  const apiKey = useAISettingsStore(selectActiveApiKey);
 
   const [name, setName] = useState(place.name);
   const [category, setCategory] = useState<PlaceCategory>(place.category);
@@ -64,7 +64,7 @@ export function EditPlaceModal({
       // that guess, rather than leaving it unlocated.
       if (!located && apiKey) {
         try {
-          const guessedAddress = await guessNearestAddress(apiKey, destination, {
+          const guessedAddress = await guessNearestAddress(destination, {
             name: trimmedName,
             address: trimmedAddress || null,
             telephone: trimmedPhone || null,

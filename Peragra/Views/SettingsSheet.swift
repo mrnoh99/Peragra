@@ -7,60 +7,145 @@ struct SettingsSheet: View {
     // default value, so there's nothing else to assign here.
     init() {}
 
-    private static let customModelTag = "__custom__"
+    fileprivate static let customModelTag = "__custom__"
 
-    private static func initialModelSelection() -> String {
-        let current = AISettings.shared.model
-        return GatewayModels.all.contains(where: { $0.id == current }) ? current : customModelTag
+    fileprivate static let anthropicModels: [GatewayModels.Model] = [
+        GatewayModels.Model(id: "claude-sonnet-5", label: "Claude Sonnet 5"),
+        GatewayModels.Model(id: "claude-opus-5", label: "Claude Opus 5"),
+    ]
+
+    private static func initialModelSelection(current: String, known: [GatewayModels.Model]) -> String {
+        known.contains(where: { $0.id == current }) ? current : customModelTag
     }
 
-    private static func initialCustomModelInput() -> String {
-        let current = AISettings.shared.model
-        return GatewayModels.all.contains(where: { $0.id == current }) ? "" : current
+    private static func initialCustomModelInput(current: String, known: [GatewayModels.Model]) -> String {
+        known.contains(where: { $0.id == current }) ? "" : current
     }
 
     @Environment(\.dismiss) private var dismiss
     @State private var settings = AISettings.shared
-    @State private var apiKeyInput: String = AISettings.shared.apiKey ?? ""
-    @State private var modelSelection: String = SettingsSheet.initialModelSelection()
-    @State private var customModelInput: String = SettingsSheet.initialCustomModelInput()
+    @State private var provider: AIProvider = AISettings.shared.provider
+
+    @State private var gatewayKeyInput: String = AISettings.shared.apiKey ?? ""
+    @State private var gatewayModelSelection: String = SettingsSheet.initialModelSelection(
+        current: AISettings.shared.model, known: GatewayModels.all
+    )
+    @State private var gatewayCustomModelInput: String = SettingsSheet.initialCustomModelInput(
+        current: AISettings.shared.model, known: GatewayModels.all
+    )
+
+    @State private var anthropicKeyInput: String = AISettings.shared.anthropicAPIKey ?? ""
+    @State private var anthropicModelSelection: String = SettingsSheet.initialModelSelection(
+        current: AISettings.shared.anthropicModel, known: SettingsSheet.anthropicModels
+    )
+    @State private var anthropicCustomModelInput: String = SettingsSheet.initialCustomModelInput(
+        current: AISettings.shared.anthropicModel, known: SettingsSheet.anthropicModels
+    )
+
+    @State private var openaiKeyInput: String = AISettings.shared.openaiAPIKey ?? ""
+    @State private var openaiModelInput: String = AISettings.shared.openaiModel
+
+    @State private var geminiKeyInput: String = AISettings.shared.geminiAPIKey ?? ""
+    @State private var geminiModelInput: String = AISettings.shared.geminiModel
+
+    @State private var perplexityKeyInput: String = AISettings.shared.perplexityAPIKey ?? ""
+    @State private var perplexityModelInput: String = AISettings.shared.perplexityModel
 
     @State private var mapSettings = MapSettings.shared
     @State private var mapProvider: MapProvider = MapSettings.shared.provider
     @State private var googleMapsKeyInput: String = MapSettings.shared.googleMapsAPIKey ?? ""
 
+    /// Whether the *currently selected* provider (which may not be saved
+    /// yet) already has a stored key, to decide whether "Remove Key" shows.
+    private var currentProviderHasStoredKey: Bool {
+        switch provider {
+        case .gateway: return settings.apiKey != nil
+        case .anthropic: return settings.anthropicAPIKey != nil
+        case .openai: return settings.openaiAPIKey != nil
+        case .gemini: return settings.geminiAPIKey != nil
+        case .perplexity: return settings.perplexityAPIKey != nil
+        }
+    }
+
+    private func removeCurrentProviderKey() {
+        switch provider {
+        case .gateway:
+            settings.setAPIKey(nil)
+            gatewayKeyInput = ""
+        case .anthropic:
+            settings.setAnthropicAPIKey(nil)
+            anthropicKeyInput = ""
+        case .openai:
+            settings.setOpenaiAPIKey(nil)
+            openaiKeyInput = ""
+        case .gemini:
+            settings.setGeminiAPIKey(nil)
+            geminiKeyInput = ""
+        case .perplexity:
+            settings.setPerplexityAPIKey(nil)
+            perplexityKeyInput = ""
+        }
+    }
+
+    private var providerFooterText: String {
+        switch provider {
+        case .gateway:
+            return "AI place extraction calls the gateway at factchat-cloud.mindlogic.ai directly from this device using this key, stored only in this device's Keychain. This is a third-party gateway, not any provider's own API — your caption/screenshot data passes through it. The model list is from the gateway's own catalog — pick \"Custom…\" for any other ID it supports."
+        case .anthropic:
+            return "Calls Anthropic's own API (api.anthropic.com) directly from this device with your own Anthropic API key — bypasses the gateway entirely."
+        case .openai:
+            return "Calls OpenAI's own API (api.openai.com) directly from this device with your own OpenAI API key — bypasses the gateway entirely. Needs a vision-capable model (the default, gpt-4o, supports screenshots)."
+        case .gemini:
+            return "Calls Google's Gemini API directly from this device with your own Gemini API key (from Google AI Studio) — bypasses the gateway entirely."
+        case .perplexity:
+            return "Calls Perplexity's own API directly from this device with your own Perplexity API key. Perplexity has no vision support, so screenshot extraction is unavailable while it's selected — caption-text extraction still works."
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    SecureField("API key", text: $apiKeyInput)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-
-                    Picker("Model", selection: $modelSelection) {
-                        ForEach(GatewayModels.all) { model in
-                            Text(model.label).tag(model.id)
+                    Picker("Provider", selection: $provider) {
+                        ForEach(AIProvider.allCases) { p in
+                            Text(p.label).tag(p)
                         }
-                        Text("Custom…").tag(Self.customModelTag)
                     }
+                    .pickerStyle(.menu)
 
-                    if modelSelection == Self.customModelTag {
-                        TextField("model-id", text: $customModelInput)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
+                    switch provider {
+                    case .gateway:
+                        ModelPickerProviderFields(
+                            placeholder: "API key",
+                            knownModels: GatewayModels.all,
+                            keyInput: $gatewayKeyInput,
+                            modelSelection: $gatewayModelSelection,
+                            customModelInput: $gatewayCustomModelInput
+                        )
+                    case .anthropic:
+                        ModelPickerProviderFields(
+                            placeholder: "sk-ant-...",
+                            knownModels: Self.anthropicModels,
+                            keyInput: $anthropicKeyInput,
+                            modelSelection: $anthropicModelSelection,
+                            customModelInput: $anthropicCustomModelInput
+                        )
+                    case .openai:
+                        SimpleProviderFields(placeholder: "sk-...", keyInput: $openaiKeyInput, modelInput: $openaiModelInput)
+                    case .gemini:
+                        SimpleProviderFields(placeholder: "AIzaSy...", keyInput: $geminiKeyInput, modelInput: $geminiModelInput)
+                    case .perplexity:
+                        SimpleProviderFields(placeholder: "pplx-...", keyInput: $perplexityKeyInput, modelInput: $perplexityModelInput)
                     }
                 } header: {
-                    Text("AI extraction API key")
+                    Text("AI place extraction")
                 } footer: {
-                    Text("This app has no server — AI place extraction calls the gateway at factchat-cloud.mindlogic.ai directly from your device using this key, stored only in this device's Keychain. This is a third-party gateway, not Anthropic's own API — your caption/screenshot data passes through it. The model list is from the gateway's own catalog — pick \"Custom…\" for any other ID it supports. Leave the key blank to skip AI — the free pattern-matching extraction still works without one.")
+                    Text(providerFooterText + " Leave the key blank to skip AI — the free pattern-matching extraction still works without one.")
                 }
 
-                if settings.apiKey != nil {
+                if currentProviderHasStoredKey {
                     Section {
-                        Button("Remove Key", role: .destructive) {
-                            settings.setAPIKey(nil)
-                            apiKeyInput = ""
-                        }
+                        Button("Remove Key", role: .destructive) { removeCurrentProviderKey() }
                     }
                 }
 
@@ -101,9 +186,23 @@ struct SettingsSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        settings.setAPIKey(apiKeyInput)
-                        let chosenModel = modelSelection == Self.customModelTag ? customModelInput : modelSelection
-                        settings.setModel(chosenModel)
+                        settings.setProvider(provider)
+
+                        settings.setAPIKey(gatewayKeyInput)
+                        settings.setModel(gatewayModelSelection == Self.customModelTag ? gatewayCustomModelInput : gatewayModelSelection)
+
+                        settings.setAnthropicAPIKey(anthropicKeyInput)
+                        settings.setAnthropicModel(anthropicModelSelection == Self.customModelTag ? anthropicCustomModelInput : anthropicModelSelection)
+
+                        settings.setOpenaiAPIKey(openaiKeyInput)
+                        settings.setOpenaiModel(openaiModelInput)
+
+                        settings.setGeminiAPIKey(geminiKeyInput)
+                        settings.setGeminiModel(geminiModelInput)
+
+                        settings.setPerplexityAPIKey(perplexityKeyInput)
+                        settings.setPerplexityModel(perplexityModelInput)
+
                         mapSettings.setProvider(mapProvider)
                         mapSettings.setGoogleMapsAPIKey(googleMapsKeyInput)
                         dismiss()
@@ -111,5 +210,50 @@ struct SettingsSheet: View {
                 }
             }
         }
+    }
+}
+
+/// A provider whose model is picked from a known list, with a "Custom…"
+/// escape hatch for any other ID the provider supports (used by the
+/// gateway and Anthropic).
+private struct ModelPickerProviderFields: View {
+    let placeholder: String
+    let knownModels: [GatewayModels.Model]
+    @Binding var keyInput: String
+    @Binding var modelSelection: String
+    @Binding var customModelInput: String
+
+    var body: some View {
+        SecureField(placeholder, text: $keyInput)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+        Picker("Model", selection: $modelSelection) {
+            ForEach(knownModels) { model in
+                Text(model.label).tag(model.id)
+            }
+            Text("Custom…").tag(SettingsSheet.customModelTag)
+        }
+        if modelSelection == SettingsSheet.customModelTag {
+            TextField("model-id", text: $customModelInput)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+        }
+    }
+}
+
+/// A provider with no bundled model catalog here — just a free-text model
+/// ID (used by OpenAI, Gemini, and Perplexity).
+private struct SimpleProviderFields: View {
+    let placeholder: String
+    @Binding var keyInput: String
+    @Binding var modelInput: String
+
+    var body: some View {
+        SecureField(placeholder, text: $keyInput)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+        TextField("model-id", text: $modelInput)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
     }
 }

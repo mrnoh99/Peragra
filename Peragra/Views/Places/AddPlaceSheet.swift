@@ -126,7 +126,7 @@ struct AddPlaceSheet: View {
                             .disabled(captionText.trimmingCharacters(in: .whitespaces).isEmpty)
                             .buttonStyle(.bordered)
 
-                        if aiSettings.apiKey != nil {
+                        if aiSettings.activeAPIKey != nil {
                             Button {
                                 Task { await runAIExtraction() }
                             } label: {
@@ -147,7 +147,7 @@ struct AddPlaceSheet: View {
                         ProgressView(value: Double(aiProgress.current), total: Double(aiProgress.total))
                     }
 
-                    if !screenshotDatas.isEmpty, aiSettings.apiKey == nil {
+                    if !screenshotDatas.isEmpty, aiSettings.activeAPIKey == nil {
                         Text("Add an AI extraction API key in Settings to read these screenshots — AI reads photos completely, since on-device text recognition struggles with stylized graphics.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -342,7 +342,7 @@ struct AddPlaceSheet: View {
             extractResultMessage = nil
             switch source {
             case .pattern:
-                extractErrorMessage = aiSettings.apiKey != nil
+                extractErrorMessage = aiSettings.activeAPIKey != nil
                     ? "Couldn't find a usable address in that text — try ✨ Find Places (AI) instead."
                     : "Couldn't find any places in that text."
             case .ai:
@@ -355,7 +355,7 @@ struct AddPlaceSheet: View {
             extractResultMessage = "\(label) found \(usable.count) \(placeWord) (\(withAddress) with an address) — review below before saving."
         }
 
-        guard !usable.isEmpty, aiSettings.apiKey != nil else { return }
+        guard !usable.isEmpty, aiSettings.activeAPIKey != nil else { return }
         let targets = rows.filter { $0.address.trimmingCharacters(in: .whitespaces).isEmpty }
             .map { (id: $0.id, name: $0.name) }
         if !targets.isEmpty {
@@ -368,13 +368,12 @@ struct AddPlaceSheet: View {
     /// knowledge of the trip's destination rather than leaving the place
     /// unaddressed (and therefore hard to geocode accurately).
     private func fillMissingAddressesWithAI(_ targets: [(id: UUID, name: String)]) async {
-        guard let apiKey = aiSettings.apiKey, !targets.isEmpty else { return }
+        guard aiSettings.activeAPIKey != nil, !targets.isEmpty else { return }
         isGuessingAddresses = true
         defer { isGuessingAddresses = false }
 
         do {
             let guesses = try await AIExtractionService.guessAddresses(
-                apiKey: apiKey,
                 destination: trip.destination,
                 placeNames: targets.map { $0.name }
             )
@@ -441,7 +440,7 @@ struct AddPlaceSheet: View {
     }
 
     private func runAIExtraction() async {
-        guard let apiKey = aiSettings.apiKey else { return }
+        guard aiSettings.activeAPIKey != nil else { return }
         extractErrorMessage = nil
         extractResultMessage = nil
         defer { aiProgress = nil }
@@ -456,7 +455,6 @@ struct AddPlaceSheet: View {
                 aiProgress = (current: 0, total: screenshotDatas.count)
                 for (index, data) in screenshotDatas.enumerated() {
                     let pageResults = try await AIExtractionService.extractPlaces(
-                        apiKey: apiKey,
                         imageData: data,
                         mediaType: "image/jpeg"
                     )
@@ -466,7 +464,7 @@ struct AddPlaceSheet: View {
                 results = allResults
             } else if !captionText.trimmingCharacters(in: .whitespaces).isEmpty {
                 aiProgress = (current: 0, total: 1)
-                results = try await AIExtractionService.extractPlaces(apiKey: apiKey, captionText: captionText)
+                results = try await AIExtractionService.extractPlaces(captionText: captionText)
                 aiProgress = (current: 1, total: 1)
             } else {
                 extractErrorMessage = "Paste a caption or upload a screenshot first."
@@ -571,10 +569,9 @@ struct AddPlaceSheet: View {
             return
         }
 
-        if let apiKey = aiSettings.apiKey {
+        if aiSettings.activeAPIKey != nil {
             do {
                 let guessedAddress = try await AIExtractionService.guessNearestAddress(
-                    apiKey: apiKey,
                     destination: trip.destination,
                     name: trimmedName,
                     address: trimmedAddress.isEmpty ? nil : trimmedAddress,

@@ -11,52 +11,74 @@ struct AIExtractedPlace: Decodable {
 }
 
 enum AIExtractionError: LocalizedError {
-    case missingAPIKey
-    case invalidResponse
-    case authenticationFailed
-    case rateLimited
-    case apiError(String)
+    case missingAPIKey(String)
+    case invalidResponse(String)
+    case authenticationFailed(String)
+    case rateLimited(String)
+    case apiError(String, String)
     case decodingFailed
+    case visionUnsupported(String)
 
     var errorDescription: String? {
         switch self {
-        case .missingAPIKey:
-            return "No API key configured — add one in Settings."
-        case .invalidResponse:
-            return "Couldn't reach the AI extraction service."
-        case .authenticationFailed:
-            return "That API key was rejected — check it in Settings."
-        case .rateLimited:
-            return "Rate limited by the gateway — try again in a moment."
-        case .apiError(let message):
-            return "Gateway error: \(message)"
+        case .missingAPIKey(let label):
+            return "No \(label) API key set — add one in Settings."
+        case .invalidResponse(let label):
+            return "Couldn't reach \(label)."
+        case .authenticationFailed(let label):
+            return "That \(label) API key was rejected — check it in Settings."
+        case .rateLimited(let label):
+            return "Rate limited by \(label) — try again in a moment."
+        case .apiError(let label, let message):
+            return "\(label) error: \(message)"
         case .decodingFailed:
             return "Couldn't understand the AI's response."
+        case .visionUnsupported(let label):
+            return "\(label) doesn't support reading screenshots — switch providers in Settings, or paste the caption text instead."
         }
     }
 }
 
 /// Extracts place recommendations from caption text or a caption
-/// screenshot using the user's own API key, called directly from the
-/// device (this app has no server). Routed through a third-party
-/// OpenAI-compatible gateway (factchat-cloud.mindlogic.ai) rather than
-/// Anthropic's own API — per explicit instruction. This means
-/// captions/screenshots sent for extraction pass through that gateway, not
-/// just Anthropic directly, and the key entered in Settings is one issued
-/// by that gateway, not an Anthropic key. Its actual feature support
-/// (vision passthrough, JSON mode) is undocumented from here, so this
-/// prompts for JSON in plain chat-completion form and decodes the response
-/// manually rather than relying on any provider-specific structured-output
-/// extension (mirrors web/src/lib/aiExtract.ts).
+/// screenshot using the active provider's API key (see AISettings),
+/// called directly from the device (this app has no server).
+///
+/// The default provider ("gateway") routes through a third-party
+/// OpenAI-compatible gateway (factchat-cloud.mindlogic.ai) rather than any
+/// provider's own API — per explicit instruction, kept as the default.
+/// Its actual feature support (vision passthrough, JSON mode) is
+/// undocumented from here, so this prompts for JSON in plain
+/// chat-completion form and decodes the response manually rather than
+/// relying on any provider-specific structured-output extension — the
+/// same technique is reused for every direct provider below so there's
+/// only one response-parsing path to trust.
+///
+/// Alongside the gateway, Settings also offers calling Anthropic, OpenAI,
+/// Google (Gemini), or Perplexity directly with the user's own key for
+/// that provider — bypassing the gateway entirely. Unlike a browser, a
+/// native URLSession request isn't subject to CORS, so no special
+/// browser-access opt-in header is needed for the direct providers here
+/// (mirrors web/src/lib/aiExtract.ts, which does need one on the web).
+/// Perplexity's API has no vision support, so screenshot extraction is
+/// unavailable when it's the active provider (checked in
+/// performChatRequest below).
 enum AIExtractionService {
+    static let defaultAnthropicModel = "claude-sonnet-5"
+    static let defaultOpenAIModel = "gpt-4o"
+    static let defaultGeminiModel = "gemini-2.0-flash"
+    static let defaultPerplexityModel = "sonar"
+
     // Trailing slash matters — the gateway's documented endpoint is
     // "/v1/gateway/chat/completions/" and a request without one risks a
     // 404 or a broken POST-to-GET redirect on a Django-style backend that
     // enforces trailing slashes (confirmed as a real discrepancy while
-    // testing the equivalent web request against a local mock server —
-    // the openai npm SDK's own path-building drops the trailing slash by
-    // default, which is what led to catching this here too).
-    private static let endpoint = URL(string: "https://factchat-cloud.mindlogic.ai/v1/gateway/chat/completions/")!
+    // testing the equivalent web request against a local mock server).
+    // Real OpenAI-compatible APIs (OpenAI itself, Perplexity) don't have
+    // this quirk.
+    private static let gatewayEndpoint = URL(string: "https://factchat-cloud.mindlogic.ai/v1/gateway/chat/completions/")!
+    private static let openAIEndpoint = URL(string: "https://api.openai.com/v1/chat/completions")!
+    private static let perplexityEndpoint = URL(string: "https://api.perplexity.ai/chat/completions")!
+    private static let anthropicEndpoint = URL(string: "https://api.anthropic.com/v1/messages")!
 
     private static let systemPrompt = """
     You extract place recommendations (restaurants, cafes, shops, attractions) from \
@@ -108,24 +130,18 @@ enum AIExtractionService {
     matching exactly this shape: {"address": string | null}
     """
 
-    static func extractPlaces(apiKey: String, captionText: String) async throws -> [AIExtractedPlace] {
-        let text = try await performChatRequest(apiKey: apiKey, systemPrompt: systemPrompt, userContent: captionText)
+    static func extractPlaces(captionText: String) async throws -> [AIExtractedPlace] {
+        let text = try await performChatRequest(systemPrompt: systemPrompt, textPrompt: captionText, image: nil)
         return try parsePlaces(from: text)
     }
 
-    static func extractPlaces(apiKey: String, imageData: Data, mediaType: String) async throws -> [AIExtractedPlace] {
+    static func extractPlaces(imageData: Data, mediaType: String) async throws -> [AIExtractedPlace] {
         let base64 = imageData.base64EncodedString()
-        let content: [[String: Any]] = [
-            [
-                "type": "text",
-                "text": "Extract every place recommended in this screenshot's caption.",
-            ],
-            [
-                "type": "image_url",
-                "image_url": ["url": "data:\(mediaType);base64,\(base64)"],
-            ],
-        ]
-        let text = try await performChatRequest(apiKey: apiKey, systemPrompt: systemPrompt, userContent: content)
+        let text = try await performChatRequest(
+            systemPrompt: systemPrompt,
+            textPrompt: "Extract every place recommended in this screenshot's caption.",
+            image: (mediaType, base64)
+        )
         return try parsePlaces(from: text)
     }
 
@@ -134,13 +150,13 @@ enum AIExtractionService {
     /// extracted from a caption — for places a caption named without ever
     /// giving an address. Returns one entry per input name, in order; an
     /// entry is nil where the model wasn't confident enough to guess.
-    static func guessAddresses(apiKey: String, destination: String, placeNames: [String]) async throws -> [String?] {
+    static func guessAddresses(destination: String, placeNames: [String]) async throws -> [String?] {
         guard !placeNames.isEmpty else { return [] }
         let placesList = placeNames.enumerated()
             .map { "\($0.offset + 1). \($0.element)" }
             .joined(separator: "\n")
-        let userContent = "Destination: \(destination)\n\nPlaces:\n\(placesList)"
-        let text = try await performChatRequest(apiKey: apiKey, systemPrompt: addressGuessSystemPrompt, userContent: userContent)
+        let textPrompt = "Destination: \(destination)\n\nPlaces:\n\(placesList)"
+        let text = try await performChatRequest(systemPrompt: addressGuessSystemPrompt, textPrompt: textPrompt, image: nil)
         return try parseAddressGuesses(from: text, count: placeNames.count)
     }
 
@@ -151,7 +167,6 @@ enum AIExtractionService {
     /// notes) rather than just the name alone. Returns nil when the model
     /// has no reasonable basis for a guess.
     static func guessNearestAddress(
-        apiKey: String,
         destination: String,
         name: String,
         address: String?,
@@ -166,17 +181,104 @@ enum AIExtractionService {
         ]
         .compactMap { $0 }
         .joined(separator: "\n")
-        let userContent = "Destination: \(destination)\n\n\(details)"
-        let text = try await performChatRequest(apiKey: apiKey, systemPrompt: nearestLocationSystemPrompt, userContent: userContent)
+        let textPrompt = "Destination: \(destination)\n\n\(details)"
+        let text = try await performChatRequest(systemPrompt: nearestLocationSystemPrompt, textPrompt: textPrompt, image: nil)
         return try parseNearestLocation(from: text)
     }
 
-    private static func performChatRequest(apiKey: String, systemPrompt: String, userContent: Any) async throws -> String {
-        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedKey.isEmpty else { throw AIExtractionError.missingAPIKey }
+    /// Routes to whichever provider is currently active in Settings.
+    private static func performChatRequest(
+        systemPrompt: String,
+        textPrompt: String,
+        image: (mediaType: String, base64: String)?
+    ) async throws -> String {
+        let settings = AISettings.shared
+        switch settings.provider {
+        case .gateway:
+            let apiKey = try requireKey(settings.apiKey, label: "AI extraction gateway")
+            return try await performOpenAICompatibleRequest(
+                endpoint: gatewayEndpoint,
+                apiKey: apiKey,
+                model: settings.model,
+                systemPrompt: systemPrompt,
+                userContent: openAICompatibleUserContent(text: textPrompt, image: image),
+                serviceLabel: "the gateway"
+            )
+        case .openai:
+            let apiKey = try requireKey(settings.openaiAPIKey, label: "OpenAI")
+            return try await performOpenAICompatibleRequest(
+                endpoint: openAIEndpoint,
+                apiKey: apiKey,
+                model: settings.openaiModel,
+                systemPrompt: systemPrompt,
+                userContent: openAICompatibleUserContent(text: textPrompt, image: image),
+                serviceLabel: "OpenAI"
+            )
+        case .perplexity:
+            if image != nil { throw AIExtractionError.visionUnsupported("Perplexity") }
+            let apiKey = try requireKey(settings.perplexityAPIKey, label: "Perplexity")
+            return try await performOpenAICompatibleRequest(
+                endpoint: perplexityEndpoint,
+                apiKey: apiKey,
+                model: settings.perplexityModel,
+                systemPrompt: systemPrompt,
+                userContent: textPrompt,
+                serviceLabel: "Perplexity"
+            )
+        case .anthropic:
+            let apiKey = try requireKey(settings.anthropicAPIKey, label: "Anthropic")
+            return try await performAnthropicRequest(
+                apiKey: apiKey,
+                model: settings.anthropicModel,
+                systemPrompt: systemPrompt,
+                userContent: anthropicUserContent(text: textPrompt, image: image)
+            )
+        case .gemini:
+            let apiKey = try requireKey(settings.geminiAPIKey, label: "Gemini")
+            return try await performGeminiRequest(
+                apiKey: apiKey,
+                model: settings.geminiModel,
+                systemPrompt: systemPrompt,
+                textPrompt: textPrompt,
+                image: image
+            )
+        }
+    }
 
+    private static func requireKey(_ key: String?, label: String) throws -> String {
+        let trimmed = key?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmed.isEmpty else { throw AIExtractionError.missingAPIKey(label) }
+        return trimmed
+    }
+
+    private static func openAICompatibleUserContent(text: String, image: (mediaType: String, base64: String)?) -> Any {
+        guard let image else { return text }
+        return [
+            ["type": "text", "text": text],
+            ["type": "image_url", "image_url": ["url": "data:\(image.mediaType);base64,\(image.base64)"]],
+        ]
+    }
+
+    private static func anthropicUserContent(text: String, image: (mediaType: String, base64: String)?) -> [[String: Any]] {
+        guard let image else { return [["type": "text", "text": text]] }
+        return [
+            ["type": "image", "source": ["type": "base64", "media_type": image.mediaType, "data": image.base64]],
+            ["type": "text", "text": text],
+        ]
+    }
+
+    /// Shared by the gateway, OpenAI-direct, and Perplexity — all speak
+    /// the same OpenAI-compatible chat API.
+    private static func performOpenAICompatibleRequest(
+        endpoint: URL,
+        apiKey: String,
+        model: String,
+        systemPrompt: String,
+        userContent: Any,
+        serviceLabel: String
+    ) async throws -> String {
         let body: [String: Any] = [
-            "model": AISettings.shared.model,
+            "model": model,
             "messages": [
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": userContent],
@@ -186,23 +288,22 @@ enum AIExtractionService {
         var urlRequest = URLRequest(url: endpoint)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "content-type")
-        urlRequest.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw AIExtractionError.invalidResponse
+            throw AIExtractionError.invalidResponse(serviceLabel)
         }
 
-        let rawJSON = try? JSONSerialization.jsonObject(with: data)
-        let json = rawJSON as? [String: Any]
+        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            if httpResponse.statusCode == 401 { throw AIExtractionError.authenticationFailed }
-            if httpResponse.statusCode == 429 { throw AIExtractionError.rateLimited }
+            if httpResponse.statusCode == 401 { throw AIExtractionError.authenticationFailed(serviceLabel) }
+            if httpResponse.statusCode == 429 { throw AIExtractionError.rateLimited(serviceLabel) }
             let errorObject = json?["error"] as? [String: Any]
             let message = (errorObject?["message"] as? String) ?? (json?["error"] as? String)
-            throw AIExtractionError.apiError(message ?? "HTTP \(httpResponse.statusCode)")
+            throw AIExtractionError.apiError(serviceLabel, message ?? "HTTP \(httpResponse.statusCode)")
         }
 
         guard
@@ -216,9 +317,112 @@ enum AIExtractionService {
         return text
     }
 
+    /// Anthropic's own Messages API — a different request/response shape
+    /// than the OpenAI-compatible one above.
+    private static func performAnthropicRequest(
+        apiKey: String,
+        model: String,
+        systemPrompt: String,
+        userContent: [[String: Any]]
+    ) async throws -> String {
+        let body: [String: Any] = [
+            "model": model,
+            "max_tokens": 4096,
+            "system": systemPrompt,
+            "messages": [["role": "user", "content": userContent]],
+        ]
+
+        var urlRequest = URLRequest(url: anthropicEndpoint)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "content-type")
+        urlRequest.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        urlRequest.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AIExtractionError.invalidResponse("Anthropic")
+        }
+
+        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 401 { throw AIExtractionError.authenticationFailed("Anthropic") }
+            if httpResponse.statusCode == 429 { throw AIExtractionError.rateLimited("Anthropic") }
+            let errorObject = json?["error"] as? [String: Any]
+            let message = errorObject?["message"] as? String
+            throw AIExtractionError.apiError("Anthropic", message ?? "HTTP \(httpResponse.statusCode)")
+        }
+
+        guard
+            let content = json?["content"] as? [[String: Any]],
+            let textBlock = content.first(where: { ($0["type"] as? String) == "text" }),
+            let text = textBlock["text"] as? String
+        else {
+            throw AIExtractionError.decodingFailed
+        }
+
+        return text
+    }
+
+    /// Google's Gemini API — its own REST shape (no bundled SDK here).
+    private static func performGeminiRequest(
+        apiKey: String,
+        model: String,
+        systemPrompt: String,
+        textPrompt: String,
+        image: (mediaType: String, base64: String)?
+    ) async throws -> String {
+        var parts: [[String: Any]] = [["text": textPrompt]]
+        if let image {
+            parts.append(["inline_data": ["mime_type": image.mediaType, "data": image.base64]])
+        }
+
+        var components = URLComponents(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")
+        components?.queryItems = [URLQueryItem(name: "key", value: apiKey)]
+        guard let url = components?.url else {
+            throw AIExtractionError.invalidResponse("Gemini")
+        }
+
+        let body: [String: Any] = [
+            "systemInstruction": ["parts": [["text": systemPrompt]]],
+            "contents": [["role": "user", "parts": parts]],
+        ]
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "content-type")
+        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AIExtractionError.invalidResponse("Gemini")
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                throw AIExtractionError.authenticationFailed("Gemini")
+            }
+            if httpResponse.statusCode == 429 { throw AIExtractionError.rateLimited("Gemini") }
+            throw AIExtractionError.apiError("Gemini", "HTTP \(httpResponse.statusCode)")
+        }
+
+        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        guard
+            let candidates = json?["candidates"] as? [[String: Any]],
+            let content = candidates.first?["content"] as? [String: Any],
+            let responseParts = content["parts"] as? [[String: Any]],
+            let text = responseParts.first?["text"] as? String
+        else {
+            throw AIExtractionError.decodingFailed
+        }
+
+        return text
+    }
+
     /// Strips a markdown code fence around JSON despite the prompt asking
-    /// for none — models routed through arbitrary gateways don't reliably
-    /// follow that.
+    /// for none — models routed through arbitrary gateways/providers
+    /// don't reliably follow that.
     private static func stripMarkdownFence(from text: String) -> String {
         var jsonText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if let range = jsonText.range(of: "```(?:json)?\\s*([\\s\\S]*?)\\s*```", options: .regularExpression) {

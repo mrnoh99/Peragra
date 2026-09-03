@@ -15,7 +15,7 @@ import {
   type AIExtractedPlace,
 } from "../lib/aiExtract";
 import { parseKmlPlaces } from "../lib/kml";
-import { useAISettingsStore } from "../store/useAISettingsStore";
+import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type PlaceCategory } from "../types";
 
@@ -67,7 +67,7 @@ export function AddPlaceModal({
 }) {
   const addPlace = useStore((s) => s.addPlace);
   const setPlaceCoords = useStore((s) => s.setPlaceCoords);
-  const apiKey = useAISettingsStore((s) => s.apiKey);
+  const apiKey = useAISettingsStore(selectActiveApiKey);
 
   const [instagramInput, setInstagramInput] = useState("");
   const [captionText, setCaptionText] = useState("");
@@ -114,7 +114,7 @@ export function AddPlaceModal({
     if (!apiKey || targets.length === 0) return;
     setIsGuessingAddresses(true);
     try {
-      const guesses = await guessMissingAddresses(apiKey, destination, targets.map((t) => t.name));
+      const guesses = await guessMissingAddresses(destination, targets.map((t) => t.name));
       const filledCount = guesses.filter((g) => g !== null).length;
       if (filledCount > 0) {
         setRows((prev) =>
@@ -267,14 +267,14 @@ export function AddPlaceModal({
             throw new AIExtractionError("That image format isn't supported — try a JPEG or PNG.");
           }
           const base64 = await fileToBase64(file);
-          const fileResults = await extractPlacesFromImage(apiKey, base64, mediaType);
+          const fileResults = await extractPlacesFromImage(base64, mediaType);
           allResults.push(...fileResults);
           setAiProgress((prev) => (prev ? { current: prev.current + 1, total: prev.total } : prev));
         }
         results = allResults;
       } else if (captionText.trim()) {
         setAiProgress({ current: 0, total: 1 });
-        results = await extractPlacesFromText(apiKey, captionText);
+        results = await extractPlacesFromText(captionText);
         setAiProgress({ current: 1, total: 1 });
       } else {
         setExtractError("Paste a caption or upload a screenshot first.");
@@ -311,7 +311,7 @@ export function AddPlaceModal({
 
     if (apiKey) {
       try {
-        const guessedAddress = await guessNearestAddress(apiKey, destination, {
+        const guessedAddress = await guessNearestAddress(destination, {
           name: row.name.trim(),
           address: row.address.trim() || null,
           telephone: row.phone.trim() || null,

@@ -122,10 +122,9 @@ struct EditPlaceSheet: View {
             return
         }
 
-        if let apiKey = aiSettings.apiKey {
+        if aiSettings.activeAPIKey != nil {
             do {
                 let guessedAddress = try await AIExtractionService.guessNearestAddress(
-                    apiKey: apiKey,
                     destination: destination ?? "",
                     name: name,
                     address: address.isEmpty ? nil : address,
