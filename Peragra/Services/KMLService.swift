@@ -75,7 +75,11 @@ private final class KMLParserDelegate: NSObject, XMLParserDelegate {
     private var inPlacemark = false
 
     private var name: String?
-    private var description: String?
+    // Named placemarkDescription, not description — NSObject already
+    // declares a non-optional `description: String`, and a same-named
+    // `String?` property here silently overrides it with a mismatched
+    // (and inaccessible) type, which Swift rejects at compile time.
+    private var placemarkDescription: String?
     private var coordinates: String?
 
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
@@ -84,7 +88,7 @@ private final class KMLParserDelegate: NSObject, XMLParserDelegate {
         if elementName == "Placemark" {
             inPlacemark = true
             name = nil
-            description = nil
+            placemarkDescription = nil
             coordinates = nil
         }
     }
@@ -103,7 +107,7 @@ private final class KMLParserDelegate: NSObject, XMLParserDelegate {
         case "name":
             if name == nil { name = trimmed }
         case "description":
-            if description == nil { description = trimmed }
+            if placemarkDescription == nil { placemarkDescription = trimmed }
         case "coordinates":
             if coordinates == nil { coordinates = trimmed }
         case "Placemark":
@@ -122,7 +126,7 @@ private final class KMLParserDelegate: NSObject, XMLParserDelegate {
             places.append(
                 KMLService.KmlPlace(
                     name: (name?.isEmpty ?? true) ? nil : name,
-                    address: (description?.isEmpty ?? true) ? nil : description,
+                    address: (placemarkDescription?.isEmpty ?? true) ? nil : placemarkDescription,
                     latitude: latitude,
                     longitude: longitude
                 )
