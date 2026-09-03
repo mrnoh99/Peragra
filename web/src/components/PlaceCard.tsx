@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { PLACE_CATEGORIES, type Collection, type Place } from "../types";
 import { useStore } from "../store/useStore";
 import { EditPlaceModal } from "./EditPlaceModal";
@@ -37,12 +37,48 @@ export function PlaceCard({
   const togglePlaceCollection = useStore((s) => s.togglePlaceCollection);
   const [showCollections, setShowCollections] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const longPressTimer = useRef<number | null>(null);
 
   const categoryLabel =
     PLACE_CATEGORIES.find((c) => c.value === place.category)?.label ?? "Other";
 
+  function copyForMaps() {
+    const text = place.address ? `${place.name}, ${place.address}` : place.name;
+    navigator.clipboard
+      ?.writeText(text)
+      .then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => {});
+  }
+
+  function startLongPress() {
+    longPressTimer.current = window.setTimeout(copyForMaps, 550);
+  }
+
+  function cancelLongPress() {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
+
   return (
-    <div className="rounded-xl border border-black/5 bg-white p-4 shadow-sm">
+    <div
+      className="relative rounded-xl border border-black/5 bg-white p-4 shadow-sm"
+      onPointerDown={startLongPress}
+      onPointerUp={cancelLongPress}
+      onPointerLeave={cancelLongPress}
+      onPointerCancel={cancelLongPress}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {copied && (
+        <div className="absolute right-3 top-3 z-10 rounded-full bg-neutral-900/90 px-2.5 py-1 text-xs font-medium text-white">
+          Copied for Google Maps
+        </div>
+      )}
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-2">
           {selectable && (

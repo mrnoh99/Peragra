@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct PlaceRowView: View {
     @Bindable var place: Place
@@ -12,6 +13,7 @@ struct PlaceRowView: View {
     @Environment(\.openURL) private var openURL
     @State private var showingCollectionPicker = false
     @State private var showingEdit = false
+    @State private var showingCopiedBadge = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -121,12 +123,41 @@ struct PlaceRowView: View {
             .padding(.top, 2)
         }
         .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+                copyForMaps()
+            }
+        )
+        .overlay(alignment: .topTrailing) {
+            if showingCopiedBadge {
+                Text("Copied for Google Maps")
+                    .font(.caption2.weight(.medium))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.black.opacity(0.85), in: Capsule())
+                    .foregroundStyle(.white)
+                    .transition(.opacity)
+            }
+        }
         .sheet(isPresented: $showingCollectionPicker) {
             CollectionPickerSheet(place: place, allCollections: allCollections)
                 .presentationDetents([.medium])
         }
         .sheet(isPresented: $showingEdit) {
             EditPlaceSheet(place: place)
+        }
+    }
+
+    /// Long-press copies "name, address" so it can be pasted straight into
+    /// Google Maps' search bar.
+    private func copyForMaps() {
+        let text = place.address.isEmpty ? place.name : "\(place.name), \(place.address)"
+        UIPasteboard.general.string = text
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation { showingCopiedBadge = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+            withAnimation { showingCopiedBadge = false }
         }
     }
 
