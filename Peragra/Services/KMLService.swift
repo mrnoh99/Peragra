@@ -2,12 +2,20 @@ import Foundation
 
 /// KML export/import — the closest thing to a "send this list to Google
 /// Maps" feature that's actually possible: Google has no public API for a
-/// user's personal Saved-places lists, but Google My Maps
+/// user's personal Saved-places lists (no way to check whether a "Peragra"
+/// list already exists there, or create/add to one), but Google My Maps
 /// (mymaps.google.com) can import a KML file as a new named map, and export
 /// one back out. So "syncing with Google Maps" here means: generate a KML
-/// file titled "Peragra - <trip>" for the user to import into My Maps, and
-/// parse a KML file (one they exported from My Maps) back into candidate
-/// places to review before saving — same flow as caption/AI extraction.
+/// file titled "Peragra - <trip>" for the user to import into My Maps
+/// (once, naming that map "Peragra" themselves), and parse a KML file (one
+/// they exported from My Maps) back into candidate places to review before
+/// saving — same flow as caption/AI extraction.
+///
+/// Places are grouped into one <Folder> per category — My Maps shows each
+/// KML Folder as its own named, separately-colored layer, so a category
+/// ("Restaurant", "Cafe", ...) survives the import instead of every pin
+/// landing in one undifferentiated pile. Notes travel in the placemark
+/// description, same as before.
 /// Mirrors web/src/lib/kml.ts.
 enum KMLService {
     struct KmlPlace {
@@ -26,32 +34,43 @@ enum KMLService {
             .replacingOccurrences(of: "'", with: "&apos;")
     }
 
-    static func generateKML(title: String, places: [Place]) -> String {
-        let located = places.filter { $0.latitude != nil && $0.longitude != nil }
-
-        let placemarks = located.map { place -> String in
-            let descriptionParts = [place.address, place.notes].filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-            let description = descriptionParts.joined(separator: " — ")
-            let descriptionLine = description.isEmpty ? "" : "\n      <description>\(escapeXML(description))</description>"
-            // KML coordinate order is longitude,latitude[,altitude] — the
-            // reverse of how this app (and most UIs) writes lat/lng.
-            return """
+    private static func placemarkXML(_ place: Place) -> String {
+        let descriptionParts = [place.address, place.notes].filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let description = descriptionParts.joined(separator: " — ")
+        let descriptionLine = description.isEmpty ? "" : "\n        <description>\(escapeXML(description))</description>"
+        // KML coordinate order is longitude,latitude[,altitude] — the
+        // reverse of how this app (and most UIs) writes lat/lng.
+        return """
                 <Placemark>
                   <name>\(escapeXML(place.name))</name>\(descriptionLine)
                   <Point><coordinates>\(place.longitude ?? 0),\(place.latitude ?? 0),0</coordinates></Point>
                 </Placemark>
-                """
-        }.joined(separator: "\n")
+            """
+    }
+
+    static func generateKML(title: String, places: [Place]) -> String {
+        let located = places.filter { $0.latitude != nil && $0.longitude != nil }
+
+        let folders = PlaceCategory.allCases
+            .compactMap { category -> String? in
+                let categoryPlaces = located.filter { $0.category == category }
+                guard !categoryPlaces.isEmpty else { return nil }
+                let placemarks = categoryPlaces.map(placemarkXML).joined(separator: "\n")
+                return """
+                    <Folder>
+                      <name>\(escapeXML(category.label))</name>
+                \(placemarks)
+                    </Folder>
+                    """
+            }
+            .joined(separator: "\n")
 
         return """
             <?xml version="1.0" encoding="UTF-8"?>
             <kml xmlns="http://www.opengis.net/kml/2.2">
               <Document>
                 <name>\(escapeXML(title))</name>
-                <Folder>
-                  <name>\(escapeXML(title))</name>
-            \(placemarks)
-                </Folder>
+            \(folders)
               </Document>
             </kml>
 
