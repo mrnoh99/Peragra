@@ -23,9 +23,12 @@ struct PlaceListingView: View {
     @State private var isSelecting = false
     @State private var selectedIDs: Set<UUID> = []
 
-    private var filtered: [Place] {
+    /// Everything except the category filter itself — used both to build
+    /// the list and to count how many places each category chip would
+    /// show, so those counts reflect the other active filters (search,
+    /// favorites, ...) rather than going stale next to them.
+    private var preCategoryFiltered: [Place] {
         places.filter { place in
-            if let categoryFilter, place.category != categoryFilter { return false }
             if hideVisited && place.visited { return false }
             if favoritesOnly && !place.favorite { return false }
             if !search.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -35,6 +38,15 @@ struct PlaceListingView: View {
             }
             return true
         }
+    }
+
+    private var categoryCounts: [PlaceCategory: Int] {
+        Dictionary(grouping: preCategoryFiltered, by: \.category).mapValues(\.count)
+    }
+
+    private var filtered: [Place] {
+        guard let categoryFilter else { return preCategoryFiltered }
+        return preCategoryFiltered.filter { $0.category == categoryFilter }
     }
 
     private var referencePlace: Place? {
@@ -126,11 +138,11 @@ struct PlaceListingView: View {
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                FilterChip(title: "All", isSelected: categoryFilter == nil) {
+                FilterChip(title: "All (\(preCategoryFiltered.count))", isSelected: categoryFilter == nil) {
                     categoryFilter = nil
                 }
                 ForEach(PlaceCategory.allCases) { category in
-                    FilterChip(title: category.label, isSelected: categoryFilter == category) {
+                    FilterChip(title: "\(category.label) (\(categoryCounts[category] ?? 0))", isSelected: categoryFilter == category) {
                         categoryFilter = (categoryFilter == category) ? nil : category
                     }
                 }

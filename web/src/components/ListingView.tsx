@@ -49,10 +49,13 @@ export function ListingView({
     setIsSelecting(false);
   }
 
-  const filtered = useMemo(() => {
+  // Everything except the category filter itself — used both to build the
+  // list and to count how many places each category option would show,
+  // so those counts reflect the other active filters (search, favorites,
+  // ...) rather than going stale next to them.
+  const preCategoryFiltered = useMemo(() => {
     return places.filter((p) => {
       if (activeCollectionId && !p.collectionIds.includes(activeCollectionId)) return false;
-      if (categoryFilter !== "all" && p.category !== categoryFilter) return false;
       if (hideVisited && p.visited) return false;
       if (favoritesOnly && !p.favorite) return false;
       if (search.trim()) {
@@ -67,7 +70,20 @@ export function ListingView({
       }
       return true;
     });
-  }, [places, activeCollectionId, categoryFilter, hideVisited, favoritesOnly, search]);
+  }, [places, activeCollectionId, hideVisited, favoritesOnly, search]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<PlaceCategory, number>();
+    for (const p of preCategoryFiltered) {
+      counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
+    }
+    return counts;
+  }, [preCategoryFiltered]);
+
+  const filtered = useMemo(() => {
+    if (categoryFilter === "all") return preCategoryFiltered;
+    return preCategoryFiltered.filter((p) => p.category === categoryFilter);
+  }, [preCategoryFiltered, categoryFilter]);
 
   const distanceFrom = useMemo(() => {
     const ref = places.find((p) => p.id === distanceFromId);
@@ -109,10 +125,10 @@ export function ListingView({
           onChange={(e) => setCategoryFilter(e.target.value as PlaceCategory | "all")}
           className="rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
         >
-          <option value="all">All categories</option>
+          <option value="all">All categories ({preCategoryFiltered.length})</option>
           {PLACE_CATEGORIES.map((c) => (
             <option key={c.value} value={c.value}>
-              {c.label}
+              {c.label} ({categoryCounts.get(c.value) ?? 0})
             </option>
           ))}
         </select>
