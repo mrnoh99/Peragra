@@ -8,6 +8,7 @@ import {
   extractPlacesFromImage,
   extractPlacesFromText,
   fileToBase64,
+  guessMissingAddresses,
   isSupportedImageMediaType,
   AIExtractionError,
 } from "../lib/aiExtract";
@@ -65,6 +66,7 @@ export function AddPlaceModal({
   const [aiLoading, setAiLoading] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extractResultMessage, setExtractResultMessage] = useState<string | null>(null);
+  const [isGuessingAddresses, setIsGuessingAddresses] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const kmlInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,13 +85,52 @@ export function AddPlaceModal({
     setRows((prev) => prev.filter((r) => r.id !== id));
   }
 
+  function applyCategoryToSelected(category: PlaceCategory) {
+    setRows((prev) => prev.map((r) => (r.selected ? { ...r, category } : r)));
+  }
+
+  /**
+   * Best-effort follow-up to extraction: for rows a caption named but never
+   * gave an address, ask AI to guess one from its general knowledge of the
+   * destination rather than leaving the place unaddressed (and therefore
+   * hard to geocode accurately). Silently a no-op without an API key.
+   */
+  async function fillMissingAddressesWithAI(targets: { id: string; name: string }[]) {
+    if (!apiKey || targets.length === 0) return;
+    setIsGuessingAddresses(true);
+    try {
+      const guesses = await guessMissingAddresses(apiKey, destination, targets.map((t) => t.name));
+      const filledCount = guesses.filter((g) => g !== null).length;
+      if (filledCount > 0) {
+        setRows((prev) =>
+          prev.map((r) => {
+            const idx = targets.findIndex((t) => t.id === r.id);
+            const guess = idx === -1 ? null : guesses[idx];
+            return guess ? { ...r, address: guess } : r;
+          }),
+        );
+        setExtractError(null);
+        setExtractResultMessage(
+          `✨ AI guessed an address for ${filledCount} place${filledCount === 1 ? "" : "s"} that didn't have one — double-check before saving.`,
+        );
+      }
+    } catch {
+      // Best effort — leave those rows addressless if the guess call
+      // itself fails; the existing extract result/error message stands.
+    } finally {
+      setIsGuessingAddresses(false);
+    }
+  }
+
   function replaceRowsFromExtraction(
     places: { name: string | null; address: string | null }[],
     source: "pattern" | "ai",
   ) {
     const usable = places.filter((p) => p.name);
+    let newRows: CandidateRow[] = [];
     if (usable.length > 0) {
-      setRows(usable.map((p) => makeRow({ name: p.name ?? "", address: p.address ?? "" })));
+      newRows = usable.map((p) => makeRow({ name: p.name ?? "", address: p.address ?? "" }));
+      setRows(newRows);
     }
 
     // The whole point of extraction is getting an address onto the map —
@@ -115,6 +156,13 @@ export function AddPlaceModal({
       setExtractResultMessage(
         `${label} found ${usable.length} place${usable.length === 1 ? "" : "s"} (${withAddress} with an address) — review below before saving.`,
       );
+    }
+
+    if (apiKey) {
+      const targets = newRows.filter((r) => !r.address.trim()).map((r) => ({ id: r.id, name: r.name }));
+      if (targets.length > 0) {
+        void fillMissingAddressesWithAI(targets);
+      }
     }
   }
 
@@ -306,6 +354,102 @@ export function AddPlaceModal({
           )}
         </div>
 
+        {(extractResultMessage || extractError || isGuessingAddresses) && (
+          <p className={`text-xs ${extractError ? "text-amber-600" : "text-neutral-400"}`}>
+            {extractError ?? (isGuessingAddresses ? "✨ AI is guessing addresses for places without one…" : extractResultMessage)}
+          </p>
+        )}
+
+        <div>
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <label className="block text-sm font-medium text-neutral-700">
+              Places to save ({selectedCount} selected)
+            </label>
+            <div className="flex items-center gap-2">
+              <select
+                value=""
+                disabled={selectedCount === 0}
+                onChange={(e) => {
+                  if (e.target.value) applyCategoryToSelected(e.target.value as PlaceCategory);
+                }}
+                className="rounded-lg border border-neutral-300 px-2 py-1 text-xs focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-40"
+              >
+                <option value="" disabled>
+                  Change category to…
+                </option>
+                {PLACE_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setRows((prev) => [...prev, makeRow()])}
+                className="text-xs font-medium text-brand-600 hover:underline"
+              >
+                + Add place
+              </button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {rows.map((row) => (
+              <div key={row.id} className="rounded-lg border border-neutral-200 p-2.5">
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={row.selected}
+                    onChange={(e) => updateRow(row.id, { selected: e.target.checked })}
+                    className="mt-2"
+                  />
+                  <div className="flex-1 space-y-1.5">
+                    <input
+                      value={row.name}
+                      onChange={(e) => updateRow(row.id, { name: e.target.value })}
+                      placeholder="Place name"
+                      className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    />
+                    <div className="flex gap-1.5">
+                      <input
+                        value={row.address}
+                        onChange={(e) => updateRow(row.id, { address: e.target.value })}
+                        placeholder="Address (improves map accuracy)"
+                        className="w-full min-w-0 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                      <select
+                        value={row.category}
+                        onChange={(e) =>
+                          updateRow(row.id, { category: e.target.value as PlaceCategory })
+                        }
+                        className="shrink-0 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      >
+                        {PLACE_CATEGORIES.map((c) => (
+                          <option key={c.value} value={c.value}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(row.id)}
+                    className="mt-1 text-neutral-400 hover:text-red-500"
+                    aria-label="Remove"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+            {rows.length === 0 && (
+              <p className="rounded-lg border border-dashed border-neutral-300 py-4 text-center text-xs text-neutral-400">
+                No places yet — add one above.
+              </p>
+            )}
+          </div>
+        </div>
+
         <div className="rounded-lg border border-dashed border-neutral-300 p-3">
           <label className="mb-1 block text-sm font-medium text-neutral-700">
             Import from Google Maps <span className="font-normal text-neutral-400">(optional)</span>
@@ -365,83 +509,6 @@ export function AddPlaceModal({
               <InstagramEmbed url={instagramUrl} />
             </div>
           )}
-        </div>
-
-        {(extractResultMessage || extractError) && (
-          <p className={`text-xs ${extractError ? "text-amber-600" : "text-neutral-400"}`}>
-            {extractError ?? extractResultMessage}
-          </p>
-        )}
-
-        <div>
-          <div className="mb-1 flex items-center justify-between">
-            <label className="block text-sm font-medium text-neutral-700">
-              Places to save ({selectedCount} selected)
-            </label>
-            <button
-              type="button"
-              onClick={() => setRows((prev) => [...prev, makeRow()])}
-              className="text-xs font-medium text-brand-600 hover:underline"
-            >
-              + Add place
-            </button>
-          </div>
-          <div className="space-y-2">
-            {rows.map((row) => (
-              <div key={row.id} className="rounded-lg border border-neutral-200 p-2.5">
-                <div className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    checked={row.selected}
-                    onChange={(e) => updateRow(row.id, { selected: e.target.checked })}
-                    className="mt-2"
-                  />
-                  <div className="flex-1 space-y-1.5">
-                    <input
-                      value={row.name}
-                      onChange={(e) => updateRow(row.id, { name: e.target.value })}
-                      placeholder="Place name"
-                      className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                    />
-                    <div className="flex gap-1.5">
-                      <input
-                        value={row.address}
-                        onChange={(e) => updateRow(row.id, { address: e.target.value })}
-                        placeholder="Address (improves map accuracy)"
-                        className="w-full min-w-0 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                      />
-                      <select
-                        value={row.category}
-                        onChange={(e) =>
-                          updateRow(row.id, { category: e.target.value as PlaceCategory })
-                        }
-                        className="shrink-0 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                      >
-                        {PLACE_CATEGORIES.map((c) => (
-                          <option key={c.value} value={c.value}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeRow(row.id)}
-                    className="mt-1 text-neutral-400 hover:text-red-500"
-                    aria-label="Remove"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))}
-            {rows.length === 0 && (
-              <p className="rounded-lg border border-dashed border-neutral-300 py-4 text-center text-xs text-neutral-400">
-                No places yet — add one above.
-              </p>
-            )}
-          </div>
         </div>
 
         <div>

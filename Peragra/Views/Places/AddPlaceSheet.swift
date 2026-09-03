@@ -45,6 +45,7 @@ struct AddPlaceSheet: View {
     @State private var isAILoading = false
     @State private var extractErrorMessage: String?
     @State private var extractResultMessage: String?
+    @State private var isGuessingAddresses = false
     @State private var showingKmlImporter = false
 
     // Computed, not stored — a private *stored* property forces Swift's
@@ -109,6 +110,51 @@ struct AddPlaceSheet: View {
                     Text("If a post recommends one place or several, paste the caption and use free pattern matching — or attach a screenshot and let AI read and organize it completely.")
                 }
 
+                if extractErrorMessage != nil || extractResultMessage != nil || isGuessingAddresses {
+                    Section {
+                        if let extractErrorMessage {
+                            Text(extractErrorMessage)
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        } else if isGuessingAddresses {
+                            Text("✨ AI is guessing addresses for places without one…")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else if let extractResultMessage {
+                            Text(extractResultMessage)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                Section {
+                    ForEach($rows) { $row in
+                        candidateRowView($row)
+                    }
+                    .onDelete { indices in rows.remove(atOffsets: indices) }
+
+                    Button("+ Add Place") { rows.append(CandidateRow()) }
+                } header: {
+                    HStack {
+                        Text("Places to Save (\(selectedCount) selected)")
+                        Spacer()
+                        Menu {
+                            ForEach(PlaceCategory.allCases) { category in
+                                Button {
+                                    applyCategoryToSelected(category)
+                                } label: {
+                                    Label(category.label, systemImage: category.symbolName)
+                                }
+                            }
+                        } label: {
+                            Label("Category", systemImage: "tag")
+                                .font(.caption)
+                        }
+                        .disabled(selectedCount == 0)
+                    }
+                }
+
                 Section {
                     Button {
                         showingKmlImporter = true
@@ -141,31 +187,6 @@ struct AddPlaceSheet: View {
                     Text("Instagram post link (optional, just a reference)")
                 } footer: {
                     Text("Instagram doesn't let apps read a post's info from its link, so this doesn't fill in anything above — use caption text or a screenshot for that. Paste it only if you want the original post embedded here for reference.")
-                }
-
-                if extractErrorMessage != nil || extractResultMessage != nil {
-                    Section {
-                        if let extractErrorMessage {
-                            Text(extractErrorMessage)
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                        } else if let extractResultMessage {
-                            Text(extractResultMessage)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                Section {
-                    ForEach($rows) { $row in
-                        candidateRowView($row)
-                    }
-                    .onDelete { indices in rows.remove(atOffsets: indices) }
-
-                    Button("+ Add Place") { rows.append(CandidateRow()) }
-                } header: {
-                    Text("Places to Save (\(selectedCount) selected)")
                 }
 
                 Section("Notes") {
@@ -236,6 +257,12 @@ struct AddPlaceSheet: View {
         case ai
     }
 
+    private func applyCategoryToSelected(_ category: PlaceCategory) {
+        for index in rows.indices where rows[index].selected {
+            rows[index].category = category
+        }
+    }
+
     private func replaceRows(with places: [(name: String?, address: String?)], source: ExtractionSource) {
         let usable = places.filter { $0.name != nil }
         if !usable.isEmpty {
@@ -264,6 +291,48 @@ struct AddPlaceSheet: View {
             let label = source == .ai ? "AI" : "Pattern matching"
             let placeWord = usable.count == 1 ? "place" : "places"
             extractResultMessage = "\(label) found \(usable.count) \(placeWord) (\(withAddress) with an address) — review below before saving."
+        }
+
+        guard !usable.isEmpty, aiSettings.apiKey != nil else { return }
+        let targets = rows.filter { $0.address.trimmingCharacters(in: .whitespaces).isEmpty }
+            .map { (id: $0.id, name: $0.name) }
+        if !targets.isEmpty {
+            Task { await fillMissingAddressesWithAI(targets) }
+        }
+    }
+
+    /// Best-effort follow-up to extraction: for rows a caption named but
+    /// never gave an address, ask AI to guess one from its general
+    /// knowledge of the trip's destination rather than leaving the place
+    /// unaddressed (and therefore hard to geocode accurately).
+    private func fillMissingAddressesWithAI(_ targets: [(id: UUID, name: String)]) async {
+        guard let apiKey = aiSettings.apiKey, !targets.isEmpty else { return }
+        isGuessingAddresses = true
+        defer { isGuessingAddresses = false }
+
+        do {
+            let guesses = try await AIExtractionService.guessAddresses(
+                apiKey: apiKey,
+                destination: trip.destination,
+                placeNames: targets.map { $0.name }
+            )
+            var filledCount = 0
+            for (index, target) in targets.enumerated() {
+                guard index < guesses.count, let guess = guesses[index] else { continue }
+                if let rowIndex = rows.firstIndex(where: { $0.id == target.id }) {
+                    rows[rowIndex].address = guess
+                    filledCount += 1
+                }
+            }
+            if filledCount > 0 {
+                extractErrorMessage = nil
+                let placeWord = filledCount == 1 ? "place" : "places"
+                extractResultMessage = "✨ AI guessed an address for \(filledCount) \(placeWord) that didn't have one — double-check before saving."
+            }
+        } catch {
+            // Best effort — leave those rows addressless if the guess
+            // call itself fails; the existing extract result/error
+            // message stands.
         }
     }
 

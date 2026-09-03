@@ -55,6 +55,22 @@ const SYSTEM_PROMPT =
   "Respond with ONLY a single JSON object, no other text, no markdown code fence, " +
   'matching exactly this shape: {"places": [{"name": string, "address": string | null}]}';
 
+const ADDRESS_GUESS_SYSTEM_PROMPT =
+  "You are given a travel destination and a numbered list of place names " +
+  "(restaurants, cafes, shops, attractions, hotels, etc.) that were saved without " +
+  "an address. For each place, if you have reasonably confident knowledge of a " +
+  "real, specific location matching that name at or near the given destination, " +
+  "respond with your single best-guess full address for it. If you aren't " +
+  "reasonably confident — the name is too generic, ambiguous, or unfamiliar — " +
+  "respond with null for that entry rather than inventing one.\n\n" +
+  "Respond with ONLY a single JSON object, no other text, no markdown code fence, " +
+  'matching exactly this shape: {"addresses": (string | null)[]}, with exactly one ' +
+  "entry per input place, in the same order.";
+
+const AddressGuessSchema = z.object({
+  addresses: z.array(z.string().nullable()),
+});
+
 function getClient(apiKey: string): OpenAI {
   return new OpenAI({ apiKey, baseURL: GATEWAY_BASE_URL, dangerouslyAllowBrowser: true });
 }
@@ -149,6 +165,63 @@ export async function extractPlacesFromImage(
       },
     });
     return parsePlacesResponse(response.choices?.[0]?.message?.content);
+  } catch (error) {
+    if (error instanceof AIExtractionError) throw error;
+    throw toAIExtractionError(error);
+  }
+}
+
+/**
+ * Best-effort guess at a full address for each of the given place names,
+ * using the model's general knowledge rather than anything extracted from
+ * a caption — for places a caption named without ever giving an address.
+ * Returns one entry per input name, in order; an entry is null where the
+ * model wasn't confident enough to guess.
+ */
+export async function guessMissingAddresses(
+  apiKey: string,
+  destination: string,
+  placeNames: string[],
+): Promise<(string | null)[]> {
+  if (placeNames.length === 0) return [];
+  const client = getClient(apiKey);
+  try {
+    const response = await client.post<GatewayChatCompletionResponse>(CHAT_COMPLETIONS_PATH, {
+      body: {
+        model: useAISettingsStore.getState().model,
+        messages: [
+          { role: "system", content: ADDRESS_GUESS_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Destination: ${destination}\n\nPlaces:\n${placeNames
+              .map((name, i) => `${i + 1}. ${name}`)
+              .join("\n")}`,
+          },
+        ],
+      },
+    });
+    const content = response.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new AIExtractionError("The AI extraction service returned an empty response.");
+    }
+    const fenced = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    const jsonText = fenced ? fenced[1] : content;
+
+    let parsedJSON: unknown;
+    try {
+      parsedJSON = JSON.parse(jsonText);
+    } catch {
+      throw new AIExtractionError("The AI extraction service didn't return valid JSON.");
+    }
+
+    const result = AddressGuessSchema.safeParse(parsedJSON);
+    if (!result.success) {
+      throw new AIExtractionError("The AI extraction service returned an unexpected response shape.");
+    }
+    // Pad/truncate defensively in case the model didn't return exactly one
+    // entry per input — a mismatched count shouldn't crash the merge back
+    // into the candidate rows.
+    return placeNames.map((_, i) => result.data.addresses[i] ?? null);
   } catch (error) {
     if (error instanceof AIExtractionError) throw error;
     throw toAIExtractionError(error);

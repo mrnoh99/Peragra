@@ -64,8 +64,23 @@ enum AIExtractionService {
     matching exactly this shape: {"places": [{"name": string, "address": string | null}]}
     """
 
+    private static let addressGuessSystemPrompt = """
+    You are given a travel destination and a numbered list of place names \
+    (restaurants, cafes, shops, attractions, hotels, etc.) that were saved without \
+    an address. For each place, if you have reasonably confident knowledge of a \
+    real, specific location matching that name at or near the given destination, \
+    respond with your single best-guess full address for it. If you aren't \
+    reasonably confident — the name is too generic, ambiguous, or unfamiliar — \
+    respond with null for that entry rather than inventing one.
+
+    Respond with ONLY a single JSON object, no other text, no markdown code fence, \
+    matching exactly this shape: {"addresses": (string | null)[]}, with exactly one \
+    entry per input place, in the same order.
+    """
+
     static func extractPlaces(apiKey: String, captionText: String) async throws -> [AIExtractedPlace] {
-        try await request(apiKey: apiKey, userContent: captionText)
+        let text = try await performChatRequest(apiKey: apiKey, systemPrompt: systemPrompt, userContent: captionText)
+        return try parsePlaces(from: text)
     }
 
     static func extractPlaces(apiKey: String, imageData: Data, mediaType: String) async throws -> [AIExtractedPlace] {
@@ -80,10 +95,26 @@ enum AIExtractionService {
                 "image_url": ["url": "data:\(mediaType);base64,\(base64)"],
             ],
         ]
-        return try await request(apiKey: apiKey, userContent: content)
+        let text = try await performChatRequest(apiKey: apiKey, systemPrompt: systemPrompt, userContent: content)
+        return try parsePlaces(from: text)
     }
 
-    private static func request(apiKey: String, userContent: Any) async throws -> [AIExtractedPlace] {
+    /// Best-effort guess at a full address for each of the given place
+    /// names, using the model's general knowledge rather than anything
+    /// extracted from a caption — for places a caption named without ever
+    /// giving an address. Returns one entry per input name, in order; an
+    /// entry is nil where the model wasn't confident enough to guess.
+    static func guessAddresses(apiKey: String, destination: String, placeNames: [String]) async throws -> [String?] {
+        guard !placeNames.isEmpty else { return [] }
+        let placesList = placeNames.enumerated()
+            .map { "\($0.offset + 1). \($0.element)" }
+            .joined(separator: "\n")
+        let userContent = "Destination: \(destination)\n\nPlaces:\n\(placesList)"
+        let text = try await performChatRequest(apiKey: apiKey, systemPrompt: addressGuessSystemPrompt, userContent: userContent)
+        return try parseAddressGuesses(from: text, count: placeNames.count)
+    }
+
+    private static func performChatRequest(apiKey: String, systemPrompt: String, userContent: Any) async throws -> String {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else { throw AIExtractionError.missingAPIKey }
 
@@ -125,13 +156,13 @@ enum AIExtractionService {
             throw AIExtractionError.decodingFailed
         }
 
-        return try parsePlaces(from: text)
+        return text
     }
 
-    /// Tolerates a markdown code fence around the JSON despite the prompt
-    /// asking for none — models routed through arbitrary gateways don't
-    /// reliably follow that.
-    private static func parsePlaces(from text: String) throws -> [AIExtractedPlace] {
+    /// Strips a markdown code fence around JSON despite the prompt asking
+    /// for none — models routed through arbitrary gateways don't reliably
+    /// follow that.
+    private static func stripMarkdownFence(from text: String) -> String {
         var jsonText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if let range = jsonText.range(of: "```(?:json)?\\s*([\\s\\S]*?)\\s*```", options: .regularExpression) {
             let fenced = String(jsonText[range])
@@ -140,7 +171,11 @@ enum AIExtractionService {
                 .replacingOccurrences(of: "```", with: "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
+        return jsonText
+    }
 
+    private static func parsePlaces(from text: String) throws -> [AIExtractedPlace] {
+        let jsonText = stripMarkdownFence(from: text)
         guard let textData = jsonText.data(using: .utf8) else {
             throw AIExtractionError.decodingFailed
         }
@@ -153,5 +188,23 @@ enum AIExtractionService {
             throw AIExtractionError.decodingFailed
         }
         return decoded.places
+    }
+
+    private static func parseAddressGuesses(from text: String, count: Int) throws -> [String?] {
+        let jsonText = stripMarkdownFence(from: text)
+        guard let textData = jsonText.data(using: .utf8) else {
+            throw AIExtractionError.decodingFailed
+        }
+
+        struct AddressGuessResponse: Decodable {
+            let addresses: [String?]
+        }
+
+        guard let decoded = try? JSONDecoder().decode(AddressGuessResponse.self, from: textData) else {
+            throw AIExtractionError.decodingFailed
+        }
+        // Pad/truncate defensively in case the model didn't return exactly
+        // one entry per input place.
+        return (0..<count).map { $0 < decoded.addresses.count ? decoded.addresses[$0] : nil }
     }
 }
