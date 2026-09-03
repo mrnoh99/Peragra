@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PLACE_CATEGORIES, type Collection, type Place } from "../types";
 import { useStore } from "../store/useStore";
+import { EditPlaceModal } from "./EditPlaceModal";
 
 const CATEGORY_ICON: Record<string, string> = {
   restaurant: "🍽️",
@@ -15,14 +16,17 @@ const CATEGORY_ICON: Record<string, string> = {
 export function PlaceCard({
   place,
   collections,
+  destination,
 }: {
   place: Place;
   collections: Collection[];
+  destination: string;
 }) {
   const toggleVisited = useStore((s) => s.toggleVisited);
   const deletePlace = useStore((s) => s.deletePlace);
   const togglePlaceCollection = useStore((s) => s.togglePlaceCollection);
   const [showCollections, setShowCollections] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const categoryLabel =
     PLACE_CATEGORIES.find((c) => c.value === place.category)?.label ?? "Other";
@@ -75,12 +79,20 @@ export function PlaceCard({
           >
             {place.visited ? "Visited" : "Mark visited"}
           </button>
-          <button
-            onClick={() => deletePlace(place.id)}
-            className="text-xs text-neutral-400 hover:text-red-500"
-          >
-            Remove
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setEditing(true)}
+              className="text-xs text-neutral-400 hover:text-brand-600"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => deletePlace(place.id)}
+              className="text-xs text-neutral-400 hover:text-red-500"
+            >
+              Remove
+            </button>
+          </div>
         </div>
       </div>
 
@@ -116,6 +128,10 @@ export function PlaceCard({
             </div>
           )}
         </div>
+      )}
+
+      {editing && (
+        <EditPlaceModal place={place} destination={destination} onClose={() => setEditing(false)} />
       )}
     </div>
   );

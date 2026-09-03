@@ -183,6 +183,7 @@ export function TripDetailPage() {
               places={places}
               collections={collections}
               activeCollectionId={activeCollectionId}
+              destination={trip.destination}
             />
           ) : (
             <MapView

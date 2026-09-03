@@ -6,10 +6,12 @@ export function ListingView({
   places,
   collections,
   activeCollectionId,
+  destination,
 }: {
   places: Place[];
   collections: Collection[];
   activeCollectionId: string | null;
+  destination: string;
 }) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<PlaceCategory | "all">("all");
@@ -72,7 +74,12 @@ export function ListingView({
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {filtered.map((place) => (
-            <PlaceCard key={place.id} place={place} collections={collections} />
+            <PlaceCard
+              key={place.id}
+              place={place}
+              collections={collections}
+              destination={destination}
+            />
           ))}
         </div>
       )}

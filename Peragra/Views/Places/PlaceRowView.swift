@@ -8,6 +8,7 @@ struct PlaceRowView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
     @State private var showingCollectionPicker = false
+    @State private var showingEdit = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -64,23 +65,37 @@ struct PlaceRowView: View {
                 .buttonStyle(.plain)
             }
 
-            if !allCollections.isEmpty {
+            HStack(spacing: 12) {
                 Button {
-                    showingCollectionPicker = true
+                    showingEdit = true
                 } label: {
-                    let count = place.collections.count
-                    Text(count > 0 ? "In \(count) list\(count > 1 ? "s" : "")" : "Add to list")
+                    Text("Edit")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .padding(.top, 2)
+
+                if !allCollections.isEmpty {
+                    Button {
+                        showingCollectionPicker = true
+                    } label: {
+                        let count = place.collections.count
+                        Text(count > 0 ? "In \(count) list\(count > 1 ? "s" : "")" : "Add to list")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+            .padding(.top, 2)
         }
         .padding(.vertical, 6)
         .sheet(isPresented: $showingCollectionPicker) {
             CollectionPickerSheet(place: place, allCollections: allCollections)
                 .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showingEdit) {
+            EditPlaceSheet(place: place)
         }
     }
 }

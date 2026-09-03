@@ -30,7 +30,9 @@ Same product as the native iOS app in `../Peragra`, built for the browser.
   server, so the key is used to call Anthropic's API directly from your
   browser and is stored only in this browser's local storage.
 - **Listing** — every saved place as a card: category, address, notes,
-  visited status, and a link back to the original Instagram post.
+  visited status, and a link back to the original Instagram post. Every
+  saved place is editable after the fact (name, address, category, notes)
+  — fixing an extraction mistake re-geocodes it if the address changed.
 - **Map** — saved places are geocoded (via OpenStreetMap Nominatim) and
   plotted on an interactive Leaflet map, color-coded by category.
 - **Lists (collections)** — group places within a trip into custom lists and
