@@ -9,6 +9,7 @@ private enum DetailTab: String, CaseIterable {
 
 struct TripDetailView: View {
     @Bindable var trip: Trip
+    @Query private var places: [Place]
 
     @Environment(\.modelContext) private var modelContext
     @State private var tab: DetailTab = .listing
@@ -19,7 +20,27 @@ struct TripDetailView: View {
     @State private var kmlShareURL: URL?
     @State private var showingShareSheet = false
 
-    private var places: [Place] { trip.places }
+    // Explicit, since @Query's filter needs to close over the trip's id at
+    // construction time (a stored @Query property also forces this type
+    // out of Swift's synthesized memberwise init anyway).
+    //
+    // `places` is read via @Query rather than walking the `trip.places`
+    // relationship directly. SwiftData's @Query reliably re-renders this
+    // view — toolbar included — when a place's own property changes (e.g.
+    // geocoding filling in latitude/longitude after Add Place's sheet
+    // dismisses). Walking the relationship instead left the toolbar's
+    // Export button stuck showing a stale disabled state until something
+    // else forced a full re-render (switching tabs and back "fixed" it) —
+    // Observation reliably tracks `trip`'s own relationship membership,
+    // but not a child Place's property mutations unless that Place is
+    // itself directly observed (which PlaceRowView does via @Bindable,
+    // which is why the Listing tab's rows always updated correctly).
+    init(trip: Trip) {
+        self.trip = trip
+        let tripID = trip.id
+        _places = Query(filter: #Predicate<Place> { $0.trip?.id == tripID })
+    }
+
     private var collections: [PlaceCollection] { trip.collections }
 
     private var visiblePlaces: [Place] {
