@@ -31,13 +31,33 @@ export function TripDetailPage() {
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState("");
 
+  const activeCollection = useMemo(
+    () => collections.find((c) => c.id === activeCollectionId) ?? null,
+    [collections, activeCollectionId],
+  );
+  // What's actually on screen right now — respects the selected list, same
+  // as the Map tab already did. Export should match what's visible rather
+  // than always exporting the whole trip regardless of which list is open.
+  const visiblePlaces = useMemo(
+    () =>
+      activeCollectionId
+        ? places.filter((p) => p.collectionIds.includes(activeCollectionId))
+        : places,
+    [places, activeCollectionId],
+  );
+
   const visitedCount = useMemo(() => places.filter((p) => p.visited).length, [places]);
-  const locatedCount = useMemo(() => places.filter((p) => p.lat !== null).length, [places]);
+  const locatedCount = useMemo(
+    () => visiblePlaces.filter((p) => p.lat !== null).length,
+    [visiblePlaces],
+  );
 
   function exportToGoogleMaps() {
     if (!trip) return;
-    const title = `Peragra - ${trip.name}`;
-    const kml = generateKML(title, places);
+    const title = activeCollection
+      ? `Peragra - ${trip.name} - ${activeCollection.name}`
+      : `Peragra - ${trip.name}`;
+    const kml = generateKML(title, visiblePlaces);
     const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -96,10 +116,12 @@ export function TripDetailPage() {
             title={
               locatedCount === 0
                 ? "No places have a map location yet — add an address, or wait for one to be located, first"
-                : "Download a KML file to import as a new map in Google My Maps"
+                : activeCollection
+                  ? `Download a KML of "${activeCollection.name}" to import as a new map in Google My Maps`
+                  : "Download a KML file to import as a new map in Google My Maps"
             }
           >
-            📤 Export to Google Maps
+            📤 Export {activeCollection ? `"${activeCollection.name}"` : "to Google Maps"}
           </button>
           <button
             onClick={() => setShowAddPlace(true)}
@@ -221,13 +243,7 @@ export function TripDetailPage() {
               destination={trip.destination}
             />
           ) : (
-            <MapView
-              places={
-                activeCollectionId
-                  ? places.filter((p) => p.collectionIds.includes(activeCollectionId))
-                  : places
-              }
-            />
+            <MapView places={visiblePlaces} />
           )}
         </div>
       </div>

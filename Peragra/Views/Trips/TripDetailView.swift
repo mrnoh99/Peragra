@@ -81,9 +81,13 @@ struct TripDetailView: View {
                 Button {
                     exportToGoogleMaps()
                 } label: {
-                    Label("Export to Google Maps", systemImage: "square.and.arrow.up")
+                    if let activeCollection {
+                        Label("Export \"\(activeCollection.name)\"", systemImage: "square.and.arrow.up")
+                    } else {
+                        Label("Export to Google Maps", systemImage: "square.and.arrow.up")
+                    }
                 }
-                .disabled(!places.contains { $0.latitude != nil })
+                .disabled(!visiblePlaces.contains { $0.latitude != nil })
             }
         }
         .sheet(isPresented: $showingAddPlace) {
@@ -139,8 +143,8 @@ struct TripDetailView: View {
     }
 
     private func exportToGoogleMaps() {
-        let title = "Peragra - \(trip.name)"
-        let kml = KMLService.generateKML(title: title, places: places)
+        let title = activeCollection.map { "Peragra - \(trip.name) - \($0.name)" } ?? "Peragra - \(trip.name)"
+        let kml = KMLService.generateKML(title: title, places: visiblePlaces)
         let safeName = title.replacingOccurrences(of: "[^\\w\\- ]+", with: "", options: .regularExpression)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(safeName).kml")
         do {
