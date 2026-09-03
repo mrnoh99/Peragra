@@ -11,6 +11,7 @@ import {
   isSupportedImageMediaType,
   AIExtractionError,
 } from "../lib/aiExtract";
+import { parseKmlPlaces } from "../lib/kml";
 import { useAISettingsStore } from "../store/useAISettingsStore";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type PlaceCategory } from "../types";
@@ -21,6 +22,11 @@ interface CandidateRow {
   name: string;
   address: string;
   category: PlaceCategory;
+  // Set only for places imported from a KML file — they already carry
+  // real coordinates from Google Maps, so saving skips geocoding by
+  // address/name and uses these directly.
+  lat?: number;
+  lng?: number;
 }
 
 function makeRow(partial?: Partial<CandidateRow>): CandidateRow {
@@ -59,6 +65,7 @@ export function AddPlaceModal({
   const [aiLoading, setAiLoading] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const kmlInputRef = useRef<HTMLInputElement>(null);
 
   const instagramUrl = isInstagramPostUrl(instagramInput)
     ? normalizeInstagramUrl(instagramInput)
@@ -110,6 +117,40 @@ export function AddPlaceModal({
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  function handleKmlFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setExtractError(null);
+    if (kmlInputRef.current) kmlInputRef.current.value = "";
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result;
+      if (typeof text !== "string") {
+        setExtractError("Couldn't read that file.");
+        return;
+      }
+      const places = parseKmlPlaces(text);
+      const usable = places.filter((p) => p.name);
+      if (usable.length === 0) {
+        setExtractError("Couldn't find any places in that KML file.");
+        return;
+      }
+      setRows(
+        usable.map((p) =>
+          makeRow({
+            name: p.name ?? "",
+            address: p.address ?? "",
+            lat: p.lat ?? undefined,
+            lng: p.lng ?? undefined,
+          }),
+        ),
+      );
+    };
+    reader.onerror = () => setExtractError("Couldn't read that file.");
+    reader.readAsText(file);
+  }
+
   function handlePatternExtract() {
     setExtractError(null);
     replaceRowsFromExtraction(parsePlaces(captionText), "pattern");
@@ -158,6 +199,13 @@ export function AddPlaceModal({
         instagramUrl,
         collectionIds: defaultCollectionId ? [defaultCollectionId] : [],
       });
+
+      if (row.lat !== undefined && row.lng !== undefined) {
+        // Imported from KML — already has real coordinates from Google
+        // Maps, so there's nothing to geocode.
+        setPlaceCoords(place.id, { lat: row.lat, lng: row.lng }, "located");
+        continue;
+      }
 
       try {
         const query = row.address.trim() || row.name.trim();
@@ -269,6 +317,39 @@ export function AddPlaceModal({
             </p>
           )}
           {extractError && <p className="mt-2 text-xs text-amber-600">{extractError}</p>}
+        </div>
+
+        <div className="rounded-lg border border-dashed border-neutral-300 p-3">
+          <label className="mb-1 block text-sm font-medium text-neutral-700">
+            Import from Google Maps <span className="font-normal text-neutral-400">(optional)</span>
+          </label>
+          <p className="mb-2 text-xs text-neutral-400">
+            Google has no API for reading a Saved-places list directly — export one as KML from{" "}
+            <a
+              href="https://mymaps.google.com"
+              target="_blank"
+              rel="noreferrer"
+              className="text-brand-600 underline"
+            >
+              Google My Maps
+            </a>{" "}
+            and upload it here. Imported places already carry real coordinates, so they skip
+            geocoding entirely.
+          </p>
+          <input
+            ref={kmlInputRef}
+            type="file"
+            accept=".kml"
+            onChange={handleKmlFile}
+            className="hidden"
+            id="kml-import-input"
+          />
+          <label
+            htmlFor="kml-import-input"
+            className="inline-block cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+          >
+            📥 Upload a .kml file
+          </label>
         </div>
 
         <div>

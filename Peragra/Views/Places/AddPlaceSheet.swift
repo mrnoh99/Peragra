@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import UIKit
+import UniformTypeIdentifiers
 
 private struct CandidateRow: Identifiable {
     let id = UUID()
@@ -9,6 +10,11 @@ private struct CandidateRow: Identifiable {
     var name = ""
     var address = ""
     var category: PlaceCategory = .restaurant
+    // Set only for places imported from a KML file — they already carry
+    // real coordinates from Google Maps, so saving skips geocoding by
+    // address/name and uses these directly.
+    var latitude: Double?
+    var longitude: Double?
 }
 
 struct AddPlaceSheet: View {
@@ -38,6 +44,7 @@ struct AddPlaceSheet: View {
     @State private var isLoadingScreenshot = false
     @State private var isAILoading = false
     @State private var extractErrorMessage: String?
+    @State private var showingKmlImporter = false
 
     // Computed, not stored — a private *stored* property forces Swift's
     // synthesized memberwise init to become private too, which broke
@@ -130,6 +137,18 @@ struct AddPlaceSheet: View {
                 }
 
                 Section {
+                    Button {
+                        showingKmlImporter = true
+                    } label: {
+                        Label("Upload a .kml file", systemImage: "square.and.arrow.down")
+                    }
+                } header: {
+                    Text("Import from Google Maps (optional)")
+                } footer: {
+                    Text("Google has no API for reading a Saved-places list directly — export one as KML from Google My Maps (mymaps.google.com) and upload it here. Imported places already carry real coordinates, so they skip geocoding entirely.")
+                }
+
+                Section {
                     ForEach($rows) { $row in
                         candidateRowView($row)
                     }
@@ -168,6 +187,11 @@ struct AddPlaceSheet: View {
                     screenshotItem = nil
                 }
             }
+            .fileImporter(
+                isPresented: $showingKmlImporter,
+                allowedContentTypes: [UTType(filenameExtension: "kml") ?? .xml, .xml],
+                onCompletion: handleKmlImport
+            )
         }
     }
 
@@ -225,6 +249,38 @@ struct AddPlaceSheet: View {
             case .ai:
                 extractErrorMessage = "AI couldn't find a usable address there — try a clearer screenshot, or edit the place below manually."
             }
+        }
+    }
+
+    private func handleKmlImport(_ result: Result<URL, Error>) {
+        extractErrorMessage = nil
+        guard case let .success(url) = result else {
+            extractErrorMessage = "Couldn't read that file."
+            return
+        }
+
+        let gotAccess = url.startAccessingSecurityScopedResource()
+        defer { if gotAccess { url.stopAccessingSecurityScopedResource() } }
+
+        guard let data = try? Data(contentsOf: url) else {
+            extractErrorMessage = "Couldn't read that file."
+            return
+        }
+
+        let places = KMLService.parsePlaces(from: data)
+        let usable = places.filter { $0.name != nil }
+        guard !usable.isEmpty else {
+            extractErrorMessage = "Couldn't find any places in that KML file."
+            return
+        }
+
+        rows = usable.map { place in
+            CandidateRow(
+                name: place.name ?? "",
+                address: place.address ?? "",
+                latitude: place.latitude,
+                longitude: place.longitude
+            )
         }
     }
 
@@ -293,6 +349,15 @@ struct AddPlaceSheet: View {
             modelContext.insert(place)
             if let defaultCollection {
                 place.collections.append(defaultCollection)
+            }
+
+            if let latitude = row.latitude, let longitude = row.longitude {
+                // Imported from KML — already has real coordinates from
+                // Google Maps, so there's nothing to geocode.
+                place.latitude = latitude
+                place.longitude = longitude
+                place.geocodeStatus = .located
+                continue
             }
 
             let query = row.address.trimmingCharacters(in: .whitespaces).isEmpty

@@ -32,6 +32,7 @@
 		DCD34AA1AD8583EF2A04F8A2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A8EF4E7E9B5A07BEDCD12EB4 /* Assets.xcassets */; };
 		F0604210AAC5C6CC7FFB451F /* PlaceCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DE643C3AFBAD7B955502497 /* PlaceCategory.swift */; };
 		F6DB43A8B0CC3ECB97B48D07 /* AddTripSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 605D4129B5F1C6F46B096297 /* AddTripSheet.swift */; };
+		F7974463AE67093D8AF2EDC8 /* KMLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9559465AB5ABEDDDE992B896 /* KMLService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -48,6 +49,7 @@
 		7C264C7A93EFFFAD7D5CB188 /* EditPlaceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EditPlaceSheet.swift; path = Peragra/Views/Places/EditPlaceSheet.swift; sourceTree = "<group>"; };
 		84A949D6936EFF5314976F72 /* Place.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Place.swift; path = Peragra/Models/Place.swift; sourceTree = "<group>"; };
 		910E4474B483A1D7998FCD7A /* CaptionParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CaptionParser.swift; path = Peragra/Services/CaptionParser.swift; sourceTree = "<group>"; };
+		9559465AB5ABEDDDE992B896 /* KMLService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KMLService.swift; path = Peragra/Services/KMLService.swift; sourceTree = "<group>"; };
 		9A724FCCA820579F5A284A7A /* InstagramEmbedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InstagramEmbedView.swift; path = Peragra/Views/Places/InstagramEmbedView.swift; sourceTree = "<group>"; };
 		A09D4E01A03ED8194F5A9673 /* AIExtractionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AIExtractionService.swift; path = Peragra/Services/AIExtractionService.swift; sourceTree = "<group>"; };
 		A8EF4E7E9B5A07BEDCD12EB4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Peragra/Assets.xcassets; sourceTree = "<group>"; };
@@ -81,6 +83,7 @@
 				67754B66A448FD1EF6D5B920 /* KeychainService.swift */,
 				A09D4E01A03ED8194F5A9673 /* AIExtractionService.swift */,
 				C1AB455D80578B776DC3D4A3 /* GoogleGeocodingService.swift */,
+				9559465AB5ABEDDDE992B896 /* KMLService.swift */,
 			);
 			name = Services;
 			sourceTree = "<group>";
@@ -251,6 +254,7 @@
 				29D0457A9418F07992DEC7D4 /* MapSettings.swift in Sources */,
 				80754CE8B9D3CD5295842760 /* GoogleGeocodingService.swift in Sources */,
 				35624F0CA9E68832540B4790 /* GoogleMapWebView.swift in Sources */,
+				F7974463AE67093D8AF2EDC8 /* KMLService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

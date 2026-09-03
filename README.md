@@ -43,6 +43,12 @@ web) — they don't currently sync with each other.
   color-coded by category. Free by default (Leaflet/OpenStreetMap on web,
   Apple MapKit on iOS) — switch to Google Maps in Settings with your own
   Google Maps API key if you'd rather use that.
+- **KML export/import with Google Maps** — Google has no API for reading
+  or writing a personal Saved-places list directly, so this is the closest
+  real bridge: export a trip as a KML file titled "Peragra - &lt;trip&gt;"
+  and import it into a new [Google My Maps](https://mymaps.google.com)
+  map, or export a My Maps map as KML and import that back into Peragra.
+  Imported places already carry real coordinates, so they skip geocoding.
 - **Lists (collections)** — group places within a trip into custom lists and
   filter the listing/map by list.
 - **Local persistence** — no account or backend required.
@@ -94,8 +100,9 @@ Peragra/
                                 AISettings, MapSettings
   Services/                    GeocodingService (CLGeocoder/Google dispatch),
                                 GoogleGeocodingService, InstagramLink (URL parsing),
-                                CaptionParser (name/address heuristics),
-                                AIExtractionService (Anthropic API), KeychainService
+                                CaptionParser (name/address heuristics), KMLService
+                                (Google Maps export/import), AIExtractionService
+                                (Anthropic API), KeychainService
   Views/
     Trips/                    Trips list, add-trip sheet, trip detail (Listing/Map tabs)
     Places/                   Listing rows, map view (MapKit/Google dispatch),

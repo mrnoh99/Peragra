@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { AddPlaceModal } from "../components/AddPlaceModal";
 import { ListingView } from "../components/ListingView";
 import { MapView } from "../components/MapView";
+import { generateKML } from "../lib/kml";
 import { useStore } from "../store/useStore";
 
 type Tab = "listing" | "map";
@@ -31,6 +32,20 @@ export function TripDetailPage() {
   const [newListName, setNewListName] = useState("");
 
   const visitedCount = useMemo(() => places.filter((p) => p.visited).length, [places]);
+  const locatedCount = useMemo(() => places.filter((p) => p.lat !== null).length, [places]);
+
+  function exportToGoogleMaps() {
+    if (!trip) return;
+    const title = `Peragra - ${trip.name}`;
+    const kml = generateKML(title, places);
+    const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${title.replace(/[^\w\- ]+/g, "")}.kml`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   if (!tripId) return <Navigate to="/" replace />;
   if (!trip) {
@@ -67,12 +82,23 @@ export function TripDetailPage() {
             {places.length} saved place{places.length === 1 ? "" : "s"} · {visitedCount} visited
           </p>
         </div>
-        <button
-          onClick={() => setShowAddPlace(true)}
-          className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
-        >
-          + Save a place
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {locatedCount > 0 && (
+            <button
+              onClick={exportToGoogleMaps}
+              className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
+              title="Download a KML file to import as a new map in Google My Maps"
+            >
+              📤 Export to Google Maps
+            </button>
+          )}
+          <button
+            onClick={() => setShowAddPlace(true)}
+            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
+          >
+            + Save a place
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
