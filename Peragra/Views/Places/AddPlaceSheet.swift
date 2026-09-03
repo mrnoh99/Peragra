@@ -44,6 +44,7 @@ struct AddPlaceSheet: View {
     @State private var isLoadingScreenshot = false
     @State private var isAILoading = false
     @State private var extractErrorMessage: String?
+    @State private var extractResultMessage: String?
     @State private var showingKmlImporter = false
 
     // Computed, not stored — a private *stored* property forces Swift's
@@ -124,12 +125,6 @@ struct AddPlaceSheet: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-
-                    if let extractErrorMessage {
-                        Text(extractErrorMessage)
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
                 } header: {
                     Text("Caption text (optional)")
                 } footer: {
@@ -146,6 +141,20 @@ struct AddPlaceSheet: View {
                     Text("Import from Google Maps (optional)")
                 } footer: {
                     Text("Google has no API for reading a Saved-places list directly — export one as KML from Google My Maps (mymaps.google.com) and upload it here. Imported places already carry real coordinates, so they skip geocoding entirely.")
+                }
+
+                if extractErrorMessage != nil || extractResultMessage != nil {
+                    Section {
+                        if let extractErrorMessage {
+                            Text(extractErrorMessage)
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        } else if let extractResultMessage {
+                            Text(extractResultMessage)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
                 Section {
@@ -239,8 +248,9 @@ struct AddPlaceSheet: View {
         // map — a name-only fallback (the parser's last resort: any
         // short, non-hashtag line) can still fire on pure noise, so check
         // for at least one real address rather than just "found a name".
-        let hasAddress = places.contains { $0.address != nil }
-        if usable.isEmpty || !hasAddress {
+        let withAddress = places.filter { $0.address != nil }.count
+        if usable.isEmpty || withAddress == 0 {
+            extractResultMessage = nil
             switch source {
             case .pattern:
                 extractErrorMessage = aiSettings.apiKey != nil
@@ -249,11 +259,17 @@ struct AddPlaceSheet: View {
             case .ai:
                 extractErrorMessage = "AI couldn't find a usable address there — try a clearer screenshot, or edit the place below manually."
             }
+        } else {
+            extractErrorMessage = nil
+            let label = source == .ai ? "AI" : "Pattern matching"
+            let placeWord = usable.count == 1 ? "place" : "places"
+            extractResultMessage = "\(label) found \(usable.count) \(placeWord) (\(withAddress) with an address) — review below before saving."
         }
     }
 
     private func handleKmlImport(_ result: Result<URL, Error>) {
         extractErrorMessage = nil
+        extractResultMessage = nil
         guard case let .success(url) = result else {
             extractErrorMessage = "Couldn't read that file."
             return
@@ -282,10 +298,13 @@ struct AddPlaceSheet: View {
                 longitude: place.longitude
             )
         }
+        let placeWord = usable.count == 1 ? "place" : "places"
+        extractResultMessage = "Imported \(usable.count) \(placeWord) from KML — review below before saving."
     }
 
     private func runPatternExtraction() {
         extractErrorMessage = nil
+        extractResultMessage = nil
         let results = CaptionParser.parseMultiple(captionText)
         replaceRows(with: results.map { ($0.name, $0.address) }, source: .pattern)
     }
@@ -293,6 +312,7 @@ struct AddPlaceSheet: View {
     private func runAIExtraction() async {
         guard let apiKey = aiSettings.apiKey else { return }
         extractErrorMessage = nil
+        extractResultMessage = nil
         isAILoading = true
         defer { isAILoading = false }
 
@@ -312,6 +332,7 @@ struct AddPlaceSheet: View {
             }
             replaceRows(with: results.map { (name: $0.name as String?, address: $0.address) }, source: .ai)
         } catch {
+            extractResultMessage = nil
             extractErrorMessage = (error as? LocalizedError)?.errorDescription ?? "AI extraction failed."
         }
     }
@@ -319,6 +340,7 @@ struct AddPlaceSheet: View {
     private func loadScreenshot(_ item: PhotosPickerItem) async {
         isLoadingScreenshot = true
         extractErrorMessage = nil
+        extractResultMessage = nil
         defer { isLoadingScreenshot = false }
 
         guard

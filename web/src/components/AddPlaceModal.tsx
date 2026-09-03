@@ -64,6 +64,7 @@ export function AddPlaceModal({
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractResultMessage, setExtractResultMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const kmlInputRef = useRef<HTMLInputElement>(null);
 
@@ -95,8 +96,10 @@ export function AddPlaceModal({
     // a name-only fallback (the parser's last resort: any short,
     // non-hashtag line) can still fire on pure noise, so check for at
     // least one real address rather than just "found a name".
-    const hasAddress = places.some((p) => p.address);
+    const withAddress = places.filter((p) => p.address).length;
+    const hasAddress = withAddress > 0;
     if (usable.length === 0 || !hasAddress) {
+      setExtractResultMessage(null);
       if (source === "pattern") {
         setExtractError(
           apiKey
@@ -106,6 +109,12 @@ export function AddPlaceModal({
       } else {
         setExtractError("AI couldn't find a usable address there — try a clearer screenshot, or edit the place below manually.");
       }
+    } else {
+      setExtractError(null);
+      const label = source === "ai" ? "AI" : "Pattern matching";
+      setExtractResultMessage(
+        `${label} found ${usable.length} place${usable.length === 1 ? "" : "s"} (${withAddress} with an address) — review below before saving.`,
+      );
     }
   }
 
@@ -114,6 +123,7 @@ export function AddPlaceModal({
     if (!file) return;
     setScreenshotFile(file);
     setExtractError(null);
+    setExtractResultMessage(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -121,6 +131,7 @@ export function AddPlaceModal({
     const file = e.target.files?.[0];
     if (!file) return;
     setExtractError(null);
+    setExtractResultMessage(null);
     if (kmlInputRef.current) kmlInputRef.current.value = "";
 
     const reader = new FileReader();
@@ -146,6 +157,9 @@ export function AddPlaceModal({
           }),
         ),
       );
+      setExtractResultMessage(
+        `Imported ${usable.length} place${usable.length === 1 ? "" : "s"} from KML — review below before saving.`,
+      );
     };
     reader.onerror = () => setExtractError("Couldn't read that file.");
     reader.readAsText(file);
@@ -153,12 +167,14 @@ export function AddPlaceModal({
 
   function handlePatternExtract() {
     setExtractError(null);
+    setExtractResultMessage(null);
     replaceRowsFromExtraction(parsePlaces(captionText), "pattern");
   }
 
   async function handleAIExtract() {
     if (!apiKey) return;
     setExtractError(null);
+    setExtractResultMessage(null);
     setAiLoading(true);
     try {
       let results;
@@ -316,7 +332,6 @@ export function AddPlaceModal({
               completely, since on-device text recognition struggles with stylized graphics.
             </p>
           )}
-          {extractError && <p className="mt-2 text-xs text-amber-600">{extractError}</p>}
         </div>
 
         <div className="rounded-lg border border-dashed border-neutral-300 p-3">
@@ -351,6 +366,12 @@ export function AddPlaceModal({
             📥 Upload a .kml file
           </label>
         </div>
+
+        {(extractResultMessage || extractError) && (
+          <p className={`text-xs ${extractError ? "text-amber-600" : "text-neutral-400"}`}>
+            {extractError ?? extractResultMessage}
+          </p>
+        )}
 
         <div>
           <div className="mb-1 flex items-center justify-between">
