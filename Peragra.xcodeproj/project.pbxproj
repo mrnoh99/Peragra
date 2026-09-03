@@ -34,6 +34,8 @@
 		F0604210AAC5C6CC7FFB451F /* PlaceCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DE643C3AFBAD7B955502497 /* PlaceCategory.swift */; };
 		F6DB43A8B0CC3ECB97B48D07 /* AddTripSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 605D4129B5F1C6F46B096297 /* AddTripSheet.swift */; };
 		F7974463AE67093D8AF2EDC8 /* KMLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9559465AB5ABEDDDE992B896 /* KMLService.swift */; };
+		73C14CCED1F50796BA176AA6 /* GoogleMapsOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CA141563EA6082C6D8EA1F /* GoogleMapsOpener.swift */; };
+		C2C9BD7BCF298521D33647B6 /* PlaceFilterBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB583D3A90CE85D33F3818BB /* PlaceFilterBar.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -65,6 +67,8 @@
 		D8BC485BB5A43C5FE5BF7D88 /* PlaceListingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceListingView.swift; path = Peragra/Views/Places/PlaceListingView.swift; sourceTree = "<group>"; };
 		E1E34F8F9F0C225B0D4629E5 /* AISettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AISettings.swift; path = Peragra/Models/AISettings.swift; sourceTree = "<group>"; };
 		EBA04DC7BF07B250AF95A74F /* PlaceRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceRowView.swift; path = Peragra/Views/Places/PlaceRowView.swift; sourceTree = "<group>"; };
+		33CA141563EA6082C6D8EA1F /* GoogleMapsOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoogleMapsOpener.swift; path = Peragra/Services/GoogleMapsOpener.swift; sourceTree = "<group>"; };
+		EB583D3A90CE85D33F3818BB /* PlaceFilterBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceFilterBar.swift; path = Peragra/Views/Places/PlaceFilterBar.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -86,6 +90,7 @@
 				A09D4E01A03ED8194F5A9673 /* AIExtractionService.swift */,
 				C1AB455D80578B776DC3D4A3 /* GoogleGeocodingService.swift */,
 				9559465AB5ABEDDDE992B896 /* KMLService.swift */,
+				33CA141563EA6082C6D8EA1F /* GoogleMapsOpener.swift */,
 			);
 			name = Services;
 			sourceTree = "<group>";
@@ -100,6 +105,7 @@
 				D8BC485BB5A43C5FE5BF7D88 /* PlaceListingView.swift */,
 				7C264C7A93EFFFAD7D5CB188 /* EditPlaceSheet.swift */,
 				B7ED4E179AD24B6F86E577A6 /* GoogleMapWebView.swift */,
+				EB583D3A90CE85D33F3818BB /* PlaceFilterBar.swift */,
 			);
 			name = Places;
 			sourceTree = "<group>";
@@ -259,6 +265,8 @@
 				35624F0CA9E68832540B4790 /* GoogleMapWebView.swift in Sources */,
 				F7974463AE67093D8AF2EDC8 /* KMLService.swift in Sources */,
 				51C64D7BB7E7C26F899DDC50 /* GatewayModels.swift in Sources */,
+				73C14CCED1F50796BA176AA6 /* GoogleMapsOpener.swift in Sources */,
+				C2C9BD7BCF298521D33647B6 /* PlaceFilterBar.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
