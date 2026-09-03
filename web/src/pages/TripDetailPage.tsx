@@ -43,7 +43,13 @@ export function TripDetailPage() {
     const link = document.createElement("a");
     link.href = url;
     link.download = `${title.replace(/[^\w\- ]+/g, "")}.kml`;
+    // Safari (notably iOS Safari) only honors a click on an <a download>
+    // that's actually in the document — clicking one that was never
+    // appended silently does nothing there, even though Chrome/Firefox
+    // don't require it.
+    document.body.appendChild(link);
     link.click();
+    link.remove();
     URL.revokeObjectURL(url);
   }
 
@@ -83,15 +89,18 @@ export function TripDetailPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {locatedCount > 0 && (
-            <button
-              onClick={exportToGoogleMaps}
-              className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
-              title="Download a KML file to import as a new map in Google My Maps"
-            >
-              📤 Export to Google Maps
-            </button>
-          )}
+          <button
+            onClick={exportToGoogleMaps}
+            disabled={locatedCount === 0}
+            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+            title={
+              locatedCount === 0
+                ? "No places have a map location yet — add an address, or wait for one to be located, first"
+                : "Download a KML file to import as a new map in Google My Maps"
+            }
+          >
+            📤 Export to Google Maps
+          </button>
           <button
             onClick={() => setShowAddPlace(true)}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
