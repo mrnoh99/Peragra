@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { PLACE_CATEGORIES, type Collection, type Place } from "../types";
 import { useStore } from "../store/useStore";
 import { EditPlaceModal } from "./EditPlaceModal";
+import { googleMapsUrl } from "../lib/googleMapsUrl";
 
 const CATEGORY_ICON: Record<string, string> = {
   restaurant: "🍽️",
@@ -133,6 +134,14 @@ export function PlaceCard({
                 found on the map.
               </p>
             )}
+            <a
+              href={googleMapsUrl(place)}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
+            >
+              🗺️ Open in Google Maps
+            </a>
             {place.instagramUrl && (
               <a
                 href={place.instagramUrl}

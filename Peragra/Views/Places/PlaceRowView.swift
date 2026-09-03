@@ -87,6 +87,17 @@ struct PlaceRowView: View {
                     .foregroundStyle(.secondary)
             }
 
+            if let mapsURL = GoogleMapsOpener.url(for: place) {
+                Button {
+                    openURL(mapsURL)
+                } label: {
+                    Label("Open in Google Maps", systemImage: "map")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+            }
+
             if let url = place.instagramURL {
                 Button {
                     openURL(url)
