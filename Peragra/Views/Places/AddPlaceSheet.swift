@@ -485,6 +485,13 @@ struct AddPlaceSheet: View {
             await geocodeAndStore(place, row: row)
         }
 
+        // Explicit rather than relying on SwiftData's autosave timing —
+        // views elsewhere (like TripDetailView's @Query-backed Export
+        // button) need the just-set latitude/longitude actually committed
+        // to be sure they see it as soon as this sheet dismisses, not
+        // whenever autosave next happens to run.
+        try? modelContext.save()
+
         isSaving = false
         dismiss()
     }

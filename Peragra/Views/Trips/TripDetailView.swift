@@ -19,6 +19,13 @@ struct TripDetailView: View {
     @State private var activeCollection: PlaceCollection?
     @State private var kmlShareURL: URL?
     @State private var showingShareSheet = false
+    // Driven explicitly (see refreshExportState below) rather than reading
+    // `visiblePlaces.contains { ... }` straight in the toolbar closure —
+    // belt-and-suspenders alongside the @Query switch above: an explicit
+    // @State write is guaranteed to force a full re-render (toolbar
+    // included), which sidesteps any lingering doubt about whether
+    // ToolbarContent re-evaluates as promptly as the rest of `body` does.
+    @State private var hasExportablePlaces = false
 
     // Explicit, since @Query's filter needs to close over the trip's id at
     // construction time (a stored @Query property also forces this type
@@ -108,7 +115,7 @@ struct TripDetailView: View {
                         Label("Export to Google Maps", systemImage: "square.and.arrow.up")
                     }
                 }
-                .disabled(!visiblePlaces.contains { $0.latitude != nil })
+                .disabled(!hasExportablePlaces)
             }
         }
         .sheet(isPresented: $showingAddPlace) {
@@ -130,6 +137,15 @@ struct TripDetailView: View {
             }
             Button("Cancel", role: .cancel) { newListName = "" }
         }
+        .onAppear { refreshExportState() }
+        .onChange(of: visiblePlaces) { _, _ in refreshExportState() }
+        .onChange(of: showingAddPlace) { _, isShowing in
+            if !isShowing { refreshExportState() }
+        }
+    }
+
+    private func refreshExportState() {
+        hasExportablePlaces = visiblePlaces.contains { $0.latitude != nil }
     }
 
     private var header: some View {

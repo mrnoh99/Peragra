@@ -5,6 +5,7 @@ struct EditPlaceSheet: View {
     let place: Place
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     @State private var name: String
     @State private var category: PlaceCategory
@@ -92,6 +93,12 @@ struct EditPlaceSheet: View {
                 notes: trimmedNotes
             )
         }
+
+        // Explicit rather than relying on SwiftData's autosave timing —
+        // views elsewhere (like TripDetailView's @Query-backed Export
+        // button) need this committed to be sure they see it as soon as
+        // this sheet dismisses, not whenever autosave next happens to run.
+        try? modelContext.save()
 
         isSaving = false
         dismiss()
