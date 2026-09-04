@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Modal } from "./Modal";
 import { InstagramEmbed } from "./InstagramEmbed";
 import { readPhotoExif } from "../lib/photoExif";
-import { geocodePlace } from "../lib/geocode";
+import { geocodePlace, reverseGeocode } from "../lib/geocode";
 import { isInstagramPostUrl, normalizeInstagramUrl } from "../lib/instagram";
 import {
   extractPlacesFromImage,
@@ -312,6 +312,23 @@ export function AddPlaceModal({
               capturedAt: capturedAt ?? undefined,
             }),
           );
+
+    // AI extraction only reads text visible in the photo — a photo of a
+    // storefront often has none — so a blank address/name is filled in
+    // (never overwritten) from reverse-geocoding the coordinate itself.
+    let foundNameFromLocation = false;
+    if (location) {
+      const reverse = await reverseGeocode(location.lat, location.lng);
+      if (reverse) {
+        for (const row of newRows) {
+          if (!row.address.trim()) row.address = reverse.address;
+          if (!row.name.trim() && reverse.name) {
+            row.name = reverse.name;
+            foundNameFromLocation = true;
+          }
+        }
+      }
+    }
     setRows(newRows);
 
     if (extractionFailureMessage) {
@@ -319,7 +336,11 @@ export function AddPlaceModal({
     } else if (!location) {
       setExtractError("Couldn't find location info in those photos — add an address below, or upload a photo that has it.");
     } else if (extracted.length === 0) {
-      setExtractResultMessage("📍 Read the location from your photos — fill in the place details below.");
+      setExtractResultMessage(
+        foundNameFromLocation
+          ? "📍 Found a place at your photos' location — review below before saving."
+          : "📍 Read the location from your photos — fill in the place details below.",
+      );
     } else {
       setExtractResultMessage(
         `📍 Read the location from your photos and found ${extracted.length} place${extracted.length === 1 ? "" : "s"} — review below before saving.`,

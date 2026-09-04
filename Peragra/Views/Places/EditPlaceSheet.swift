@@ -352,22 +352,37 @@ struct EditPlaceSheet: View {
             }
         }
 
+        // AI extraction only reads text visible in the photo — a photo of
+        // a storefront often has none — so a blank address is filled in
+        // (never overwritten) from reverse-geocoding the coordinate
+        // itself.
         if let coordinate {
             pendingCoordinate = coordinate
+            if address.trimmingCharacters(in: .whitespaces).isEmpty,
+               let reverse = await GeocodingService.reverseGeocode(latitude: coordinate.latitude, longitude: coordinate.longitude) {
+                address = reverse.address
+                filledSomething = true
+            }
         }
 
+        // `filledSomething` can be true even without an API key (the
+        // address may have come from reverse-geocoding the photo's own
+        // location, not AI extraction) — checked before the "no API key"
+        // message so that case isn't hidden behind it.
         if let extractionFailureMessage {
             photoErrorMessage = extractionFailureMessage
-        } else if aiSettings.activeAPIKey == nil {
-            photoResultMessage = coordinate != nil
-                ? "📍 Location captured from your photo — add an AI extraction API key in Settings to also read details from it."
-                : "Add an AI extraction API key in Settings to read details from your photos."
         } else if filledSomething, coordinate != nil {
-            photoResultMessage = "✨ Filled in details and captured a location from your photos — review before saving."
+            photoResultMessage = aiSettings.activeAPIKey != nil
+                ? "✨ Filled in details and captured a location from your photos — review before saving."
+                : "📍 Filled in the address from your photo's location — add an AI extraction API key in Settings to also read other details from it."
         } else if filledSomething {
             photoResultMessage = "✨ Filled in details from your photos — review before saving."
         } else if coordinate != nil {
-            photoResultMessage = "📍 Captured a location from your photos — review before saving."
+            photoResultMessage = aiSettings.activeAPIKey != nil
+                ? "📍 Captured a location from your photos — review before saving."
+                : "📍 Location captured from your photo — add an AI extraction API key in Settings to also read details from it."
+        } else if aiSettings.activeAPIKey == nil {
+            photoResultMessage = "Add an AI extraction API key in Settings to read details from your photos."
         } else {
             photoResultMessage = "Didn't find any new details in those photos."
         }

@@ -76,4 +76,76 @@ enum GoogleGeocodingService {
         let lat: Double
         let lng: Double
     }
+
+    struct ReverseResult {
+        let address: String
+        // Best-effort — only set when the coordinate resolved to an
+        // actual named place (a POI/establishment) rather than just a
+        // stretch of street.
+        let name: String?
+    }
+
+    static func reverseGeocode(latitude: Double, longitude: Double, apiKey: String) async -> ReverseResult? {
+        var components = URLComponents(string: "https://maps.googleapis.com/maps/api/geocode/json")
+        components?.queryItems = [
+            URLQueryItem(name: "latlng", value: "\(latitude),\(longitude)"),
+            URLQueryItem(name: "key", value: apiKey),
+        ]
+        guard let url = components?.url else { return nil }
+
+        var request = URLRequest(url: url)
+        if let bundleID = Bundle.main.bundleIdentifier {
+            request.setValue(bundleID, forHTTPHeaderField: "X-Ios-Bundle-Identifier")
+        }
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let decoded = try JSONDecoder().decode(ReverseGeocodeResponse.self, from: data)
+            guard let first = decoded.results.first else {
+                if decoded.status != "OK", decoded.status != "ZERO_RESULTS" {
+                    print("Google reverse geocoding failed: \(decoded.status) \(decoded.errorMessage ?? "")")
+                }
+                return nil
+            }
+            let poiComponent = first.addressComponents.first {
+                $0.types.contains("point_of_interest") || $0.types.contains("establishment")
+            }
+            return ReverseResult(address: first.formattedAddress, name: poiComponent?.longName)
+        } catch {
+            print("Google reverse geocoding request failed: \(error)")
+            return nil
+        }
+    }
+
+    private struct ReverseGeocodeResponse: Decodable {
+        let results: [ReverseGeocodeResult]
+        let status: String
+        let errorMessage: String?
+
+        enum CodingKeys: String, CodingKey {
+            case results
+            case status
+            case errorMessage = "error_message"
+        }
+    }
+
+    private struct ReverseGeocodeResult: Decodable {
+        let formattedAddress: String
+        let addressComponents: [AddressComponent]
+
+        enum CodingKeys: String, CodingKey {
+            case formattedAddress = "formatted_address"
+            case addressComponents = "address_components"
+        }
+    }
+
+    private struct AddressComponent: Decodable {
+        let longName: String
+        let types: [String]
+
+        enum CodingKeys: String, CodingKey {
+            case longName = "long_name"
+            case types
+        }
+    }
 }

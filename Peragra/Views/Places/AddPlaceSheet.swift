@@ -580,7 +580,7 @@ struct AddPlaceSheet: View {
             }
         }
 
-        rows = extracted.isEmpty
+        var newRows = extracted.isEmpty
             ? [CandidateRow(manualLatitude: coordinate?.latitude, manualLongitude: coordinate?.longitude, capturedAt: capturedAt)]
             : extracted.map { place in
                 CandidateRow(
@@ -594,12 +594,32 @@ struct AddPlaceSheet: View {
                 )
             }
 
+        // AI extraction only reads text visible in the photo — a photo of
+        // a storefront often has none — so a blank address/name is filled
+        // in (never overwritten) from reverse-geocoding the coordinate
+        // itself.
+        var foundNameFromLocation = false
+        if let coordinate, let reverse = await GeocodingService.reverseGeocode(latitude: coordinate.latitude, longitude: coordinate.longitude) {
+            for index in newRows.indices {
+                if newRows[index].address.trimmingCharacters(in: .whitespaces).isEmpty {
+                    newRows[index].address = reverse.address
+                }
+                if newRows[index].name.trimmingCharacters(in: .whitespaces).isEmpty, let name = reverse.name {
+                    newRows[index].name = name
+                    foundNameFromLocation = true
+                }
+            }
+        }
+        rows = newRows
+
         if let extractionFailureMessage {
             extractErrorMessage = extractionFailureMessage
         } else if coordinate == nil {
             extractErrorMessage = "Couldn't find location info in those photos — add an address below, or upload a photo that has it."
         } else if extracted.isEmpty {
-            extractResultMessage = "📍 Read the location from your photos — fill in the place details below."
+            extractResultMessage = foundNameFromLocation
+                ? "📍 Found a place at your photos' location — review below before saving."
+                : "📍 Read the location from your photos — fill in the place details below."
         } else {
             let placeWord = extracted.count == 1 ? "place" : "places"
             extractResultMessage = "📍 Read the location from your photos and found \(extracted.count) \(placeWord) — review below before saving."

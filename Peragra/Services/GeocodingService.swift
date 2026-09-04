@@ -1,9 +1,17 @@
+import Contacts
 import CoreLocation
 
 enum GeocodingService {
     struct Result {
         let latitude: Double
         let longitude: Double
+    }
+
+    struct ReverseResult {
+        let address: String
+        // Best-effort — only set when the coordinate resolved to an
+        // actual named place rather than just a street address.
+        let name: String?
     }
 
     /// Looks up coordinates for a free-text place name/address. Uses the
@@ -39,5 +47,39 @@ enum GeocodingService {
         } catch {
             return nil
         }
+    }
+
+    /// Reverse geocoding (coordinate -> address/name), for turning a GPS
+    /// fix read off an on-site photo into something readable to fill in a
+    /// place's address (and, best-effort, its name) automatically. Same
+    /// Google/Apple dispatch as `geocode(query:contextHint:)`.
+    static func reverseGeocode(latitude: Double, longitude: Double) async -> ReverseResult? {
+        if MapSettings.shared.isGoogleActive {
+            let apiKey = MapSettings.shared.effectiveGoogleMapsAPIKey
+            guard let result = await GoogleGeocodingService.reverseGeocode(latitude: latitude, longitude: longitude, apiKey: apiKey) else {
+                return nil
+            }
+            return ReverseResult(address: result.address, name: result.name)
+        }
+
+        let geocoder = CLGeocoder()
+        let location = CLLocation(latitude: latitude, longitude: longitude)
+        do {
+            let placemarks = try await geocoder.reverseGeocodeLocation(location)
+            guard let placemark = placemarks.first else { return nil }
+            return ReverseResult(address: formattedAddress(from: placemark), name: placemark.name)
+        } catch {
+            return nil
+        }
+    }
+
+    private static func formattedAddress(from placemark: CLPlacemark) -> String {
+        if let postalAddress = placemark.postalAddress {
+            return CNPostalAddressFormatter.string(from: postalAddress, style: .mailingAddress)
+                .replacingOccurrences(of: "\n", with: ", ")
+        }
+        return [placemark.name, placemark.locality, placemark.administrativeArea, placemark.country]
+            .compactMap { $0 }
+            .joined(separator: ", ")
     }
 }

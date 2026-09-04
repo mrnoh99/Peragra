@@ -9,7 +9,7 @@ import {
   type AIExtractedPlace,
 } from "../lib/aiExtract";
 import { readPhotoExif } from "../lib/photoExif";
-import { geocodePlace } from "../lib/geocode";
+import { geocodePlace, reverseGeocode } from "../lib/geocode";
 import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type Place, type PlaceCategory } from "../types";
@@ -106,11 +106,17 @@ export function EditPlaceModal({
       }
     }
 
+    // Tracked locally (not read back from the `address` state variable)
+    // since setAddress's effect isn't visible until the next render —
+    // reading state here after calling it would still see the old value.
+    let addressFilled = address.trim().length > 0;
+
     const found = extracted[0] ?? null;
     let filledSomething = false;
     if (found) {
-      if (!address.trim() && found.address) {
+      if (!addressFilled && found.address) {
         setAddress(found.address);
+        addressFilled = true;
         filledSomething = true;
       }
       if (!phone.trim() && found.telephone) {
@@ -123,24 +129,42 @@ export function EditPlaceModal({
       }
     }
 
+    // AI extraction only reads text visible in the photo — a photo of a
+    // storefront often has none — so a blank address is filled in (never
+    // overwritten) from reverse-geocoding the coordinate itself.
     if (location) {
       setPendingCoords(location);
+      if (!addressFilled) {
+        const reverse = await reverseGeocode(location.lat, location.lng);
+        if (reverse) {
+          setAddress(reverse.address);
+          filledSomething = true;
+        }
+      }
     }
 
+    // `filledSomething` can be true even without an API key (the address
+    // may have come from reverse-geocoding the photo's own location, not
+    // AI extraction) — checked before the "no API key" message so that
+    // case isn't hidden behind it.
     if (extractionFailureMessage) {
       setPhotoError(extractionFailureMessage);
-    } else if (!apiKey) {
-      setPhotoMessage(
-        location
-          ? "📍 Location captured from your photo — add an AI extraction API key in Settings to also read details from it."
-          : "Add an AI extraction API key in Settings to read details from your photos.",
-      );
     } else if (filledSomething && location) {
-      setPhotoMessage("✨ Filled in details and captured a location from your photos — review before saving.");
+      setPhotoMessage(
+        apiKey
+          ? "✨ Filled in details and captured a location from your photos — review before saving."
+          : "📍 Filled in the address from your photo's location — add an AI extraction API key in Settings to also read other details from it.",
+      );
     } else if (filledSomething) {
       setPhotoMessage("✨ Filled in details from your photos — review before saving.");
     } else if (location) {
-      setPhotoMessage("📍 Captured a location from your photos — review before saving.");
+      setPhotoMessage(
+        apiKey
+          ? "📍 Captured a location from your photos — review before saving."
+          : "📍 Location captured from your photo — add an AI extraction API key in Settings to also read details from it.",
+      );
+    } else if (!apiKey) {
+      setPhotoMessage("Add an AI extraction API key in Settings to read details from your photos.");
     } else {
       setPhotoMessage("Didn't find any new details in those photos.");
     }

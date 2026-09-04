@@ -39,3 +39,34 @@ export async function geocodeWithGoogle(
     return null;
   }
 }
+
+/**
+ * Reverse geocoding (coordinate -> address/name), for turning a GPS fix
+ * read off an on-site photo into something readable. `name` is only set
+ * when the first result's own address components include one typed
+ * "point_of_interest" or "establishment" — i.e. the coordinate resolved
+ * to an actual place rather than just a stretch of street — since the
+ * Geocoding API otherwise has no notion of "the name of this spot".
+ */
+export async function reverseGeocodeWithGoogle(
+  lat: number,
+  lng: number,
+  apiKey: string,
+): Promise<{ address: string; name: string | null } | null> {
+  await loadGoogleMapsScript(apiKey);
+  if (!window.google) return null;
+
+  const geocoder = new window.google.maps.Geocoder();
+  try {
+    const response = await geocoder.geocode({ location: { lat, lng } });
+    const first = response.results[0];
+    if (!first) return null;
+    const poiComponent = first.address_components.find((component) =>
+      component.types.includes("point_of_interest") || component.types.includes("establishment"),
+    );
+    return { address: first.formatted_address, name: poiComponent?.long_name ?? null };
+  } catch (error) {
+    console.warn("Google reverse geocoding failed:", error);
+    return null;
+  }
+}
