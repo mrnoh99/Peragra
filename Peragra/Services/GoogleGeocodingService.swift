@@ -1,9 +1,10 @@
 import Foundation
 
 /// Free-text geocoding via the Google Geocoding API, for people who've
-/// opted into Google Maps in Settings with their own API key. Only called
-/// when that opt-in is active — see GeocodingService.geocode, which is the
-/// entry point every call site actually uses.
+/// opted into Google Maps in Settings (using the app's bundled key, or
+/// their own if they entered one). Only called when that opt-in is
+/// active — see GeocodingService.geocode, which is the entry point every
+/// call site actually uses.
 enum GoogleGeocodingService {
     struct Result {
         let latitude: Double

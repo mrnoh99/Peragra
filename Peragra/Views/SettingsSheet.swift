@@ -157,7 +157,7 @@ struct SettingsSheet: View {
                     .pickerStyle(.segmented)
 
                     if mapProvider == .google {
-                        SecureField("AIzaSy...", text: $googleMapsKeyInput)
+                        SecureField("Your own key (optional) — AIzaSy...", text: $googleMapsKeyInput)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                     }
@@ -165,7 +165,7 @@ struct SettingsSheet: View {
                     Text("Map provider")
                 } footer: {
                     Text(mapProvider == .google
-                        ? "Requires your own Google Maps API key (with the Maps JavaScript and Geocoding APIs enabled) from a Google Cloud project with billing set up — Google's free monthly credit covers light personal use. The map and address lookups call Google's APIs directly from this device."
+                        ? "Works right away using this app's own Google Maps key — enter your own above only if you'd rather use your own Google Cloud project's quota instead."
                         : "Apple Maps and its geocoder need no API key and no account — this is the default.")
                 }
 

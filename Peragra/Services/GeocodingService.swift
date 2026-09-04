@@ -8,10 +8,10 @@ enum GeocodingService {
 
     /// Looks up coordinates for a free-text place name/address. Uses the
     /// Google Geocoding API when the user has opted into Google Maps in
-    /// Settings with their own API key; otherwise falls back to Apple's
-    /// system geocoder (no API key required — the default). `contextHint`
-    /// (typically the trip's destination) disambiguates places that share a
-    /// common name.
+    /// Settings (their own key if they entered one, otherwise the app's
+    /// bundled default); otherwise falls back to Apple's system geocoder
+    /// (no API key required — the default). `contextHint` (typically the
+    /// trip's destination) disambiguates places that share a common name.
     static func geocode(query: String, contextHint: String?) async -> Result? {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -23,7 +23,8 @@ enum GeocodingService {
             fullQuery = trimmed
         }
 
-        if MapSettings.shared.isGoogleActive, let apiKey = MapSettings.shared.googleMapsAPIKey {
+        if MapSettings.shared.isGoogleActive {
+            let apiKey = MapSettings.shared.effectiveGoogleMapsAPIKey
             guard let result = await GoogleGeocodingService.geocode(query: fullQuery, apiKey: apiKey) else {
                 return nil
             }

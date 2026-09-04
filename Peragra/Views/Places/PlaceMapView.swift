@@ -45,8 +45,8 @@ struct PlaceMapView: View {
                     description: Text("Save a place with an address to see it here.")
                 )
                 .frame(maxHeight: .infinity)
-            } else if mapSettings.isGoogleActive, let apiKey = mapSettings.googleMapsAPIKey {
-                GoogleMapWebView(apiKey: apiKey, places: located.map(googleMarker), tripDestination: destination)
+            } else if mapSettings.isGoogleActive {
+                GoogleMapWebView(apiKey: mapSettings.effectiveGoogleMapsAPIKey, places: located.map(googleMarker), tripDestination: destination)
             } else {
                 Map(position: $cameraPosition, selection: $selectedPlace) {
                     ForEach(located) { place in

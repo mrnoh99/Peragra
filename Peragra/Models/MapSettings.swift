@@ -2,8 +2,8 @@ import Foundation
 import Observation
 
 /// Which map/geocoding provider to use. `.free` (Apple MapKit + CLGeocoder)
-/// needs no API key and is the default; `.google` requires the user's own
-/// Google Maps API key, entered in Settings.
+/// needs no API key and is the default; `.google` uses the app's bundled
+/// Google Maps key unless the user enters their own in Settings.
 enum MapProvider: String {
     case free
     case google
@@ -19,7 +19,19 @@ final class MapSettings {
     private static let keychainKey = "google-maps-api-key"
     private static let providerDefaultsKey = "map-provider"
 
+    /// Ships with the app so switching to Google Maps in Settings works
+    /// immediately, without every installer needing their own Google
+    /// Cloud project — restricted in Google Cloud Console to this app's
+    /// bundle ID (com.peragra.app) and to just the Maps JavaScript and
+    /// Geocoding APIs, with a daily quota, since (like any client-embedded
+    /// key) it's extractable from the compiled binary. A user's own key,
+    /// entered in Settings, always takes priority over this one.
+    private static let defaultGoogleMapsAPIKey = "AIzaSyAVDyA5hl0P7xHT9qT4jRS3nAUFFfaOnzo"
+
     private(set) var provider: MapProvider
+    /// The user's own key, set explicitly in Settings — nil when they
+    /// haven't entered one. Use `effectiveGoogleMapsAPIKey` for actual
+    /// API calls, which falls back to the bundled default.
     private(set) var googleMapsAPIKey: String?
 
     private init() {
@@ -28,10 +40,17 @@ final class MapSettings {
         googleMapsAPIKey = KeychainService.load(for: Self.keychainKey)
     }
 
-    /// Google requires a key to actually do anything, so this is what the
-    /// rest of the app should check rather than `provider` alone.
+    /// The user's own key when set, otherwise the app's bundled default —
+    /// what every Google Maps/geocoding call site should actually use.
+    var effectiveGoogleMapsAPIKey: String {
+        googleMapsAPIKey ?? Self.defaultGoogleMapsAPIKey
+    }
+
+    /// A usable key (the user's own, or the bundled default) is always
+    /// available once Google is selected, so this just reflects the
+    /// provider choice.
     var isGoogleActive: Bool {
-        provider == .google && googleMapsAPIKey != nil
+        provider == .google
     }
 
     func setProvider(_ value: MapProvider) {

@@ -3,7 +3,8 @@ import WebKit
 import UIKit
 
 /// Renders saved places on a Google Map, for people who've opted into
-/// Google Maps in Settings with their own API key. Implemented as a
+/// Google Maps in Settings (using the app's bundled key, or their own if
+/// they entered one). Implemented as a
 /// self-contained HTML page loaded into a WKWebView (same technique as
 /// InstagramEmbedView) — Google doesn't offer a SwiftUI-native map view,
 /// and pulling in their iOS SDK would mean an unreviewable binary
