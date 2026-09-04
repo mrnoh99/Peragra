@@ -1,16 +1,14 @@
 import { PLACE_CATEGORIES, type Place } from "../types";
 
 /**
- * KML export/import — the closest thing to a "send this list to Google
- * Maps" feature that's actually possible: Google has no public API for a
+ * KML export — the closest thing to a "send this list to Google Maps"
+ * feature that's actually possible: Google has no public API for a
  * user's personal Saved-places lists (no way to check whether a "Peragra"
  * list already exists there, or create/add to one), but Google My Maps
- * (mymaps.google.com) can import a KML file as a new named map, and export
- * one back out. So "syncing with Google Maps" here means: generate a KML
- * file titled "Peragra - <trip>" for the user to import into My Maps (once,
- * naming that map "Peragra" themselves), and parse a KML file (one they
- * exported from My Maps) back into candidate places to review before
- * saving — same flow as caption/AI extraction.
+ * (mymaps.google.com) can import a KML file as a new named map. So
+ * "syncing with Google Maps" here means: generate a KML file titled
+ * "Peragra - <trip>" for the user to import into My Maps (once, naming
+ * that map "Peragra" themselves).
  *
  * Places are grouped into one <Folder> per category — My Maps shows each
  * KML Folder as its own named, separately-colored layer, so a category
@@ -71,43 +69,4 @@ ${folders}
   </Document>
 </kml>
 `;
-}
-
-export interface KmlPlace {
-  name: string | null;
-  address: string | null;
-  lat: number | null;
-  lng: number | null;
-}
-
-export function parseKmlPlaces(kmlText: string): KmlPlace[] {
-  const doc = new DOMParser().parseFromString(kmlText, "application/xml");
-  if (doc.getElementsByTagName("parsererror").length > 0) return [];
-
-  const placemarks = Array.from(doc.getElementsByTagName("Placemark"));
-  return placemarks
-    .map((placemark): KmlPlace => {
-      const name = placemark.getElementsByTagName("name")[0]?.textContent?.trim() || null;
-      const address =
-        placemark.getElementsByTagName("description")[0]?.textContent?.trim() || null;
-
-      let lat: number | null = null;
-      let lng: number | null = null;
-      const coordsText = placemark.getElementsByTagName("coordinates")[0]?.textContent?.trim();
-      if (coordsText) {
-        // "lng,lat[,alt]" — Placemarks can list multiple whitespace-
-        // separated coordinate tuples (for lines/polygons); a Point only
-        // ever has one, which is all this app imports.
-        const [lngStr, latStr] = coordsText.split(",");
-        const parsedLng = Number.parseFloat(lngStr);
-        const parsedLat = Number.parseFloat(latStr);
-        if (!Number.isNaN(parsedLng) && !Number.isNaN(parsedLat)) {
-          lng = parsedLng;
-          lat = parsedLat;
-        }
-      }
-
-      return { name, address, lat, lng };
-    })
-    .filter((p) => p.name || (p.lat !== null && p.lng !== null));
 }

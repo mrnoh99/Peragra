@@ -2,7 +2,6 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import UIKit
-import UniformTypeIdentifiers
 
 private struct CandidateRow: Identifiable {
     let id = UUID()
@@ -15,11 +14,6 @@ private struct CandidateRow: Identifiable {
     // form's own manual notes field at save time, not a replacement for it.
     var notes = ""
     var category: PlaceCategory = .restaurant
-    // Set only for places imported from a KML file — they already carry
-    // real coordinates from Google Maps, so saving skips geocoding by
-    // address/name and uses these directly.
-    var latitude: Double?
-    var longitude: Double?
 }
 
 struct AddPlaceSheet: View {
@@ -56,7 +50,6 @@ struct AddPlaceSheet: View {
     @State private var extractErrorMessage: String?
     @State private var extractResultMessage: String?
     @State private var isGuessingAddresses = false
-    @State private var showingKmlImporter = false
 
     // Computed, not stored — a private *stored* property forces Swift's
     // synthesized memberwise init to become private too, which broke
@@ -204,18 +197,6 @@ struct AddPlaceSheet: View {
                 }
 
                 Section {
-                    Button {
-                        showingKmlImporter = true
-                    } label: {
-                        Label("Upload a .kml file", systemImage: "square.and.arrow.down")
-                    }
-                } header: {
-                    Text("Import from Google Maps (optional)")
-                } footer: {
-                    Text("Google has no API for reading a Saved-places list directly — export one as KML from Google My Maps (mymaps.google.com) and upload it here. Imported places already carry real coordinates, so they skip geocoding entirely.")
-                }
-
-                Section {
                     TextField("https://www.instagram.com/p/...", text: $instagramInput)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
@@ -265,11 +246,6 @@ struct AddPlaceSheet: View {
                     screenshotItems = []
                 }
             }
-            .fileImporter(
-                isPresented: $showingKmlImporter,
-                allowedContentTypes: [UTType(filenameExtension: "kml") ?? .xml, .xml],
-                onCompletion: handleKmlImport
-            )
         }
     }
 
@@ -397,41 +373,6 @@ struct AddPlaceSheet: View {
         }
     }
 
-    private func handleKmlImport(_ result: Result<URL, Error>) {
-        extractErrorMessage = nil
-        extractResultMessage = nil
-        guard case let .success(url) = result else {
-            extractErrorMessage = "Couldn't read that file."
-            return
-        }
-
-        let gotAccess = url.startAccessingSecurityScopedResource()
-        defer { if gotAccess { url.stopAccessingSecurityScopedResource() } }
-
-        guard let data = try? Data(contentsOf: url) else {
-            extractErrorMessage = "Couldn't read that file."
-            return
-        }
-
-        let places = KMLService.parsePlaces(from: data)
-        let usable = places.filter { $0.name != nil }
-        guard !usable.isEmpty else {
-            extractErrorMessage = "Couldn't find any places in that KML file."
-            return
-        }
-
-        rows = usable.map { place in
-            CandidateRow(
-                name: place.name ?? "",
-                address: place.address ?? "",
-                latitude: place.latitude,
-                longitude: place.longitude
-            )
-        }
-        let placeWord = usable.count == 1 ? "place" : "places"
-        extractResultMessage = "Imported \(usable.count) \(placeWord) from KML — review below before saving."
-    }
-
     private func runPatternExtraction() {
         extractErrorMessage = nil
         extractResultMessage = nil
@@ -525,15 +466,6 @@ struct AddPlaceSheet: View {
             modelContext.insert(place)
             if let defaultCollection {
                 place.collections.append(defaultCollection)
-            }
-
-            if let latitude = row.latitude, let longitude = row.longitude {
-                // Imported from KML — already has real coordinates from
-                // Google Maps, so there's nothing to geocode.
-                place.latitude = latitude
-                place.longitude = longitude
-                place.geocodeStatus = .located
-                continue
             }
 
             await geocodeAndStore(place, row: row)

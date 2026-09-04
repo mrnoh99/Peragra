@@ -1,15 +1,13 @@
 import Foundation
 
-/// KML export/import — the closest thing to a "send this list to Google
-/// Maps" feature that's actually possible: Google has no public API for a
+/// KML export — the closest thing to a "send this list to Google Maps"
+/// feature that's actually possible: Google has no public API for a
 /// user's personal Saved-places lists (no way to check whether a "Peragra"
 /// list already exists there, or create/add to one), but Google My Maps
-/// (mymaps.google.com) can import a KML file as a new named map, and export
-/// one back out. So "syncing with Google Maps" here means: generate a KML
-/// file titled "Peragra - <trip>" for the user to import into My Maps
-/// (once, naming that map "Peragra" themselves), and parse a KML file (one
-/// they exported from My Maps) back into candidate places to review before
-/// saving — same flow as caption/AI extraction.
+/// (mymaps.google.com) can import a KML file as a new named map. So
+/// "syncing with Google Maps" here means: generate a KML file titled
+/// "Peragra - <trip>" for the user to import into My Maps (once, naming
+/// that map "Peragra" themselves).
 ///
 /// Places are grouped into one <Folder> per category — My Maps shows each
 /// KML Folder as its own named, separately-colored layer, so a category
@@ -18,13 +16,6 @@ import Foundation
 /// description, same as before.
 /// Mirrors web/src/lib/kml.ts.
 enum KMLService {
-    struct KmlPlace {
-        let name: String?
-        let address: String?
-        let latitude: Double?
-        let longitude: Double?
-    }
-
     private static func escapeXML(_ text: String) -> String {
         text
             .replacingOccurrences(of: "&", with: "&amp;")
@@ -83,85 +74,5 @@ enum KMLService {
             "",
         ]
         return lines.joined(separator: "\n")
-    }
-
-    static func parsePlaces(from data: Data) -> [KmlPlace] {
-        let parser = XMLParser(data: data)
-        let delegate = KMLParserDelegate()
-        parser.delegate = delegate
-        parser.parse()
-        return delegate.places.filter { $0.name != nil || ($0.latitude != nil && $0.longitude != nil) }
-    }
-}
-
-private final class KMLParserDelegate: NSObject, XMLParserDelegate {
-    var places: [KMLService.KmlPlace] = []
-
-    private var currentElement = ""
-    private var currentText = ""
-    private var inPlacemark = false
-
-    private var name: String?
-    // Named placemarkDescription, not description — NSObject already
-    // declares a non-optional `description: String`, and a same-named
-    // `String?` property here silently overrides it with a mismatched
-    // (and inaccessible) type, which Swift rejects at compile time.
-    private var placemarkDescription: String?
-    private var coordinates: String?
-
-    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
-        currentElement = elementName
-        currentText = ""
-        if elementName == "Placemark" {
-            inPlacemark = true
-            name = nil
-            placemarkDescription = nil
-            coordinates = nil
-        }
-    }
-
-    func parser(_ parser: XMLParser, foundCharacters string: String) {
-        if inPlacemark {
-            currentText += string
-        }
-    }
-
-    func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
-        guard inPlacemark else { return }
-
-        let trimmed = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
-        switch elementName {
-        case "name":
-            if name == nil { name = trimmed }
-        case "description":
-            if placemarkDescription == nil { placemarkDescription = trimmed }
-        case "coordinates":
-            if coordinates == nil { coordinates = trimmed }
-        case "Placemark":
-            var latitude: Double?
-            var longitude: Double?
-            // "lng,lat[,alt]" — Placemarks can list multiple whitespace-
-            // separated coordinate tuples (for lines/polygons); a Point
-            // only ever has one, which is all this app imports.
-            if let coordinates {
-                let parts = coordinates.split(separator: ",")
-                if parts.count >= 2, let lng = Double(parts[0]), let lat = Double(parts[1]) {
-                    longitude = lng
-                    latitude = lat
-                }
-            }
-            places.append(
-                KMLService.KmlPlace(
-                    name: (name?.isEmpty ?? true) ? nil : name,
-                    address: (placemarkDescription?.isEmpty ?? true) ? nil : placemarkDescription,
-                    latitude: latitude,
-                    longitude: longitude
-                )
-            )
-            inPlacemark = false
-        default:
-            break
-        }
-        currentText = ""
     }
 }
