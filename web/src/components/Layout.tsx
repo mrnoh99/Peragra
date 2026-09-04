@@ -34,7 +34,8 @@ export function Layout({ children }: { children: ReactNode }) {
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">{children}</main>
       <footer className="border-t border-black/5 py-4 text-center text-xs text-neutral-400">
-        Peragra — plan trips from the places you save
+        <p>Peragra — plan trips from the places you save</p>
+        <p className="mt-1">Developed by JaiSung Noh, MD. · 2026</p>
       </footer>
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>

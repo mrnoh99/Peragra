@@ -57,6 +57,14 @@ struct TripsListView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsSheet()
             }
+            .safeAreaInset(edge: .bottom) {
+                Text("Developed by JaiSung Noh, MD. · 2026")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(.bar)
+            }
             .confirmationDialog(
                 "Delete this trip and all its saved places?",
                 isPresented: Binding(
