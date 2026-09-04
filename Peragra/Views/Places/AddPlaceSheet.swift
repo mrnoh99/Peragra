@@ -28,6 +28,23 @@ private struct CandidateRow: Identifiable {
     var capturedAt: Date?
 }
 
+private struct OnSitePhoto: Identifiable {
+    let id = UUID()
+    var displayData: Data
+    // Only set for `.upload` photos — the raw bytes as picked, so EXIF
+    // metadata survives (re-encoding through UIImage/jpegData strips it).
+    // `displayData` is always the JPEG-recompressed version used for the
+    // AI call and thumbnail, so its media type is predictable regardless
+    // of what format the original photo was in.
+    var originalData: Data?
+    var source: Source
+
+    enum Source {
+        case camera
+        case upload
+    }
+}
+
 struct AddPlaceSheet: View {
     /// Reading more screenshots than this in one AI pass gets slow and
     /// costly for what's still just "a few saved posts" — this caps it.
@@ -64,12 +81,14 @@ struct AddPlaceSheet: View {
 
     @State private var showingCamera = false
     @State private var isCapturingOnSite = false
-    /// Photos captured for the place currently being logged on-site —
-    /// several angles (sign, menu, interior, ...) accumulate here before
-    /// "Log This Place" sends them all to AI in one request together, so
-    /// it can cross-reference them into one accurate result instead of
-    /// reconciling separate per-photo guesses.
-    @State private var onSitePhotoDatas: [Data] = []
+    @State private var uploadPhotoItems: [PhotosPickerItem] = []
+    @State private var isLoadingUploadPhotos = false
+    /// Photos accumulated for the place currently being logged — several
+    /// angles (sign, menu, interior, ...), whether taken live just now or
+    /// picked from the library — before "Log This Place" sends them all to
+    /// AI in one request together, so it can cross-reference them into one
+    /// accurate result instead of reconciling separate per-photo guesses.
+    @State private var onSitePhotos: [OnSitePhoto] = []
 
     // Computed, not stored — a private *stored* property forces Swift's
     // synthesized memberwise init to become private too, which broke
@@ -113,48 +132,64 @@ struct AddPlaceSheet: View {
                             showingCamera = true
                         } label: {
                             Label(
-                                onSitePhotoDatas.isEmpty ? "Take Photo Here" : "Add Another Photo",
+                                onSitePhotos.contains { $0.source == .camera } ? "Add Another Photo" : "Take Photo Here",
                                 systemImage: "camera.fill"
                             )
                         }
                         .disabled(isCapturingOnSite)
+                    }
 
-                        ForEach(Array(onSitePhotoDatas.enumerated()), id: \.offset) { index, data in
-                            HStack {
-                                if let uiImage = UIImage(data: data) {
-                                    Image(uiImage: uiImage)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 32, height: 32)
-                                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                                }
-                                Text("On-site photo \(index + 1)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Button {
-                                    onSitePhotoDatas.remove(at: index)
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.secondary)
-                                }
-                                .buttonStyle(.plain)
-                            }
+                    PhotosPicker(
+                        selection: $uploadPhotoItems,
+                        maxSelectionCount: nil,
+                        matching: .images
+                    ) {
+                        if isLoadingUploadPhotos {
+                            ProgressView()
+                        } else {
+                            Label(
+                                onSitePhotos.contains { $0.source == .upload } ? "Add More Photos" : "Upload Photos",
+                                systemImage: "square.and.arrow.up"
+                            )
                         }
+                    }
+                    .disabled(isLoadingUploadPhotos || isCapturingOnSite)
 
-                        if !onSitePhotoDatas.isEmpty {
+                    ForEach(Array(onSitePhotos.enumerated()), id: \.element.id) { index, photo in
+                        HStack {
+                            if let uiImage = UIImage(data: photo.displayData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 32, height: 32)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                            Text(photo.source == .camera ? "On-site photo \(index + 1)" : "Uploaded photo \(index + 1)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
                             Button {
-                                Task { await captureOnSitePlace() }
+                                onSitePhotos.remove(at: index)
                             } label: {
-                                if isCapturingOnSite {
-                                    ProgressView()
-                                } else {
-                                    Text("📍 Log This Place")
-                                }
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
                             }
-                            .disabled(isCapturingOnSite)
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.plain)
                         }
+                    }
+
+                    if !onSitePhotos.isEmpty {
+                        Button {
+                            Task { await captureOnSitePlace() }
+                        } label: {
+                            if isCapturingOnSite {
+                                ProgressView()
+                            } else {
+                                Text("📍 Log This Place")
+                            }
+                        }
+                        .disabled(isCapturingOnSite)
+                        .buttonStyle(.borderedProminent)
                     }
 
                     ForEach(Array(screenshotDatas.enumerated()), id: \.offset) { index, data in
@@ -208,7 +243,7 @@ struct AddPlaceSheet: View {
                 } header: {
                     Text("Photos")
                 } footer: {
-                    Text("Attach up to \(Self.maxScreenshots) screenshots of a post and let AI read and organize them completely, or take one or more photos of the place you're at right now (a sign, a menu, ...) and tap Log This Place — its location and the time are captured automatically, and AI cross-references all the photos into one result.")
+                    Text("Attach up to \(Self.maxScreenshots) screenshots of a post and let AI read and organize them completely. Or, for a place you want to log with its own location: take one or more photos right now (a sign, a menu, ...), or upload photos you already took earlier — tap Log This Place and AI cross-references them all into one result. Location and time come from live GPS for a fresh photo, or from the uploaded photo's own data for one taken earlier.")
                 }
 
                 if extractErrorMessage != nil || extractResultMessage != nil || isGuessingAddresses {
@@ -306,6 +341,13 @@ struct AddPlaceSheet: View {
                     screenshotItems = []
                 }
             }
+            .onChange(of: uploadPhotoItems) { _, newItems in
+                guard !newItems.isEmpty else { return }
+                Task {
+                    await loadUploadPhotos(newItems)
+                    uploadPhotoItems = []
+                }
+            }
             .fullScreenCover(isPresented: $showingCamera) {
                 CameraCaptureView(onCapture: handleCameraCapture)
                     .ignoresSafeArea()
@@ -343,7 +385,7 @@ struct AddPlaceSheet: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 if row.wrappedValue.manualLatitude != nil {
-                    Label("Using your current location", systemImage: "location.fill")
+                    Label("Using a captured location", systemImage: "location.fill")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -459,41 +501,81 @@ struct AddPlaceSheet: View {
     private func handleCameraCapture(_ data: Data?) {
         showingCamera = false
         guard let data else { return }
-        onSitePhotoDatas.append(data)
+        onSitePhotos.append(OnSitePhoto(displayData: data, originalData: nil, source: .camera))
     }
 
-    /// The "Log This Place" flow: record the moment right away, kick off
-    /// a GPS fix and (if there's an AI key) one AI extraction call across
-    /// *all* the on-site photos taken so far together — letting the model
-    /// cross-reference several angles of the same place into one accurate
-    /// result — then replace the candidate rows with whatever it found
-    /// (or one blank row to fill in by hand if there's no AI key
-    /// configured). Every resulting row is tagged with the captured
+    private func loadUploadPhotos(_ items: [PhotosPickerItem]) async {
+        isLoadingUploadPhotos = true
+        extractErrorMessage = nil
+        extractResultMessage = nil
+        defer { isLoadingUploadPhotos = false }
+
+        for item in items {
+            guard
+                let originalData = try? await item.loadTransferable(type: Data.self),
+                let image = UIImage(data: originalData),
+                let jpegData = image.jpegData(compressionQuality: 0.85)
+            else {
+                extractErrorMessage = "Couldn't read one of those photos."
+                continue
+            }
+            onSitePhotos.append(OnSitePhoto(displayData: jpegData, originalData: originalData, source: .upload))
+        }
+    }
+
+    /// The "Log This Place" flow: kick off (if there's an AI key) one AI
+    /// extraction call across *all* the accumulated photos together —
+    /// letting the model cross-reference several angles of the same place
+    /// into one accurate result — then replace the candidate rows with
+    /// whatever it found (or one blank row to fill in by hand if there's
+    /// no AI key configured). Every resulting row is tagged with a
     /// coordinate/time so geocodeAndStore and save() use them directly
     /// instead of geocoding an address.
+    ///
+    /// Where that coordinate/time comes from depends on the batch: if it
+    /// includes any live "Take Photo Here" shot, a fresh GPS fix and the
+    /// current moment are used (as trustworthy as a photo taken here,
+    /// right now, can be). If every photo was uploaded instead, those
+    /// weren't necessarily taken here or now — so each photo's own EXIF
+    /// GPS/timestamp is read back out instead, using the first location
+    /// and earliest time found across the batch.
     private func captureOnSitePlace() async {
-        guard !onSitePhotoDatas.isEmpty else { return }
+        guard !onSitePhotos.isEmpty else { return }
         isCapturingOnSite = true
         extractErrorMessage = nil
         extractResultMessage = nil
         defer { isCapturingOnSite = false }
 
-        let capturedAt = Date()
-        async let coordinateTask = LocationService.currentLocation()
+        let photos = onSitePhotos
+        onSitePhotos = []
+        let hasCameraPhoto = photos.contains { $0.source == .camera }
+
+        var coordinate: CLLocationCoordinate2D?
+        var capturedAt: Date?
+        if hasCameraPhoto {
+            capturedAt = Date()
+            coordinate = await LocationService.currentLocation()
+        } else {
+            for photo in photos {
+                let metadata = PhotoMetadata.extract(from: photo.originalData ?? photo.displayData)
+                if coordinate == nil { coordinate = metadata.location }
+                if let date = metadata.capturedAt, capturedAt == nil || date < capturedAt! {
+                    capturedAt = date
+                }
+            }
+        }
 
         var extracted: [AIExtractedPlace] = []
         var extractionFailureMessage: String?
         if aiSettings.activeAPIKey != nil {
             do {
                 extracted = try await AIExtractionService.extractPlaces(
-                    images: onSitePhotoDatas.map { (data: $0, mediaType: "image/jpeg") }
+                    images: photos.map { (data: $0.displayData, mediaType: "image/jpeg") }
                 )
             } catch {
                 extractionFailureMessage = (error as? LocalizedError)?.errorDescription ?? "AI extraction failed — add the place details manually below."
             }
         }
-
-        let coordinate = await coordinateTask
 
         rows = extracted.isEmpty
             ? [CandidateRow(manualLatitude: coordinate?.latitude, manualLongitude: coordinate?.longitude, capturedAt: capturedAt)]
@@ -508,17 +590,22 @@ struct AddPlaceSheet: View {
                     capturedAt: capturedAt
                 )
             }
-        onSitePhotoDatas = []
 
         if let extractionFailureMessage {
             extractErrorMessage = extractionFailureMessage
         } else if coordinate == nil {
-            extractErrorMessage = "Couldn't get your current location — enable Location Services to tag this place automatically, or add an address below."
+            extractErrorMessage = hasCameraPhoto
+                ? "Couldn't get your current location — enable Location Services to tag this place automatically, or add an address below."
+                : "Couldn't find location info in those photos — add an address below, or upload a photo that has it."
         } else if extracted.isEmpty {
-            extractResultMessage = "📍 Captured your current location — fill in the place details below."
+            extractResultMessage = hasCameraPhoto
+                ? "📍 Captured your current location — fill in the place details below."
+                : "📍 Read the location from your photos — fill in the place details below."
         } else {
             let placeWord = extracted.count == 1 ? "place" : "places"
-            extractResultMessage = "📍 Captured your current location and found \(extracted.count) \(placeWord) — review below before saving."
+            extractResultMessage = hasCameraPhoto
+                ? "📍 Captured your current location and found \(extracted.count) \(placeWord) — review below before saving."
+                : "📍 Read the location from your photos and found \(extracted.count) \(placeWord) — review below before saving."
         }
     }
 
