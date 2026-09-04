@@ -14,7 +14,14 @@ final class Place {
     var longitude: Double?
     var geocodeStatusRaw: String
     var visited: Bool
-    var favorite: Bool
+    // A default value here (not just in init()) is required for SwiftData's
+    // automatic lightweight migration to backfill this attribute on
+    // existing rows — favorite was added to this model after some users
+    // already had a persisted store without it, and without a default,
+    // migration fails outright with "missing attribute values on
+    // mandatory destination attribute" (a real reported crash, not
+    // theoretical).
+    var favorite: Bool = false
     var createdAt: Date
 
     var trip: Trip?
