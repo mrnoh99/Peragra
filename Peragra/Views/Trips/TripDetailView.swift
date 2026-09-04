@@ -249,7 +249,9 @@ struct TripDetailView: View {
                 chip(title: "All places", isSelected: activeCollection == nil) { activeCollection = nil }
                 ForEach(collections) { collection in
                     chip(
-                        title: collection.isVisitedList ? "✅ \(collection.name)" : collection.name,
+                        title: collection.isVisitedList
+                            ? "✅ \(collection.name) (\(places.filter(\.visited).count))"
+                            : collection.name,
                         isSelected: activeCollection?.id == collection.id
                     ) {
                         activeCollection = (activeCollection?.id == collection.id) ? nil : collection

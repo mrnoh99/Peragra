@@ -263,6 +263,9 @@ export function TripDetailPage() {
                 >
                   {c.isVisitedList ? "✅ " : ""}
                   {c.name}
+                  {c.isVisitedList && (
+                    <span className="ml-1 text-xs text-neutral-400">({visitedCount})</span>
+                  )}
                 </button>
                 {!c.isVisitedList && (
                   <button
