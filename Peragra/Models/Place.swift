@@ -22,6 +22,11 @@ final class Place {
     // mandatory destination attribute" (a real reported crash, not
     // theoretical).
     var favorite: Bool = false
+    // Set when `visited` is turned on (by whichever control does it — the
+    // checkmark button or adding to the Visited list), cleared when
+    // turned back off. Same default-value requirement as `favorite`
+    // above, for lightweight migration on existing rows.
+    var visitedAt: Date? = nil
     var createdAt: Date
 
     var trip: Trip?
@@ -50,6 +55,7 @@ final class Place {
         self.geocodeStatusRaw = GeocodeStatus.pending.rawValue
         self.visited = false
         self.favorite = false
+        self.visitedAt = nil
         self.createdAt = .now
         self.trip = trip
     }
@@ -80,6 +86,7 @@ final class Place {
     func toggleVisited(context: ModelContext) {
         let willBeVisited = !visited
         visited = willBeVisited
+        visitedAt = willBeVisited ? .now : nil
         guard let trip else { return }
         let visitedList = PlaceCollection.ensureVisitedList(for: trip, context: context)
         if willBeVisited {

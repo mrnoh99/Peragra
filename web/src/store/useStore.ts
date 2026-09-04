@@ -114,6 +114,7 @@ export const useStore = create<AppState>()(
           lng: null,
           geocodeStatus: "pending",
           visited: false,
+          visitedAt: null,
           favorite: false,
           collectionIds: input.collectionIds,
           createdAt: Date.now(),
@@ -160,7 +161,7 @@ export const useStore = create<AppState>()(
                 ? p.collectionIds
                 : [...p.collectionIds, visitedCollection.id]
               : p.collectionIds.filter((id) => id !== visitedCollection.id);
-            return { ...p, visited: willBeVisited, collectionIds };
+            return { ...p, visited: willBeVisited, visitedAt: willBeVisited ? Date.now() : null, collectionIds };
           }),
         }));
       },
@@ -219,12 +220,14 @@ export const useStore = create<AppState>()(
           places: state.places.map((p) => {
             if (p.id !== placeId) return p;
             const has = p.collectionIds.includes(collectionId);
+            const willBeVisited = collection?.isVisitedList ? !has : p.visited;
             return {
               ...p,
               collectionIds: has
                 ? p.collectionIds.filter((id) => id !== collectionId)
                 : [...p.collectionIds, collectionId],
-              visited: collection?.isVisitedList ? !has : p.visited,
+              visited: willBeVisited,
+              visitedAt: collection?.isVisitedList ? (willBeVisited ? Date.now() : null) : p.visitedAt,
               favorite: collection?.isFavoritesList ? !has : p.favorite,
             };
           }),
@@ -246,6 +249,7 @@ export const useStore = create<AppState>()(
               ...p,
               collectionIds: [...p.collectionIds, collectionId],
               visited: collection?.isVisitedList ? true : p.visited,
+              visitedAt: collection?.isVisitedList ? Date.now() : p.visitedAt,
               favorite: collection?.isFavoritesList ? true : p.favorite,
             };
           }),

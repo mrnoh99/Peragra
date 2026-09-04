@@ -4,6 +4,14 @@ import { useStore } from "../store/useStore";
 import { EditPlaceModal } from "./EditPlaceModal";
 import { googleMapsUrl } from "../lib/googleMapsUrl";
 
+function formatVisitedDate(timestamp: number): string {
+  return new Date(timestamp).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 const CATEGORY_ICON: Record<string, string> = {
   restaurant: "🍽️",
   cafe: "☕",
@@ -170,6 +178,9 @@ export function PlaceCard({
           >
             {place.visited ? "Visited" : "Mark visited"}
           </button>
+          {place.visited && place.visitedAt && (
+            <span className="text-xs text-neutral-400">{formatVisitedDate(place.visitedAt)}</span>
+          )}
           <div className="flex gap-2">
             <button
               onClick={() => setEditing(true)}

@@ -37,6 +37,11 @@ export interface Place {
   lng: number | null;
   geocodeStatus: GeocodeStatus;
   visited: boolean;
+  // Set when `visited` is turned on (by whichever control does it —
+  // the Mark Visited button or adding to the Visited list), cleared when
+  // turned back off. Null until then; not backfilled for places marked
+  // visited before this field existed.
+  visitedAt: number | null;
   favorite: boolean;
   collectionIds: string[];
   createdAt: number;

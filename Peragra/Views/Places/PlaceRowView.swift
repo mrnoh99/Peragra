@@ -49,6 +49,11 @@ struct PlaceRowView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
+                        if place.visited, let visitedAt = place.visitedAt {
+                            Text("· Visited \(visitedAt.formatted(date: .abbreviated, time: .omitted))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     if !place.address.isEmpty || (place.phone?.isEmpty == false) {
                         Text(addressAndPhoneLine)
@@ -237,11 +242,17 @@ private struct CollectionPickerSheet: View {
     private func toggle(_ collection: PlaceCollection) {
         if isMember(collection) {
             place.collections.removeAll { $0.id == collection.id }
-            if collection.isVisitedList { place.visited = false }
+            if collection.isVisitedList {
+                place.visited = false
+                place.visitedAt = nil
+            }
             if collection.isFavoritesList { place.favorite = false }
         } else {
             place.collections.append(collection)
-            if collection.isVisitedList { place.visited = true }
+            if collection.isVisitedList {
+                place.visited = true
+                place.visitedAt = .now
+            }
             if collection.isFavoritesList { place.favorite = true }
         }
     }

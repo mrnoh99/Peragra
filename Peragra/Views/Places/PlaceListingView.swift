@@ -145,6 +145,7 @@ struct PlaceListingView: View {
             }
             if collection.isVisitedList {
                 place.visited = true
+                place.visitedAt = .now
             }
             if collection.isFavoritesList {
                 place.favorite = true
