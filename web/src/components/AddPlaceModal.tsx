@@ -3,6 +3,7 @@ import { Modal } from "./Modal";
 import { InstagramEmbed } from "./InstagramEmbed";
 import { readPhotoExif } from "../lib/photoExif";
 import { geocodePlace, reverseGeocode } from "../lib/geocode";
+import { searchNearbyPlaces, type NearbyPlaceCandidate } from "../lib/googleNearbyPlaces";
 import { isInstagramPostUrl, normalizeInstagramUrl } from "../lib/instagram";
 import {
   extractPlacesFromImage,
@@ -15,6 +16,7 @@ import {
   type AIExtractedPlace,
 } from "../lib/aiExtract";
 import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
+import { useMapSettingsStore } from "../store/useMapSettingsStore";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type PlaceCategory } from "../types";
 
@@ -94,6 +96,13 @@ export function AddPlaceModal({
   const [isGuessingAddresses, setIsGuessingAddresses] = useState(false);
   const [isCapturingOnSite, setIsCapturingOnSite] = useState(false);
   const [onSitePhotos, setOnSitePhotos] = useState<OnSitePhoto[]>([]);
+  // Real nearby places (from Google's Places API) offered as pickable
+  // candidates for the blank row a photo's GPS fix alone produced — set
+  // only when that search actually found something, and only relevant to
+  // that one row (it's the only case where the row has no AI-found name
+  // to already trust).
+  const [nearbyCandidates, setNearbyCandidates] = useState<NearbyPlaceCandidate[]>([]);
+  const [nearbyCandidateRowId, setNearbyCandidateRowId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadPhotosInputRef = useRef<HTMLInputElement>(null);
 
@@ -114,6 +123,25 @@ export function AddPlaceModal({
 
   function applyCategoryToSelected(category: PlaceCategory) {
     setRows((prev) => prev.map((r) => (r.selected ? { ...r, category } : r)));
+  }
+
+  function applyNearbyCandidate(candidate: NearbyPlaceCandidate) {
+    if (!nearbyCandidateRowId) return;
+    updateRow(nearbyCandidateRowId, {
+      name: candidate.name,
+      address: candidate.address ?? "",
+      phone: candidate.phone ?? "",
+      category: candidate.category,
+      manualLat: candidate.lat,
+      manualLng: candidate.lng,
+    });
+    setNearbyCandidates([]);
+    setNearbyCandidateRowId(null);
+  }
+
+  function dismissNearbyCandidates() {
+    setNearbyCandidates([]);
+    setNearbyCandidateRowId(null);
   }
 
   /**
@@ -330,6 +358,23 @@ export function AddPlaceModal({
       }
     }
     setRows(newRows);
+
+    // Offer real nearby places to pick from, as a step up from the bare
+    // reverse-geocode above — only worth asking when AI found nothing on
+    // its own (there's exactly one blank row) and Google Places access is
+    // actually configured.
+    setNearbyCandidates([]);
+    setNearbyCandidateRowId(null);
+    if (extracted.length === 0 && location) {
+      const { mapProvider, googleMapsApiKey } = useMapSettingsStore.getState();
+      if (mapProvider === "google" && googleMapsApiKey) {
+        const candidates = await searchNearbyPlaces(location.lat, location.lng, googleMapsApiKey);
+        if (candidates.length > 0) {
+          setNearbyCandidates(candidates);
+          setNearbyCandidateRowId(newRows[0].id);
+        }
+      }
+    }
 
     if (extractionFailureMessage) {
       setExtractError(extractionFailureMessage);
@@ -568,6 +613,34 @@ export function AddPlaceModal({
           <p className={`text-xs ${extractError ? "text-amber-600" : "text-neutral-400"}`}>
             {extractError ?? (isGuessingAddresses ? "✨ AI is guessing addresses for places without one…" : extractResultMessage)}
           </p>
+        )}
+
+        {nearbyCandidates.length > 0 && (
+          <div className="rounded-lg border border-dashed border-brand-300 bg-brand-50/40 p-3">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-neutral-700">📍 Is it one of these nearby places?</p>
+              <button
+                type="button"
+                onClick={dismissNearbyCandidates}
+                className="text-xs text-neutral-400 hover:text-neutral-600"
+              >
+                Dismiss
+              </button>
+            </div>
+            <div className="space-y-1">
+              {nearbyCandidates.map((candidate) => (
+                <button
+                  key={candidate.placeId}
+                  type="button"
+                  onClick={() => applyNearbyCandidate(candidate)}
+                  className="block w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-left text-xs hover:border-brand-400 hover:bg-brand-50"
+                >
+                  <span className="font-medium text-neutral-700">{candidate.name}</span>
+                  {candidate.address && <span className="block text-neutral-400">{candidate.address}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         <div>

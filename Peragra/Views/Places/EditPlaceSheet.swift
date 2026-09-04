@@ -44,6 +44,11 @@ struct EditPlaceSheet: View {
     // since the sheet opened — applied on Save instead of immediately, so
     // Cancel still discards it like every other field here.
     @State private var pendingCoordinate: CLLocationCoordinate2D?
+    // Real nearby places offered as pickable candidates once a photo's
+    // location is known — picking one is an explicit choice, so unlike
+    // the AI/reverse-geocode fallbacks above it does overwrite
+    // name/address/phone/category with the selection.
+    @State private var nearbyCandidates: [NearbyPlacesService.Candidate] = []
 
     private var aiSettings: AISettings { AISettings.shared }
 
@@ -153,6 +158,29 @@ struct EditPlaceSheet: View {
                 } footer: {
                     Text("Upload a photo of this place (a sign, a menu, ...) and AI reads it to fill in whatever's still blank above — it never overwrites what you've already entered. A location read from the photo is queued to apply when you save.")
                 }
+
+                if !nearbyCandidates.isEmpty {
+                    Section {
+                        ForEach(nearbyCandidates) { candidate in
+                            Button {
+                                applyNearbyCandidate(candidate)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(candidate.name)
+                                        .foregroundStyle(.primary)
+                                    if let address = candidate.address {
+                                        Text(address)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                        Button("Dismiss", role: .cancel) { nearbyCandidates = [] }
+                    } header: {
+                        Text("📍 Is it one of these nearby places?")
+                    }
+                }
             }
             .navigationTitle("Edit Place")
             .navigationBarTitleDisplayMode(.inline)
@@ -178,6 +206,19 @@ struct EditPlaceSheet: View {
             }
             .disabled(isSaving)
         }
+    }
+
+    /// Picking a nearby candidate is an explicit choice, so unlike the
+    /// AI/reverse-geocode fallbacks above it does overwrite
+    /// name/address/phone/category — including with the candidate's own
+    /// (more precise) coordinate rather than the photo's raw location.
+    private func applyNearbyCandidate(_ candidate: NearbyPlacesService.Candidate) {
+        name = candidate.name
+        address = candidate.address ?? ""
+        if let candidatePhone = candidate.phone { phone = candidatePhone }
+        category = candidate.category
+        pendingCoordinate = CLLocationCoordinate2D(latitude: candidate.latitude, longitude: candidate.longitude)
+        nearbyCandidates = []
     }
 
     private func save() async {
@@ -312,6 +353,7 @@ struct EditPlaceSheet: View {
 
         let photos = onSitePhotos
         onSitePhotos = []
+        nearbyCandidates = []
 
         var coordinate: CLLocationCoordinate2D?
         for photo in photos {
@@ -363,6 +405,11 @@ struct EditPlaceSheet: View {
                 address = reverse.address
                 filledSomething = true
             }
+
+            // Offer real nearby places to pick from, as a step up from
+            // the bare reverse-geocode above.
+            let candidates = await NearbyPlacesService.search(latitude: coordinate.latitude, longitude: coordinate.longitude)
+            if !candidates.isEmpty { nearbyCandidates = candidates }
         }
 
         // `filledSomething` can be true even without an API key (the

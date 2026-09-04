@@ -94,6 +94,12 @@ struct AddPlaceSheet: View {
     /// (from the Photos library, falling back to EXIF) supplies the
     /// place's location and capture time.
     @State private var onSitePhotos: [OnSitePhoto] = []
+    // Real nearby places offered as pickable candidates for the blank row
+    // a photo's GPS fix alone produced — set only when that search
+    // actually found something, and only relevant to that one row (it's
+    // the only case where the row has no AI-found name to already trust).
+    @State private var nearbyCandidates: [NearbyPlacesService.Candidate] = []
+    @State private var nearbyCandidateRowID: UUID?
 
     // Computed, not stored — a private *stored* property forces Swift's
     // synthesized memberwise init to become private too, which broke
@@ -267,6 +273,29 @@ struct AddPlaceSheet: View {
                     }
                 }
 
+                if !nearbyCandidates.isEmpty {
+                    Section {
+                        ForEach(nearbyCandidates) { candidate in
+                            Button {
+                                applyNearbyCandidate(candidate)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(candidate.name)
+                                        .foregroundStyle(.primary)
+                                    if let address = candidate.address {
+                                        Text(address)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                        Button("Dismiss", role: .cancel) { dismissNearbyCandidates() }
+                    } header: {
+                        Text("📍 Is it one of these nearby places?")
+                    }
+                }
+
                 Section {
                     ForEach($rows) { $row in
                         candidateRowView($row)
@@ -396,6 +425,27 @@ struct AddPlaceSheet: View {
         for index in rows.indices where rows[index].selected {
             rows[index].category = category
         }
+    }
+
+    /// Picking a nearby candidate is an explicit choice, so unlike the
+    /// AI/reverse-geocode fallbacks above it does overwrite the row's
+    /// name/address/phone/category — including with the candidate's own
+    /// (more precise) coordinate rather than the photo's raw GPS fix.
+    private func applyNearbyCandidate(_ candidate: NearbyPlacesService.Candidate) {
+        guard let rowID = nearbyCandidateRowID, let index = rows.firstIndex(where: { $0.id == rowID }) else { return }
+        rows[index].name = candidate.name
+        rows[index].address = candidate.address ?? ""
+        rows[index].phone = candidate.phone ?? ""
+        rows[index].category = candidate.category
+        rows[index].manualLatitude = candidate.latitude
+        rows[index].manualLongitude = candidate.longitude
+        nearbyCandidates = []
+        nearbyCandidateRowID = nil
+    }
+
+    private func dismissNearbyCandidates() {
+        nearbyCandidates = []
+        nearbyCandidateRowID = nil
     }
 
     private func replaceRows(
@@ -611,6 +661,19 @@ struct AddPlaceSheet: View {
             }
         }
         rows = newRows
+
+        // Offer real nearby places to pick from, as a step up from the
+        // bare reverse-geocode above — only worth asking when AI found
+        // nothing on its own (there's exactly one blank row).
+        nearbyCandidates = []
+        nearbyCandidateRowID = nil
+        if extracted.isEmpty, let coordinate {
+            let candidates = await NearbyPlacesService.search(latitude: coordinate.latitude, longitude: coordinate.longitude)
+            if !candidates.isEmpty, let firstRowID = newRows.first?.id {
+                nearbyCandidates = candidates
+                nearbyCandidateRowID = firstRowID
+            }
+        }
 
         if let extractionFailureMessage {
             extractErrorMessage = extractionFailureMessage
