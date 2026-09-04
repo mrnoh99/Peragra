@@ -51,6 +51,12 @@ struct TripDetailView: View {
         trip.collections.sorted { defaultListRank($0) < defaultListRank($1) }
     }
 
+    /// Where the user's own lists start, so the chip bar can draw a
+    /// divider separating them from the default Favorites/Visited lists.
+    private var firstCustomListIndex: Int? {
+        collections.firstIndex { !$0.isFavoritesList && !$0.isVisitedList }
+    }
+
     private var visiblePlaces: [Place] {
         guard let activeCollection else { return places }
         return places.filter { place in
@@ -255,7 +261,10 @@ struct TripDetailView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 chip(title: "All places", isSelected: activeCollection == nil) { activeCollection = nil }
-                ForEach(collections) { collection in
+                ForEach(Array(collections.enumerated()), id: \.element.id) { index, collection in
+                    if index > 0, index == firstCustomListIndex {
+                        Divider().frame(height: 20)
+                    }
                     let collectionChip = chip(
                         title: chipTitle(for: collection),
                         isSelected: activeCollection?.id == collection.id

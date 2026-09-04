@@ -43,20 +43,15 @@ struct PlaceRowView: View {
                     HStack(spacing: 4) {
                         Text(place.category.label.uppercased())
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(.secondary)
                         if let distanceMeters {
                             Text("· \(formattedDistance(distanceMeters)) away")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    if !place.address.isEmpty {
-                        Text(place.address)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    if let phone = place.phone, !phone.isEmpty {
-                        Text("☎ \(phone)")
+                    if !place.address.isEmpty || (place.phone?.isEmpty == false) {
+                        Text(addressAndPhoneLine)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -90,26 +85,28 @@ struct PlaceRowView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let mapsURL = GoogleMapsOpener.url(for: place, tripDestination: destination) {
-                Button {
-                    openURL(mapsURL)
-                } label: {
-                    Label("Open in Google Maps", systemImage: "map")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.accentColor)
+            HStack(spacing: 14) {
+                if let mapsURL = GoogleMapsOpener.url(for: place, tripDestination: destination) {
+                    Button {
+                        openURL(mapsURL)
+                    } label: {
+                        Label("Google Maps", systemImage: "map")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-            }
 
-            if let url = place.instagramURL {
-                Button {
-                    openURL(url)
-                } label: {
-                    Label("View original Instagram post", systemImage: "camera")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.pink)
+                if let url = place.instagramURL {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        Label("Instagram", systemImage: "camera")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.pink)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
 
             HStack(spacing: 12) {
@@ -161,6 +158,15 @@ struct PlaceRowView: View {
         .sheet(isPresented: $showingEdit) {
             EditPlaceSheet(place: place)
         }
+    }
+
+    /// Address and phone combined onto one line (when both are present)
+    /// rather than two, to keep the row compact.
+    private var addressAndPhoneLine: String {
+        let phone = place.phone?.isEmpty == false ? "☎ \(place.phone!)" : nil
+        return [place.address.isEmpty ? nil : place.address, phone]
+            .compactMap { $0 }
+            .joined(separator: " · ")
     }
 
     /// Long-press copies "name, address" so it can be pasted straight into

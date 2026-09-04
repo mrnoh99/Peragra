@@ -36,6 +36,9 @@ export function TripDetailPage() {
     const tripCollections = allCollections.filter((c) => c.tripId === tripId);
     return [...tripCollections].sort((a, b) => defaultListRank(a) - defaultListRank(b));
   }, [allCollections, tripId]);
+  // Where the user's own lists start, so the sidebar can draw a divider
+  // separating them from the default Favorites/Visited lists above.
+  const firstCustomListIndex = collections.findIndex((c) => !c.isFavoritesList && !c.isVisitedList);
 
   // Trips created before the Visited/Favorites-list feature don't have
   // them yet — back-fill lazily so they always show in the sidebar, not
@@ -257,8 +260,12 @@ export function TripDetailPage() {
             >
               All places
             </button>
-            {collections.map((c) => (
-              <div key={c.id} className="group flex items-center gap-1">
+            {collections.map((c, i) => (
+              <div key={c.id}>
+                {i > 0 && i === firstCustomListIndex && (
+                  <div className="my-2 border-t border-neutral-200" />
+                )}
+                <div className="group flex items-center gap-1">
                 <button
                   onClick={() => setActiveCollectionId(c.id)}
                   className={`block w-full truncate rounded-lg px-3 py-1.5 text-left text-sm ${
@@ -288,6 +295,7 @@ export function TripDetailPage() {
                     ✕
                   </button>
                 )}
+                </div>
               </div>
             ))}
           </div>

@@ -110,18 +110,21 @@ export function PlaceCard({
                 {place.name}
               </h3>
             </div>
-            <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-brand-600">
+            <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
               {categoryLabel}
               {distanceKm !== undefined && (
-                <span className="ml-2 text-neutral-400">
+                <span className="ml-2 normal-case text-neutral-400">
                   · {distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`} away
                 </span>
               )}
             </p>
-            {place.address && (
-              <p className="mt-1 text-sm text-neutral-500">{place.address}</p>
+            {(place.address || place.phone) && (
+              <p className="mt-1 text-sm text-neutral-500">
+                {place.address}
+                {place.address && place.phone && " · "}
+                {place.phone && `☎ ${place.phone}`}
+              </p>
             )}
-            {place.phone && <p className="mt-0.5 text-sm text-neutral-500">☎ {place.phone}</p>}
             {place.notes && <p className="mt-1 text-sm text-neutral-600">{place.notes}</p>}
             {place.geocodeStatus === "failed" && (
               <p className="mt-1 text-xs text-amber-600">
@@ -134,27 +137,29 @@ export function PlaceCard({
                 found on the map.
               </p>
             )}
-            <a
-              href={googleMapsUrl(place, destination)}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
-            >
-              🗺️ Open in Google Maps
-            </a>
-            {place.instagramUrl && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium">
               <a
-                href={place.instagramUrl}
+                href={googleMapsUrl(place, destination)}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-pink-600 hover:underline"
+                className="inline-flex items-center gap-1 text-brand-600 hover:underline"
               >
-                📷 View original Instagram post
+                🗺️ Google Maps
               </a>
-            )}
+              {place.instagramUrl && (
+                <a
+                  href={place.instagramUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-pink-600 hover:underline"
+                >
+                  📷 Instagram
+                </a>
+              )}
+            </div>
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
           <button
             onClick={() => toggleVisited(place.id)}
             className={`rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -183,10 +188,10 @@ export function PlaceCard({
       </div>
 
       {collections.length > 0 && (
-        <div className="mt-3 border-t border-neutral-100 pt-3">
+        <div className="mt-3 border-t border-neutral-100 pt-2">
           <button
             onClick={() => setShowCollections((v) => !v)}
-            className="text-xs font-medium text-neutral-500 hover:text-neutral-700"
+            className="text-xs font-medium text-neutral-400 hover:text-neutral-600"
           >
             {place.collectionIds.length > 0
               ? `In ${place.collectionIds.length} list${place.collectionIds.length > 1 ? "s" : ""}`
