@@ -88,10 +88,11 @@ struct PlaceListingView: View {
                         Button {
                             addSelected(to: collection)
                         } label: {
+                            let title = collection.isVisitedList ? "✅ \(collection.name)" : collection.name
                             if isOnAllSelected(collection) {
-                                Label(collection.name, systemImage: "checkmark")
+                                Label(title, systemImage: "checkmark")
                             } else {
-                                Text(collection.name)
+                                Text(title)
                             }
                         }
                     }
@@ -141,6 +142,9 @@ struct PlaceListingView: View {
         for place in places where selectedIDs.contains(place.id) {
             if !place.collections.contains(where: { $0.id == collection.id }) {
                 place.collections.append(collection)
+            }
+            if collection.isVisitedList {
+                place.visited = true
             }
         }
     }

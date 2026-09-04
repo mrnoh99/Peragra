@@ -63,7 +63,7 @@ struct PlaceRowView: View {
                 }
                 Spacer()
                 Button {
-                    withAnimation { place.visited.toggle() }
+                    withAnimation { place.toggleVisited(context: modelContext) }
                 } label: {
                     Image(systemName: place.visited ? "checkmark.circle.fill" : "circle")
                         .font(.title3)
@@ -195,7 +195,7 @@ private struct CollectionPickerSheet: View {
                     toggle(collection)
                 } label: {
                     HStack {
-                        Text(collection.name)
+                        Text(collection.isVisitedList ? "✅ \(collection.name)" : collection.name)
                         Spacer()
                         if isMember(collection) {
                             Image(systemName: "checkmark")
@@ -219,11 +219,16 @@ private struct CollectionPickerSheet: View {
         place.collections.contains(where: { $0.id == collection.id })
     }
 
+    // Toggling membership in the Visited list is another way of marking
+    // a place visited/unvisited — keep `visited` in sync so either
+    // control (this picker or the row's own checkmark button) agrees.
     private func toggle(_ collection: PlaceCollection) {
         if isMember(collection) {
             place.collections.removeAll { $0.id == collection.id }
+            if collection.isVisitedList { place.visited = false }
         } else {
             place.collections.append(collection)
+            if collection.isVisitedList { place.visited = true }
         }
     }
 }

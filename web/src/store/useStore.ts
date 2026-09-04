@@ -47,6 +47,9 @@ interface AppState {
   deleteCollection: (collectionId: string) => void;
   togglePlaceCollection: (placeId: string, collectionId: string) => void;
   addPlacesToCollection: (placeIds: string[], collectionId: string) => void;
+  /** Finds the trip's auto-created "Visited" list, creating it if this
+   *  trip predates the feature. */
+  ensureVisitedCollection: (tripId: string) => Collection;
 }
 
 export const useStore = create<AppState>()(
@@ -66,7 +69,17 @@ export const useStore = create<AppState>()(
           endDate: input.endDate,
           createdAt: Date.now(),
         };
-        set((state) => ({ trips: [trip, ...state.trips] }));
+        const visitedCollection: Collection = {
+          id: makeId(),
+          tripId: trip.id,
+          name: "Visited",
+          isVisitedList: true,
+          createdAt: Date.now(),
+        };
+        set((state) => ({
+          trips: [trip, ...state.trips],
+          collections: [...state.collections, visitedCollection],
+        }));
         return trip;
       },
 
@@ -126,10 +139,20 @@ export const useStore = create<AppState>()(
       },
 
       toggleVisited: (placeId) => {
+        const place = get().places.find((p) => p.id === placeId);
+        if (!place) return;
+        const willBeVisited = !place.visited;
+        const visitedCollection = get().ensureVisitedCollection(place.tripId);
         set((state) => ({
-          places: state.places.map((p) =>
-            p.id === placeId ? { ...p, visited: !p.visited } : p,
-          ),
+          places: state.places.map((p) => {
+            if (p.id !== placeId) return p;
+            const collectionIds = willBeVisited
+              ? p.collectionIds.includes(visitedCollection.id)
+                ? p.collectionIds
+                : [...p.collectionIds, visitedCollection.id]
+              : p.collectionIds.filter((id) => id !== visitedCollection.id);
+            return { ...p, visited: willBeVisited, collectionIds };
+          }),
         }));
       },
 
@@ -153,6 +176,10 @@ export const useStore = create<AppState>()(
       },
 
       deleteCollection: (collectionId) => {
+        // The auto-created Visited list isn't user-deletable — the UI
+        // never shows a delete control for it, but guard here too.
+        const collection = get().collections.find((c) => c.id === collectionId);
+        if (collection?.isVisitedList) return;
         set((state) => ({
           collections: state.collections.filter((c) => c.id !== collectionId),
           places: state.places.map((p) => ({
@@ -163,6 +190,10 @@ export const useStore = create<AppState>()(
       },
 
       togglePlaceCollection: (placeId, collectionId) => {
+        // Toggling membership in the Visited list is another way of
+        // marking a place visited/unvisited — keep `visited` in sync so
+        // either control (the checkbox or this list) works the same.
+        const collection = get().collections.find((c) => c.id === collectionId);
         set((state) => ({
           places: state.places.map((p) => {
             if (p.id !== placeId) return p;
@@ -172,6 +203,7 @@ export const useStore = create<AppState>()(
               collectionIds: has
                 ? p.collectionIds.filter((id) => id !== collectionId)
                 : [...p.collectionIds, collectionId],
+              visited: collection?.isVisitedList ? !has : p.visited,
             };
           }),
         }));
@@ -181,15 +213,34 @@ export const useStore = create<AppState>()(
         // Adds rather than toggles — a bulk selection can mix places
         // already in the list with ones that aren't, and "send to list"
         // should only ever add, never accidentally remove someone who
-        // was already there.
+        // was already there. Adding to the Visited list also marks
+        // those places visited, same as togglePlaceCollection.
         const idSet = new Set(placeIds);
+        const collection = get().collections.find((c) => c.id === collectionId);
         set((state) => ({
-          places: state.places.map((p) =>
-            idSet.has(p.id) && !p.collectionIds.includes(collectionId)
-              ? { ...p, collectionIds: [...p.collectionIds, collectionId] }
-              : p,
-          ),
+          places: state.places.map((p) => {
+            if (!idSet.has(p.id) || p.collectionIds.includes(collectionId)) return p;
+            return {
+              ...p,
+              collectionIds: [...p.collectionIds, collectionId],
+              visited: collection?.isVisitedList ? true : p.visited,
+            };
+          }),
         }));
+      },
+
+      ensureVisitedCollection: (tripId) => {
+        const existing = get().collections.find((c) => c.tripId === tripId && c.isVisitedList);
+        if (existing) return existing;
+        const collection: Collection = {
+          id: makeId(),
+          tripId,
+          name: "Visited",
+          isVisitedList: true,
+          createdAt: Date.now(),
+        };
+        set((state) => ({ collections: [...state.collections, collection] }));
+        return collection;
       },
     }),
     { name: "peragra-store" },

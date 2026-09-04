@@ -46,6 +46,10 @@ export interface Collection {
   id: string;
   tripId: string;
   name: string;
+  // Marks the one auto-created, undeletable "Visited" list every trip
+  // gets — kept in sync with each place's `visited` flag in both
+  // directions, rather than a regular user-managed list.
+  isVisitedList?: boolean;
   createdAt: number;
 }
 

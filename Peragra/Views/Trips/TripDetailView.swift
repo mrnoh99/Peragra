@@ -38,7 +38,11 @@ struct TripDetailView: View {
         _places = Query(filter: #Predicate<Place> { $0.trip?.id == tripID })
     }
 
-    private var collections: [PlaceCollection] { trip.collections }
+    // Visited is a default list — keep it pinned first, ahead of whatever
+    // order the user's own lists were created in.
+    private var collections: [PlaceCollection] {
+        trip.collections.sorted { $0.isVisitedList && !$1.isVisitedList }
+    }
 
     private var visiblePlaces: [Place] {
         guard let activeCollection else { return places }
@@ -97,11 +101,22 @@ struct TripDetailView: View {
     /// exact set both the Listing and Map tabs render, and what Export
     /// writes out.
     private var sortedPlaces: [Place] {
+        // Favorited places float to the top no matter which sort mode is
+        // active — the mode only decides ordering within/below that.
+        if categoryFilteredPlaces.contains(where: \.favorite) {
+            let favorites = categoryFilteredPlaces.filter(\.favorite)
+            let rest = categoryFilteredPlaces.filter { !$0.favorite }
+            return sortedByMode(favorites) + sortedByMode(rest)
+        }
+        return sortedByMode(categoryFilteredPlaces)
+    }
+
+    private func sortedByMode(_ places: [Place]) -> [Place] {
         switch sortMode {
         case .defaultOrder:
             // Grouped by category (in the app's usual category order),
             // alphabetical by name within each group.
-            return categoryFilteredPlaces.sorted { a, b in
+            return places.sorted { a, b in
                 if a.category != b.category {
                     let orderA = PlaceCategory.allCases.firstIndex(of: a.category) ?? 0
                     let orderB = PlaceCategory.allCases.firstIndex(of: b.category) ?? 0
@@ -110,11 +125,11 @@ struct TripDetailView: View {
                 return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
             }
         case .name:
-            return categoryFilteredPlaces.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            return places.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         case .distance:
-            guard !distancesByID.isEmpty else { return categoryFilteredPlaces }
+            guard !distancesByID.isEmpty else { return places }
             let distances = distancesByID
-            return categoryFilteredPlaces.sorted {
+            return places.sorted {
                 (distances[$0.id] ?? .greatestFiniteMagnitude) < (distances[$1.id] ?? .greatestFiniteMagnitude)
             }
         }
@@ -199,7 +214,14 @@ struct TripDetailView: View {
             }
             Button("Cancel", role: .cancel) { newListName = "" }
         }
-        .onAppear { refreshExportState() }
+        .onAppear {
+            // Trips created before the Visited-list feature don't have
+            // one yet — back-fill it lazily so it always shows in the
+            // list chips, not just after the first place gets marked
+            // visited.
+            _ = PlaceCollection.ensureVisitedList(for: trip, context: modelContext)
+            refreshExportState()
+        }
         .onChange(of: sortedPlaces) { _, _ in refreshExportState() }
         .onChange(of: showingAddPlace) { _, isShowing in
             if !isShowing { refreshExportState() }
@@ -226,7 +248,10 @@ struct TripDetailView: View {
             HStack(spacing: 8) {
                 chip(title: "All places", isSelected: activeCollection == nil) { activeCollection = nil }
                 ForEach(collections) { collection in
-                    chip(title: collection.name, isSelected: activeCollection?.id == collection.id) {
+                    chip(
+                        title: collection.isVisitedList ? "✅ \(collection.name)" : collection.name,
+                        isSelected: activeCollection?.id == collection.id
+                    ) {
                         activeCollection = (activeCollection?.id == collection.id) ? nil : collection
                     }
                 }

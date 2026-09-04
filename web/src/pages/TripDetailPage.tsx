@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { AddPlaceModal } from "../components/AddPlaceModal";
 import { ListingView } from "../components/ListingView";
@@ -20,16 +20,26 @@ export function TripDetailPage() {
   const allCollections = useStore((s) => s.collections);
   const addCollection = useStore((s) => s.addCollection);
   const deleteCollection = useStore((s) => s.deleteCollection);
+  const ensureVisitedCollection = useStore((s) => s.ensureVisitedCollection);
 
   const trip = useMemo(() => trips.find((t) => t.id === tripId), [trips, tripId]);
   const places = useMemo(
     () => allPlaces.filter((p) => p.tripId === tripId),
     [allPlaces, tripId],
   );
-  const collections = useMemo(
-    () => allCollections.filter((c) => c.tripId === tripId),
-    [allCollections, tripId],
-  );
+  const collections = useMemo(() => {
+    const tripCollections = allCollections.filter((c) => c.tripId === tripId);
+    // Visited is a default list — keep it pinned first, ahead of
+    // whatever order the user's own lists were created in.
+    return [...tripCollections].sort((a, b) => Number(!!b.isVisitedList) - Number(!!a.isVisitedList));
+  }, [allCollections, tripId]);
+
+  // Trips created before the Visited-list feature don't have one yet —
+  // back-fill it lazily so it always shows in the sidebar, not just after
+  // the first place gets marked visited.
+  useEffect(() => {
+    if (tripId) ensureVisitedCollection(tripId);
+  }, [tripId, ensureVisitedCollection]);
 
   const [tab, setTab] = useState<Tab>("listing");
   const [showAddPlace, setShowAddPlace] = useState(false);
@@ -102,19 +112,25 @@ export function TripDetailPage() {
   }, [visiblePlaces, distanceFromId]);
 
   const sorted = useMemo(() => {
+    // Favorited places float to the top no matter which sort mode is
+    // active — the mode only decides ordering within/below that.
+    const byFavorite = (a: Place, b: Place) => Number(b.favorite) - Number(a.favorite);
+
     if (sortMode === "name") {
-      return [...categoryFiltered].sort((a, b) => a.name.localeCompare(b.name));
+      return [...categoryFiltered].sort((a, b) => byFavorite(a, b) || a.name.localeCompare(b.name));
     }
     if (sortMode === "distance" && distanceFrom) {
       return [...categoryFiltered].sort((a, b) => {
         const da = a.lat !== null && a.lng !== null ? distanceKm(distanceFrom, { lat: a.lat, lng: a.lng }) : Infinity;
         const db = b.lat !== null && b.lng !== null ? distanceKm(distanceFrom, { lat: b.lat, lng: b.lng }) : Infinity;
-        return da - db;
+        return byFavorite(a, b) || da - db;
       });
     }
     // Default: grouped by category (in the app's usual category order),
     // alphabetical by name within each group.
     return [...categoryFiltered].sort((a, b) => {
+      const fav = byFavorite(a, b);
+      if (fav !== 0) return fav;
       if (a.category !== b.category) {
         return CATEGORY_ORDER.get(a.category)! - CATEGORY_ORDER.get(b.category)!;
       }
@@ -245,18 +261,21 @@ export function TripDetailPage() {
                       : "text-neutral-600 hover:bg-neutral-100"
                   }`}
                 >
+                  {c.isVisitedList ? "✅ " : ""}
                   {c.name}
                 </button>
-                <button
-                  onClick={() => {
-                    if (activeCollectionId === c.id) setActiveCollectionId(null);
-                    deleteCollection(c.id);
-                  }}
-                  className="hidden shrink-0 pr-1 text-xs text-neutral-400 hover:text-red-500 group-hover:block"
-                  aria-label={`Delete ${c.name}`}
-                >
-                  ✕
-                </button>
+                {!c.isVisitedList && (
+                  <button
+                    onClick={() => {
+                      if (activeCollectionId === c.id) setActiveCollectionId(null);
+                      deleteCollection(c.id);
+                    }}
+                    className="hidden shrink-0 pr-1 text-xs text-neutral-400 hover:text-red-500 group-hover:block"
+                    aria-label={`Delete ${c.name}`}
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             ))}
           </div>

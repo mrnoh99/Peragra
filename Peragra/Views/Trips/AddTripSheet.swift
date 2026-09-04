@@ -82,6 +82,7 @@ struct AddTripSheet: View {
             endDate: hasDates ? endDate : nil
         )
         modelContext.insert(trip)
+        _ = PlaceCollection.ensureVisitedList(for: trip, context: modelContext)
         dismiss()
     }
 }

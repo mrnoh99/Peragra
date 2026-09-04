@@ -72,4 +72,22 @@ final class Place {
         guard let latitude, let longitude else { return nil }
         return (latitude, longitude)
     }
+
+    /// Toggles `visited` and keeps membership in the trip's default
+    /// "Visited" list in sync in both directions — this is the other
+    /// control (besides adding/removing that list directly) that marks a
+    /// place visited.
+    func toggleVisited(context: ModelContext) {
+        let willBeVisited = !visited
+        visited = willBeVisited
+        guard let trip else { return }
+        let visitedList = PlaceCollection.ensureVisitedList(for: trip, context: context)
+        if willBeVisited {
+            if !collections.contains(where: { $0.id == visitedList.id }) {
+                collections.append(visitedList)
+            }
+        } else {
+            collections.removeAll { $0.id == visitedList.id }
+        }
+    }
 }
