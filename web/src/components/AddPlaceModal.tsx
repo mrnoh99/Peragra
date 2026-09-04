@@ -483,7 +483,7 @@ export function AddPlaceModal({
                 htmlFor="caption-screenshot-input"
                 className="cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
               >
-                📷 {screenshotFiles.length === 0 ? "Upload screenshots" : "Add another screenshot"}
+                🖼️ {screenshotFiles.length === 0 ? "Upload screenshots" : "Add another screenshot"}
               </label>
             )}
             <input
@@ -522,14 +522,14 @@ export function AddPlaceModal({
                 isCapturingOnSite ? "pointer-events-none opacity-40" : ""
               }`}
             >
-              {onSitePhotos.some((p) => p.source === "upload") ? "📁 Add more photos" : "📁 Upload photos"}
+              {onSitePhotos.some((p) => p.source === "upload") ? "📌 Add More Place Photos" : "📌 Upload Place Photos"}
             </label>
             {onSitePhotos.map((photo, i) => (
               <span
                 key={photo.id}
                 className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-600"
               >
-                {photo.source === "camera" ? `📍 On-site photo ${i + 1}` : `📁 Uploaded photo ${i + 1}`}
+                {photo.source === "camera" ? `📍 On-site photo ${i + 1}` : `📌 Uploaded photo ${i + 1}`}
                 <button
                   type="button"
                   onClick={() => removeOnSitePhoto(photo.id)}

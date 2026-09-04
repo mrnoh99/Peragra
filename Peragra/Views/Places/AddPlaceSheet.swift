@@ -148,7 +148,7 @@ struct AddPlaceSheet: View {
                             ProgressView()
                         } else {
                             Label(
-                                onSitePhotos.contains { $0.source == .upload } ? "Add More Photos" : "Upload Photos",
+                                onSitePhotos.contains { $0.source == .upload } ? "Add More Place Photos" : "Upload Place Photos",
                                 systemImage: "square.and.arrow.up"
                             )
                         }
