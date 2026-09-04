@@ -58,7 +58,7 @@ struct TripsListView: View {
                 SettingsSheet()
             }
             .safeAreaInset(edge: .bottom) {
-                Text("developed by JaiSung Noh, MD. · Build 2 · 2026")
+                Text("developed by JaiSung Noh, MD. · Version 1.0 · Build 2 · 2026")
                     .font(.system(size: 9))
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity)
