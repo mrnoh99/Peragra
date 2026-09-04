@@ -21,6 +21,10 @@ const PROVIDER_LABELS: Record<AIProvider, string> = {
   perplexity: "Perplexity",
 };
 
+// Display order for the provider tab strip — gateway last, since it's the
+// fallback rather than the first thing to reach for.
+const PROVIDER_ORDER: AIProvider[] = ["anthropic", "openai", "gemini", "perplexity", "gateway"];
+
 const ANTHROPIC_MODELS = [
   { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
   { id: "claude-opus-5", label: "Claude Opus 5" },
@@ -184,7 +188,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </p>
 
           <div className="mb-3 flex flex-wrap gap-1 rounded-lg border border-neutral-300 p-1 text-sm">
-            {(Object.keys(PROVIDER_LABELS) as AIProvider[]).map((p) => (
+            {PROVIDER_ORDER.map((p) => (
               <button
                 key={p}
                 onClick={() => setProvider(p)}

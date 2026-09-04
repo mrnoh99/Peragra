@@ -2,11 +2,12 @@ import Foundation
 import Observation
 
 enum AIProvider: String, CaseIterable, Identifiable {
-    case gateway
     case anthropic
     case openai
     case gemini
     case perplexity
+    // Listed last — it's the fallback, not the first thing to reach for.
+    case gateway
 
     var id: String { rawValue }
 
