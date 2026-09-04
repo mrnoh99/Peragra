@@ -19,8 +19,23 @@ struct InstagramEmbedView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        let html = Self.html(for: url)
-        webView.loadHTMLString(html, baseURL: URL(string: "https://www.instagram.com"))
+        // SwiftUI calls this on every body re-evaluation of whatever
+        // contains this view (e.g. typing anywhere else in
+        // AddPlaceSheet's Form), not just when `url` itself changes —
+        // reloading unconditionally re-fetches Instagram's embed script
+        // and flashes the content on every unrelated keystroke, and
+        // floods WKWebView with back-to-back loads (the likely source of
+        // "Failed to terminate process" BrowserEngineKit log noise), so
+        // only reload when the URL actually changed.
+        guard context.coordinator.loadedURL != url else { return }
+        context.coordinator.loadedURL = url
+        webView.loadHTMLString(Self.html(for: url), baseURL: URL(string: "https://www.instagram.com"))
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        var loadedURL: URL?
     }
 
     private static func html(for url: URL) -> String {

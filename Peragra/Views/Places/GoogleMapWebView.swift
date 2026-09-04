@@ -10,7 +10,7 @@ import UIKit
 /// dependency, so the JS Maps API in a WebView keeps this consistent with
 /// how the rest of this app avoids third-party SDKs.
 struct GoogleMapWebView: UIViewRepresentable {
-    struct MarkerPlace: Encodable {
+    struct MarkerPlace: Encodable, Equatable {
         let id: String
         let name: String
         let address: String
@@ -39,10 +39,27 @@ struct GoogleMapWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        // SwiftUI calls this on every body re-evaluation of whatever
+        // contains this view (any filter/sort change, a place toggled
+        // elsewhere, ...), not just when the map's own inputs change —
+        // reloading unconditionally re-fetches the whole Google Maps JS
+        // SDK, flashes the map, loses the user's pan/zoom, and floods
+        // WKWebView with back-to-back loads (the likely source of
+        // "Failed to terminate process" BrowserEngineKit log noise), so
+        // only reload when what's actually shown has changed.
+        let signature = Signature(apiKey: apiKey, places: places, tripDestination: tripDestination)
+        guard context.coordinator.loadedSignature != signature else { return }
+        context.coordinator.loadedSignature = signature
         webView.loadHTMLString(
             Self.html(apiKey: apiKey, places: places, tripDestination: tripDestination),
             baseURL: URL(string: "https://maps.googleapis.com")
         )
+    }
+
+    private struct Signature: Equatable {
+        let apiKey: String
+        let places: [MarkerPlace]
+        let tripDestination: String
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -52,6 +69,8 @@ struct GoogleMapWebView: UIViewRepresentable {
     /// WebView, which would just replace the map with a bare page and
     /// leave no way back.
     final class Coordinator: NSObject, WKNavigationDelegate {
+        var loadedSignature: Signature?
+
         func webView(
             _ webView: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction,
