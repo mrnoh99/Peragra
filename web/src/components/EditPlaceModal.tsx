@@ -1,10 +1,29 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Modal } from "./Modal";
-import { guessNearestAddress } from "../lib/aiExtract";
+import {
+  extractPlacesFromImages,
+  fileToBase64,
+  guessNearestAddress,
+  isSupportedImageMediaType,
+  AIExtractionError,
+  type AIExtractedPlace,
+} from "../lib/aiExtract";
+import { getCurrentLocation } from "../lib/currentLocation";
+import { readPhotoExif } from "../lib/photoExif";
 import { geocodePlace } from "../lib/geocode";
 import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type Place, type PlaceCategory } from "../types";
+
+interface OnSitePhoto {
+  id: string;
+  file: File;
+  // "camera": just taken with Take Photo Here — the live GPS fix is
+  // trustworthy. "upload": picked from the file system, possibly taken
+  // elsewhere or long ago — its own EXIF GPS (if any) is used instead of
+  // the device's current location.
+  source: "camera" | "upload";
+}
 
 export function EditPlaceModal({
   place,
@@ -26,7 +45,130 @@ export function EditPlaceModal({
   const [notes, setNotes] = useState(place.notes);
   const [saving, setSaving] = useState(false);
 
+  const [onSitePhotos, setOnSitePhotos] = useState<OnSitePhoto[]>([]);
+  const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoMessage, setPhotoMessage] = useState<string | null>(null);
+  // A coordinate read from a photo (live GPS or EXIF) since the sheet
+  // opened — applied on Save instead of immediately, so Cancel still
+  // discards it like every other field here.
+  const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const uploadPhotosInputRef = useRef<HTMLInputElement>(null);
+
   const canSubmit = name.trim().length > 0;
+
+  function handleCameraChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (!file) return;
+    setOnSitePhotos((prev) => [...prev, { id: crypto.randomUUID(), file, source: "camera" }]);
+  }
+
+  function handleUploadPhotosChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
+    if (uploadPhotosInputRef.current) uploadPhotosInputRef.current.value = "";
+    if (picked.length === 0) return;
+    setOnSitePhotos((prev) => [
+      ...prev,
+      ...picked.map((file) => ({ id: crypto.randomUUID(), file, source: "upload" as const })),
+    ]);
+  }
+
+  function removeOnSitePhoto(id: string) {
+    setOnSitePhotos((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  /**
+   * Sends all accumulated photos to AI in one request (so it can
+   * cross-reference them into one result) and uses whatever it finds to
+   * fill in fields that are still blank, plus appends any notes found —
+   * this only adds information, it never overwrites what's already
+   * there. Also resolves a coordinate the same way "Take Photo Here" does
+   * in Add Place: live GPS for a fresh photo, or each uploaded photo's
+   * own EXIF GPS otherwise — queued in `pendingCoords` for Save to apply.
+   */
+  async function fillFromPhotos() {
+    if (onSitePhotos.length === 0) return;
+    setIsProcessingPhotos(true);
+    setPhotoError(null);
+    setPhotoMessage(null);
+
+    const photos = onSitePhotos;
+    setOnSitePhotos([]);
+    const hasCameraPhoto = photos.some((p) => p.source === "camera");
+
+    let location: { lat: number; lng: number } | null = null;
+    if (hasCameraPhoto) {
+      location = await getCurrentLocation();
+    } else {
+      for (const photo of photos) {
+        const exif = await readPhotoExif(photo.file);
+        if (!location && exif.location) location = exif.location;
+      }
+    }
+
+    let extracted: AIExtractedPlace[] = [];
+    let extractionFailureMessage: string | null = null;
+    if (apiKey) {
+      try {
+        const images = await Promise.all(
+          photos.map(async ({ file }) => {
+            const mediaType = file.type;
+            if (!isSupportedImageMediaType(mediaType)) {
+              throw new AIExtractionError("That image format isn't supported — try a JPEG or PNG.");
+            }
+            return { mediaType, base64: await fileToBase64(file) };
+          }),
+        );
+        extracted = await extractPlacesFromImages(images);
+      } catch (error) {
+        extractionFailureMessage =
+          error instanceof AIExtractionError ? error.message : "AI extraction failed.";
+      }
+    }
+
+    const found = extracted[0] ?? null;
+    let filledSomething = false;
+    if (found) {
+      if (!address.trim() && found.address) {
+        setAddress(found.address);
+        filledSomething = true;
+      }
+      if (!phone.trim() && found.telephone) {
+        setPhone(found.telephone);
+        filledSomething = true;
+      }
+      if (found.notes) {
+        setNotes((prev) => [prev.trim(), found.notes].filter(Boolean).join("\n\n"));
+        filledSomething = true;
+      }
+    }
+
+    if (location) {
+      setPendingCoords(location);
+    }
+
+    if (extractionFailureMessage) {
+      setPhotoError(extractionFailureMessage);
+    } else if (!apiKey) {
+      setPhotoMessage(
+        location
+          ? "📍 Location captured from your photo — add an AI extraction API key in Settings to also read details from it."
+          : "Add an AI extraction API key in Settings to read details from your photos.",
+      );
+    } else if (filledSomething && location) {
+      setPhotoMessage("✨ Filled in details and captured a location from your photos — review before saving.");
+    } else if (filledSomething) {
+      setPhotoMessage("✨ Filled in details from your photos — review before saving.");
+    } else if (location) {
+      setPhotoMessage("📍 Captured a location from your photos — review before saving.");
+    } else {
+      setPhotoMessage("Didn't find any new details in those photos.");
+    }
+
+    setIsProcessingPhotos(false);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,9 +186,14 @@ export function EditPlaceModal({
       notes: notes.trim(),
     });
 
-    // Only re-geocode when the address actually changed — otherwise leave
-    // the existing coordinates (and geocodeStatus) alone.
-    if (trimmedAddress !== place.address) {
+    // A coordinate captured from a photo (live GPS or its own EXIF) is
+    // already a real fix — more trustworthy than geocoding an address —
+    // so it's used directly instead of the address-change geocode below.
+    if (pendingCoords) {
+      setPlaceCoords(place.id, pendingCoords, "located");
+    } else if (trimmedAddress !== place.address) {
+      // Only re-geocode when the address actually changed — otherwise
+      // leave the existing coordinates (and geocodeStatus) alone.
       const query = trimmedAddress || trimmedName;
       let located = false;
       try {
@@ -102,6 +249,82 @@ export function EditPlaceModal({
             placeholder="Place name"
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
+        </div>
+
+        <div className="rounded-lg border border-dashed border-neutral-300 p-3">
+          <label className="mb-1 block text-sm font-medium text-neutral-700">Add info from a photo</label>
+          <p className="mb-2 text-xs text-neutral-400">
+            Take or upload a photo of this place (a sign, a menu, ...) and AI reads it to fill in
+            whatever's still blank below — it never overwrites what you've already entered. A
+            location read from the photo is queued to apply when you save.
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleCameraChange}
+              className="hidden"
+              id="edit-onsite-camera-input"
+            />
+            <label
+              htmlFor="edit-onsite-camera-input"
+              className={`cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 ${
+                isProcessingPhotos ? "pointer-events-none opacity-40" : ""
+              }`}
+            >
+              {onSitePhotos.some((p) => p.source === "camera") ? "📍 Add Another Photo" : "📍 Take Photo Here"}
+            </label>
+            <input
+              ref={uploadPhotosInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleUploadPhotosChange}
+              className="hidden"
+              id="edit-onsite-upload-input"
+            />
+            <label
+              htmlFor="edit-onsite-upload-input"
+              className={`cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 ${
+                isProcessingPhotos ? "pointer-events-none opacity-40" : ""
+              }`}
+            >
+              {onSitePhotos.some((p) => p.source === "upload") ? "📌 Add More On-Site Photos" : "📌 Upload On-Site Photos"}
+            </label>
+            {onSitePhotos.map((photo, i) => (
+              <span
+                key={photo.id}
+                className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-600"
+              >
+                {photo.source === "camera" ? `📍 On-site photo ${i + 1}` : `📌 Uploaded photo ${i + 1}`}
+                <button
+                  type="button"
+                  onClick={() => removeOnSitePhoto(photo.id)}
+                  aria-label={`Remove photo ${i + 1}`}
+                  className="text-neutral-400 hover:text-red-500"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            {onSitePhotos.length > 0 && (
+              <button
+                type="button"
+                onClick={fillFromPhotos}
+                disabled={isProcessingPhotos}
+                className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isProcessingPhotos ? "Reading…" : "✨ Fill In From Photos"}
+              </button>
+            )}
+          </div>
+          {(photoError || photoMessage) && (
+            <p className={`mt-2 text-xs ${photoError ? "text-amber-600" : "text-neutral-400"}`}>
+              {photoError ?? photoMessage}
+            </p>
+          )}
         </div>
 
         <div className="flex gap-2">

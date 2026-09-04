@@ -1,5 +1,22 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
+import UIKit
+import CoreLocation
+
+private struct OnSitePhoto: Identifiable {
+    let id = UUID()
+    var displayData: Data
+    // Only set for `.upload` photos — the raw bytes as picked, so EXIF
+    // metadata survives (re-encoding through UIImage/jpegData strips it).
+    var originalData: Data?
+    var source: Source
+
+    enum Source {
+        case camera
+        case upload
+    }
+}
 
 struct EditPlaceSheet: View {
     let place: Place
@@ -13,6 +30,17 @@ struct EditPlaceSheet: View {
     @State private var phone: String
     @State private var notes: String
     @State private var isSaving = false
+
+    @State private var showingCamera = false
+    @State private var uploadPhotoItems: [PhotosPickerItem] = []
+    @State private var isProcessingPhotos = false
+    @State private var onSitePhotos: [OnSitePhoto] = []
+    @State private var photoErrorMessage: String?
+    @State private var photoResultMessage: String?
+    // A coordinate read from a photo (live GPS or EXIF) since the sheet
+    // opened — applied on Save instead of immediately, so Cancel still
+    // discards it like every other field here.
+    @State private var pendingCoordinate: CLLocationCoordinate2D?
 
     private var aiSettings: AISettings { AISettings.shared }
 
@@ -48,9 +76,97 @@ struct EditPlaceSheet: View {
                     TextField("What made you save this?", text: $notes, axis: .vertical)
                         .lineLimit(2...4)
                 }
+
+                Section {
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button {
+                            showingCamera = true
+                        } label: {
+                            Label(
+                                onSitePhotos.contains { $0.source == .camera } ? "Add Another Photo" : "Take Photo Here",
+                                systemImage: "camera.fill"
+                            )
+                        }
+                        .disabled(isProcessingPhotos)
+                    }
+
+                    PhotosPicker(
+                        selection: $uploadPhotoItems,
+                        maxSelectionCount: nil,
+                        matching: .images
+                    ) {
+                        Label(
+                            onSitePhotos.contains { $0.source == .upload } ? "Add More On-Site Photos" : "Upload On-Site Photos",
+                            systemImage: "square.and.arrow.up"
+                        )
+                    }
+                    .disabled(isProcessingPhotos)
+
+                    ForEach(Array(onSitePhotos.enumerated()), id: \.element.id) { index, photo in
+                        HStack {
+                            if let uiImage = UIImage(data: photo.displayData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 32, height: 32)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                            Text(photo.source == .camera ? "On-site photo \(index + 1)" : "Uploaded photo \(index + 1)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button {
+                                onSitePhotos.remove(at: index)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    if !onSitePhotos.isEmpty {
+                        Button {
+                            Task { await fillFromPhotos() }
+                        } label: {
+                            if isProcessingPhotos {
+                                ProgressView()
+                            } else {
+                                Text("✨ Fill In From Photos")
+                            }
+                        }
+                        .disabled(isProcessingPhotos)
+                        .buttonStyle(.borderedProminent)
+                    }
+
+                    if let photoErrorMessage {
+                        Text(photoErrorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    } else if let photoResultMessage {
+                        Text(photoResultMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Add Info From a Photo")
+                } footer: {
+                    Text("Take or upload a photo of this place (a sign, a menu, ...) and AI reads it to fill in whatever's still blank above — it never overwrites what you've already entered. A location read from the photo is queued to apply when you save.")
+                }
             }
             .navigationTitle("Edit Place")
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: uploadPhotoItems) { _, newItems in
+                guard !newItems.isEmpty else { return }
+                Task {
+                    await loadUploadPhotos(newItems)
+                    uploadPhotoItems = []
+                }
+            }
+            .fullScreenCover(isPresented: $showingCamera) {
+                CameraCaptureView(onCapture: handleCameraCapture)
+                    .ignoresSafeArea()
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -83,9 +199,17 @@ struct EditPlaceSheet: View {
         place.phone = trimmedPhone.isEmpty ? nil : trimmedPhone
         place.notes = trimmedNotes
 
-        // Only re-geocode when the address actually changed — otherwise
-        // leave the existing coordinates (and geocodeStatus) alone.
-        if addressChanged {
+        // A coordinate captured from a photo (live GPS or its own EXIF) is
+        // already a real fix — more trustworthy than geocoding an address
+        // — so it's used directly instead of the address-change geocode.
+        if let pendingCoordinate {
+            place.latitude = pendingCoordinate.latitude
+            place.longitude = pendingCoordinate.longitude
+            place.geocodeStatus = .located
+        } else if addressChanged {
+            // Only re-geocode when the address actually changed —
+            // otherwise leave the existing coordinates (and
+            // geocodeStatus) alone.
             await geocodeAndStore(
                 name: trimmedName,
                 address: trimmedAddress,
@@ -146,5 +270,110 @@ struct EditPlaceSheet: View {
         place.latitude = nil
         place.longitude = nil
         place.geocodeStatus = .failed
+    }
+
+    private func handleCameraCapture(_ data: Data?) {
+        showingCamera = false
+        guard let data else { return }
+        onSitePhotos.append(OnSitePhoto(displayData: data, originalData: nil, source: .camera))
+    }
+
+    private func loadUploadPhotos(_ items: [PhotosPickerItem]) async {
+        isProcessingPhotos = true
+        photoErrorMessage = nil
+        photoResultMessage = nil
+        defer { isProcessingPhotos = false }
+
+        for item in items {
+            guard
+                let originalData = try? await item.loadTransferable(type: Data.self),
+                let image = UIImage(data: originalData),
+                let jpegData = image.jpegData(compressionQuality: 0.85)
+            else {
+                photoErrorMessage = "Couldn't read one of those photos."
+                continue
+            }
+            onSitePhotos.append(OnSitePhoto(displayData: jpegData, originalData: originalData, source: .upload))
+        }
+    }
+
+    /// Sends all accumulated photos to AI in one request (so it can
+    /// cross-reference them into one result) and uses whatever it finds to
+    /// fill in fields that are still blank, plus appends any notes found —
+    /// this only adds information, it never overwrites what's already
+    /// there. Also resolves a coordinate the same way "Take Photo Here"
+    /// does in Add Place: live GPS for a fresh photo, or each uploaded
+    /// photo's own EXIF GPS otherwise — queued in `pendingCoordinate` for
+    /// save() to apply.
+    private func fillFromPhotos() async {
+        guard !onSitePhotos.isEmpty else { return }
+        isProcessingPhotos = true
+        photoErrorMessage = nil
+        photoResultMessage = nil
+        defer { isProcessingPhotos = false }
+
+        let photos = onSitePhotos
+        onSitePhotos = []
+        let hasCameraPhoto = photos.contains { $0.source == .camera }
+
+        var coordinate: CLLocationCoordinate2D?
+        if hasCameraPhoto {
+            coordinate = await LocationService.currentLocation()
+        } else {
+            for photo in photos {
+                let metadata = PhotoMetadata.extract(from: photo.originalData ?? photo.displayData)
+                if coordinate == nil { coordinate = metadata.location }
+            }
+        }
+
+        var extracted: [AIExtractedPlace] = []
+        var extractionFailureMessage: String?
+        if aiSettings.activeAPIKey != nil {
+            do {
+                extracted = try await AIExtractionService.extractPlaces(
+                    images: photos.map { (data: $0.displayData, mediaType: "image/jpeg") }
+                )
+            } catch {
+                extractionFailureMessage = (error as? LocalizedError)?.errorDescription ?? "AI extraction failed."
+            }
+        }
+
+        let found = extracted.first
+        var filledSomething = false
+        if let found {
+            if address.trimmingCharacters(in: .whitespaces).isEmpty, let foundAddress = found.address {
+                address = foundAddress
+                filledSomething = true
+            }
+            if phone.trimmingCharacters(in: .whitespaces).isEmpty, let foundPhone = found.telephone {
+                phone = foundPhone
+                filledSomething = true
+            }
+            if let foundNotes = found.notes {
+                let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+                notes = trimmedNotes.isEmpty ? foundNotes : "\(trimmedNotes)\n\n\(foundNotes)"
+                filledSomething = true
+            }
+        }
+
+        if let coordinate {
+            pendingCoordinate = coordinate
+        }
+
+        if let extractionFailureMessage {
+            photoErrorMessage = extractionFailureMessage
+        } else if aiSettings.activeAPIKey == nil {
+            photoResultMessage = coordinate != nil
+                ? "📍 Location captured from your photo — add an AI extraction API key in Settings to also read details from it."
+                : "Add an AI extraction API key in Settings to read details from your photos."
+        } else if filledSomething, coordinate != nil {
+            photoResultMessage = "✨ Filled in details and captured a location from your photos — review before saving."
+        } else if filledSomething {
+            photoResultMessage = "✨ Filled in details from your photos — review before saving."
+        } else if coordinate != nil {
+            photoResultMessage = "📍 Captured a location from your photos — review before saving."
+        } else {
+            photoResultMessage = "Didn't find any new details in those photos."
+        }
     }
 }
