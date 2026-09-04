@@ -19,6 +19,7 @@ export function ListingView({
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
+  const addPlacesToCollection = useStore((s) => s.addPlacesToCollection);
 
   function toggleSelecting() {
     setIsSelecting((v) => !v);
@@ -36,6 +37,12 @@ export function ListingView({
 
   function applyBulkCategory(category: PlaceCategory) {
     updatePlacesCategory([...selectedIds], category);
+    setSelectedIds(new Set());
+    setIsSelecting(false);
+  }
+
+  function applyBulkAddToList(collectionId: string) {
+    addPlacesToCollection([...selectedIds], collectionId);
     setSelectedIds(new Set());
     setIsSelecting(false);
   }
@@ -84,6 +91,25 @@ export function ListingView({
               </option>
             ))}
           </select>
+          {collections.length > 0 && (
+            <select
+              disabled={selectedIds.size === 0}
+              value=""
+              onChange={(e) => {
+                if (e.target.value) applyBulkAddToList(e.target.value);
+              }}
+              className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm disabled:opacity-50"
+            >
+              <option value="" disabled>
+                Send to list…
+              </option>
+              {collections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             onClick={sendSelectedToGoogleMaps}
             disabled={selectedIds.size === 0}

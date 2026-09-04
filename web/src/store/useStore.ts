@@ -46,6 +46,7 @@ interface AppState {
   addCollection: (tripId: string, name: string) => Collection;
   deleteCollection: (collectionId: string) => void;
   togglePlaceCollection: (placeId: string, collectionId: string) => void;
+  addPlacesToCollection: (placeIds: string[], collectionId: string) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -173,6 +174,21 @@ export const useStore = create<AppState>()(
                 : [...p.collectionIds, collectionId],
             };
           }),
+        }));
+      },
+
+      addPlacesToCollection: (placeIds, collectionId) => {
+        // Adds rather than toggles — a bulk selection can mix places
+        // already in the list with ones that aren't, and "send to list"
+        // should only ever add, never accidentally remove someone who
+        // was already there.
+        const idSet = new Set(placeIds);
+        set((state) => ({
+          places: state.places.map((p) =>
+            idSet.has(p.id) && !p.collectionIds.includes(collectionId)
+              ? { ...p, collectionIds: [...p.collectionIds, collectionId] }
+              : p,
+          ),
         }));
       },
     }),

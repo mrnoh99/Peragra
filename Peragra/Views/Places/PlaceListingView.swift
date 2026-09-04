@@ -82,6 +82,22 @@ struct PlaceListingView: View {
             }
             .disabled(selectedIDs.isEmpty)
 
+            if !allCollections.isEmpty {
+                Menu {
+                    ForEach(allCollections) { collection in
+                        Button {
+                            addSelected(to: collection)
+                        } label: {
+                            Text(collection.name)
+                        }
+                    }
+                } label: {
+                    Label("Send to List", systemImage: "list.bullet")
+                        .font(.subheadline.weight(.medium))
+                }
+                .disabled(selectedIDs.isEmpty)
+            }
+
             Button {
                 sendSelectedToGoogleMaps()
             } label: {
@@ -106,6 +122,19 @@ struct PlaceListingView: View {
     private func applyCategory(_ category: PlaceCategory) {
         for place in places where selectedIDs.contains(place.id) {
             place.category = category
+        }
+        selectedIDs.removeAll()
+        isSelecting = false
+    }
+
+    /// Adds rather than toggles — a bulk selection can mix places already
+    /// in the list with ones that aren't, and "send to list" should only
+    /// ever add, never accidentally remove someone who was already there.
+    private func addSelected(to collection: PlaceCollection) {
+        for place in places where selectedIDs.contains(place.id) {
+            if !place.collections.contains(where: { $0.id == collection.id }) {
+                place.collections.append(collection)
+            }
         }
         selectedIDs.removeAll()
         isSelecting = false
