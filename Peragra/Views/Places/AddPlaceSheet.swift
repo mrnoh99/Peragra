@@ -150,18 +150,11 @@ struct AddPlaceSheet: View {
                     }
 
                     Button {
-                        Task {
-                            // Requested here, before the picker opens, so
-                            // the picked items' itemIdentifier (needed to
-                            // resolve their PHAsset for accurate
-                            // location/time) is available from this very
-                            // first pick rather than only from the next
-                            // one. A no-op prompt-wise once already
-                            // decided; silently proceeds without it if
-                            // denied.
-                            _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-                            showingUploadPicker = true
-                        }
+                        // Opens the picker immediately — Photos access
+                        // (needed to resolve a picked item's PHAsset for
+                        // accurate location/time) is requested separately,
+                        // in the background, so it never delays this tap.
+                        showingUploadPicker = true
                     } label: {
                         if isLoadingUploadPhotos {
                             ProgressView()
@@ -379,6 +372,15 @@ struct AddPlaceSheet: View {
             }
             .navigationTitle("Save Places")
             .navigationBarTitleDisplayMode(.inline)
+            .task {
+                // Requested once, up front, rather than gating the Upload
+                // button's tap on it — so tapping Upload opens the picker
+                // immediately. A no-op prompt-wise once already decided;
+                // items picked before this resolves just fall back to EXIF
+                // for location/time instead of the more reliable PHAsset
+                // lookup.
+                _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

@@ -96,17 +96,11 @@ struct EditPlaceSheet: View {
 
                 Section {
                     Button {
-                        Task {
-                            // Requested here, before the picker opens, so
-                            // the picked items' itemIdentifier (needed to
-                            // resolve their PHAsset for accurate location)
-                            // is available from this very first pick
-                            // rather than only from the next one. A no-op
-                            // prompt-wise once already decided; silently
-                            // proceeds without it if denied.
-                            _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-                            showingUploadPicker = true
-                        }
+                        // Opens the picker immediately — Photos access
+                        // (needed to resolve a picked item's PHAsset for
+                        // accurate location) is requested separately, in
+                        // the background, so it never delays this tap.
+                        showingUploadPicker = true
                     } label: {
                         Label(
                             onSitePhotos.isEmpty ? "Upload On-Site Photos" : "Add More On-Site Photos",
@@ -209,6 +203,14 @@ struct EditPlaceSheet: View {
             }
             .navigationTitle("Edit Place")
             .navigationBarTitleDisplayMode(.inline)
+            .task {
+                // Requested once, up front, rather than gating the Upload
+                // button's tap on it — so tapping Upload opens the picker
+                // immediately. A no-op prompt-wise once already decided;
+                // items picked before this resolves just fall back to EXIF
+                // for location instead of the more reliable PHAsset lookup.
+                _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+            }
             .onChange(of: uploadPhotoItems) { _, newItems in
                 guard !newItems.isEmpty else { return }
                 Task {

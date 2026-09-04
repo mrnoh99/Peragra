@@ -37,8 +37,7 @@ struct PlaceRowView: View {
 
                         Text(place.name)
                             .font(.headline)
-                            .strikethrough(place.visited)
-                            .foregroundStyle(place.visited ? .secondary : .primary)
+                            .foregroundStyle(place.visited ? .red : .primary)
                     }
                     HStack(spacing: 4) {
                         Text(place.category.label.uppercased())

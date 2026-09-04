@@ -111,8 +111,8 @@ export function PlaceCard({
               </button>
               <span>{CATEGORY_ICON[place.category] ?? "📍"}</span>
               <h3
-                className={`truncate font-semibold text-neutral-900 ${
-                  place.visited ? "text-neutral-400 line-through" : ""
+                className={`truncate font-semibold ${
+                  place.visited ? "text-red-600" : "text-neutral-900"
                 }`}
               >
                 {place.name}
