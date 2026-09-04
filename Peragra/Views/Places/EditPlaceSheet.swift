@@ -6,19 +6,27 @@ import UIKit
 import CoreLocation
 
 private struct OnSitePhoto: Identifiable {
+    enum Source {
+        case camera
+        case upload
+    }
+
     let id = UUID()
     // The JPEG-recompressed version used for the AI call and thumbnail.
     var displayData: Data
     // The raw bytes as picked, so EXIF metadata survives — re-encoding
     // through UIImage/jpegData (which produces `displayData`) strips it.
     // Still the fallback source for location/time when `assetLocation`
-    // below isn't available.
+    // below isn't available. Empty for a camera capture, which has no
+    // asset/EXIF data of its own — that path uses a live GPS fix instead.
     var originalData: Data
     // Read straight from the Photos library's own record for this asset
     // when the app has photo library access — more reliable than EXIF,
     // since PhotosPicker strips location metadata from the image data it
-    // hands back unless the app has that access.
+    // hands back unless the app has that access. Only meaningful for
+    // `.upload` photos.
     var assetLocation: CLLocationCoordinate2D?
+    var source: Source = .upload
 }
 
 struct EditPlaceSheet: View {
@@ -36,6 +44,7 @@ struct EditPlaceSheet: View {
 
     @State private var uploadPhotoItems: [PhotosPickerItem] = []
     @State private var showingUploadPicker = false
+    @State private var showingCamera = false
     @State private var isProcessingPhotos = false
     @State private var onSitePhotos: [OnSitePhoto] = []
     @State private var photoErrorMessage: String?
@@ -107,6 +116,22 @@ struct EditPlaceSheet: View {
                     .disabled(isProcessingPhotos)
                     .photosPicker(isPresented: $showingUploadPicker, selection: $uploadPhotoItems, matching: .images)
 
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button {
+                            showingCamera = true
+                        } label: {
+                            Label(
+                                onSitePhotos.isEmpty ? "Take Photo Here" : "Take Another Photo",
+                                systemImage: "camera"
+                            )
+                        }
+                        .disabled(isProcessingPhotos)
+                        .fullScreenCover(isPresented: $showingCamera) {
+                            CameraCaptureView(onCapture: handleCameraCapture)
+                                .ignoresSafeArea()
+                        }
+                    }
+
                     ForEach(Array(onSitePhotos.enumerated()), id: \.element.id) { index, photo in
                         HStack {
                             if let uiImage = UIImage(data: photo.displayData) {
@@ -116,7 +141,7 @@ struct EditPlaceSheet: View {
                                     .frame(width: 32, height: 32)
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
                             }
-                            Text("On-site photo \(index + 1)")
+                            Text(photo.source == .camera ? "📷 Photo \(index + 1)" : "📌 On-site photo \(index + 1)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Spacer()
@@ -156,7 +181,7 @@ struct EditPlaceSheet: View {
                 } header: {
                     Text("Add Info From a Photo")
                 } footer: {
-                    Text("Upload a photo of this place (a sign, a menu, ...) and AI reads it to fill in whatever's still blank above — it never overwrites what you've already entered. A location read from the photo is queued to apply when you save.")
+                    Text("Take a photo here or upload one of this place (a sign, a menu, ...) and AI reads it to fill in whatever's still blank above — it never overwrites what you've already entered. A location read from the photo (or your current location) is queued to apply when you save.")
                 }
 
                 if !nearbyCandidates.isEmpty {
@@ -332,8 +357,14 @@ struct EditPlaceSheet: View {
                 assetLocation = asset.location?.coordinate
             }
 
-            onSitePhotos.append(OnSitePhoto(displayData: jpegData, originalData: originalData, assetLocation: assetLocation))
+            onSitePhotos.append(OnSitePhoto(displayData: jpegData, originalData: originalData, assetLocation: assetLocation, source: .upload))
         }
+    }
+
+    private func handleCameraCapture(_ data: Data?) {
+        showingCamera = false
+        guard let data else { return }
+        onSitePhotos.append(OnSitePhoto(displayData: data, originalData: Data(), assetLocation: nil, source: .camera))
     }
 
     /// Sends all accumulated photos to AI in one request (so it can
@@ -355,8 +386,17 @@ struct EditPlaceSheet: View {
         onSitePhotos = []
         nearbyCandidates = []
 
+        // A photo captured live through the camera isn't itself tagged
+        // with a location — it was taken right now, right here, so a live
+        // GPS fix stands in for the per-photo asset/EXIF lookup that
+        // uploaded photos use instead.
+        let hasCameraPhoto = photos.contains { $0.source == .camera }
+
         var coordinate: CLLocationCoordinate2D?
-        for photo in photos {
+        if hasCameraPhoto {
+            coordinate = await LocationService.currentLocation()
+        }
+        for photo in photos where photo.source == .upload {
             // The Photos library's own record for this asset, when
             // available, is more reliable than EXIF parsed from the
             // (possibly privacy-stripped) image data — prefer it.
@@ -412,6 +452,7 @@ struct EditPlaceSheet: View {
             if !candidates.isEmpty { nearbyCandidates = candidates }
         }
 
+        let locationSourceLabel = hasCameraPhoto ? "your current location" : "your photos"
         // `filledSomething` can be true even without an API key (the
         // address may have come from reverse-geocoding the photo's own
         // location, not AI extraction) — checked before the "no API key"
@@ -420,14 +461,14 @@ struct EditPlaceSheet: View {
             photoErrorMessage = extractionFailureMessage
         } else if filledSomething, coordinate != nil {
             photoResultMessage = aiSettings.activeAPIKey != nil
-                ? "✨ Filled in details and captured a location from your photos — review before saving."
-                : "📍 Filled in the address from your photo's location — add an AI extraction API key in Settings to also read other details from it."
+                ? "✨ Filled in details and captured a location from \(locationSourceLabel) — review before saving."
+                : "📍 Filled in the address from \(locationSourceLabel) — add an AI extraction API key in Settings to also read other details from your photos."
         } else if filledSomething {
             photoResultMessage = "✨ Filled in details from your photos — review before saving."
         } else if coordinate != nil {
             photoResultMessage = aiSettings.activeAPIKey != nil
-                ? "📍 Captured a location from your photos — review before saving."
-                : "📍 Location captured from your photo — add an AI extraction API key in Settings to also read details from it."
+                ? "📍 Captured a location from \(locationSourceLabel) — review before saving."
+                : "📍 Location captured from \(locationSourceLabel) — add an AI extraction API key in Settings to also read details from your photos."
         } else if aiSettings.activeAPIKey == nil {
             photoResultMessage = "Add an AI extraction API key in Settings to read details from your photos."
         } else {

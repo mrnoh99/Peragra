@@ -9,6 +9,7 @@ import {
   type AIExtractedPlace,
 } from "../lib/aiExtract";
 import { readPhotoExif } from "../lib/photoExif";
+import { getCurrentLocation } from "../lib/currentLocation";
 import { geocodePlace, reverseGeocode } from "../lib/geocode";
 import { searchNearbyPlaces, type NearbyPlaceCandidate } from "../lib/googleNearbyPlaces";
 import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
@@ -19,6 +20,10 @@ import { PLACE_CATEGORIES, type Place, type PlaceCategory } from "../types";
 interface OnSitePhoto {
   id: string;
   file: File;
+  // Camera-sourced photos are taken right now, right here — that path
+  // uses a live GPS fix instead of the photo's own EXIF/location data,
+  // which an uploaded photo (not necessarily taken here or now) relies on.
+  source: "camera" | "upload";
 }
 
 export function EditPlaceModal({
@@ -55,6 +60,7 @@ export function EditPlaceModal({
   // does overwrite name/address/phone/category with the selection.
   const [nearbyCandidates, setNearbyCandidates] = useState<NearbyPlaceCandidate[]>([]);
   const uploadPhotosInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const canSubmit = name.trim().length > 0;
 
@@ -62,7 +68,20 @@ export function EditPlaceModal({
     const picked = Array.from(e.target.files ?? []);
     if (uploadPhotosInputRef.current) uploadPhotosInputRef.current.value = "";
     if (picked.length === 0) return;
-    setOnSitePhotos((prev) => [...prev, ...picked.map((file) => ({ id: crypto.randomUUID(), file }))]);
+    setOnSitePhotos((prev) => [
+      ...prev,
+      ...picked.map((file) => ({ id: crypto.randomUUID(), file, source: "upload" as const })),
+    ]);
+  }
+
+  function handleCameraChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (picked.length === 0) return;
+    setOnSitePhotos((prev) => [
+      ...prev,
+      ...picked.map((file) => ({ id: crypto.randomUUID(), file, source: "camera" as const })),
+    ]);
   }
 
   function removeOnSitePhoto(id: string) {
@@ -88,8 +107,16 @@ export function EditPlaceModal({
     setOnSitePhotos([]);
     setNearbyCandidates([]);
 
+    // A photo taken right now through the camera isn't itself tagged with
+    // a location — a live GPS fix stands in for the per-photo EXIF lookup
+    // that uploaded photos use instead.
+    const hasCameraPhoto = photos.some((p) => p.source === "camera");
+
     let location: { lat: number; lng: number } | null = null;
-    for (const photo of photos) {
+    if (hasCameraPhoto) {
+      location = await getCurrentLocation();
+    }
+    for (const photo of photos.filter((p) => p.source === "upload")) {
       const exif = await readPhotoExif(photo.file);
       if (!location && exif.location) location = exif.location;
     }
@@ -164,21 +191,22 @@ export function EditPlaceModal({
     // may have come from reverse-geocoding the photo's own location, not
     // AI extraction) — checked before the "no API key" message so that
     // case isn't hidden behind it.
+    const locationSourceLabel = hasCameraPhoto ? "your current location" : "your photos";
     if (extractionFailureMessage) {
       setPhotoError(extractionFailureMessage);
     } else if (filledSomething && location) {
       setPhotoMessage(
         apiKey
-          ? "✨ Filled in details and captured a location from your photos — review before saving."
-          : "📍 Filled in the address from your photo's location — add an AI extraction API key in Settings to also read other details from it.",
+          ? `✨ Filled in details and captured a location from ${locationSourceLabel} — review before saving.`
+          : `📍 Filled in the address from ${locationSourceLabel} — add an AI extraction API key in Settings to also read other details from your photos.`,
       );
     } else if (filledSomething) {
       setPhotoMessage("✨ Filled in details from your photos — review before saving.");
     } else if (location) {
       setPhotoMessage(
         apiKey
-          ? "📍 Captured a location from your photos — review before saving."
-          : "📍 Location captured from your photo — add an AI extraction API key in Settings to also read details from it.",
+          ? `📍 Captured a location from ${locationSourceLabel} — review before saving.`
+          : `📍 Location captured from ${locationSourceLabel} — add an AI extraction API key in Settings to also read details from your photos.`,
       );
     } else if (!apiKey) {
       setPhotoMessage("Add an AI extraction API key in Settings to read details from your photos.");
@@ -286,9 +314,10 @@ export function EditPlaceModal({
         <div className="rounded-lg border border-dashed border-neutral-300 p-3">
           <label className="mb-1 block text-sm font-medium text-neutral-700">Add info from a photo</label>
           <p className="mb-2 text-xs text-neutral-400">
-            Upload a photo of this place (a sign, a menu, ...) and AI reads it to fill in whatever's
-            still blank below — it never overwrites what you've already entered. A location read
-            from the photo is queued to apply when you save.
+            Take a photo here or upload one of this place (a sign, a menu, ...) and AI reads it to
+            fill in whatever's still blank below — it never overwrites what you've already
+            entered. A location read from the photo (or your current location) is queued to apply
+            when you save.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input
@@ -308,12 +337,29 @@ export function EditPlaceModal({
             >
               {onSitePhotos.length === 0 ? "📌 Upload On-Site Photos" : "📌 Add More On-Site Photos"}
             </label>
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleCameraChange}
+              className="hidden"
+              id="edit-onsite-camera-input"
+            />
+            <label
+              htmlFor="edit-onsite-camera-input"
+              className={`cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 ${
+                isProcessingPhotos ? "pointer-events-none opacity-40" : ""
+              }`}
+            >
+              {onSitePhotos.length === 0 ? "📷 Take Photo Here" : "📷 Take Another Photo"}
+            </label>
             {onSitePhotos.map((photo, i) => (
               <span
                 key={photo.id}
                 className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-600"
               >
-                {`📌 On-site photo ${i + 1}`}
+                {photo.source === "camera" ? `📷 Photo ${i + 1}` : `📌 On-site photo ${i + 1}`}
                 <button
                   type="button"
                   onClick={() => removeOnSitePhoto(photo.id)}

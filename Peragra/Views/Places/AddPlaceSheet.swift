@@ -30,6 +30,11 @@ private struct CandidateRow: Identifiable {
 }
 
 private struct OnSitePhoto: Identifiable {
+    enum Source {
+        case camera
+        case upload
+    }
+
     let id = UUID()
     // The JPEG-recompressed version used for the AI call and thumbnail, so
     // its media type is predictable regardless of what format the
@@ -38,14 +43,18 @@ private struct OnSitePhoto: Identifiable {
     // The raw bytes as picked, so EXIF metadata survives — re-encoding
     // through UIImage/jpegData (which produces `displayData`) strips it.
     // Still the fallback source for location/time when `assetLocation`/
-    // `assetCreationDate` below aren't available.
+    // `assetCreationDate` below aren't available. Empty for a camera
+    // capture, which has no asset/EXIF data of its own — that path uses a
+    // live GPS fix instead (see captureOnSitePlace).
     var originalData: Data
     // Read straight from the Photos library's own record for this asset
     // when the app has photo library access — more reliable than EXIF,
     // since PhotosPicker strips location metadata from the image data it
-    // hands back unless the app has that access.
+    // hands back unless the app has that access. Only meaningful for
+    // `.upload` photos.
     var assetLocation: CLLocationCoordinate2D?
     var assetCreationDate: Date?
+    var source: Source = .upload
 }
 
 struct AddPlaceSheet: View {
@@ -86,13 +95,15 @@ struct AddPlaceSheet: View {
     @State private var uploadPhotoItems: [PhotosPickerItem] = []
     @State private var showingUploadPicker = false
     @State private var isLoadingUploadPhotos = false
+    @State private var showingCamera = false
     /// Photos accumulated for the place currently being logged — several
     /// angles (sign, menu, interior, ...) — before "Log This Place" sends
     /// them all to AI in one request together, so it can cross-reference
     /// them into one accurate result instead of reconciling separate
-    /// per-photo guesses. Each photo's own location/capture-time data
-    /// (from the Photos library, falling back to EXIF) supplies the
-    /// place's location and capture time.
+    /// per-photo guesses. Location and capture time come from a live GPS
+    /// fix if any photo was taken with the camera right now, or otherwise
+    /// from the uploaded photos' own data (Photos library, falling back to
+    /// EXIF).
     @State private var onSitePhotos: [OnSitePhoto] = []
     // Real nearby places offered as pickable candidates for the blank row
     // a photo's GPS fix alone produced — set only when that search
@@ -164,6 +175,22 @@ struct AddPlaceSheet: View {
                     .disabled(isLoadingUploadPhotos || isCapturingOnSite)
                     .photosPicker(isPresented: $showingUploadPicker, selection: $uploadPhotoItems, matching: .images)
 
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button {
+                            showingCamera = true
+                        } label: {
+                            Label(
+                                onSitePhotos.isEmpty ? "Take Photo Here" : "Take Another Photo",
+                                systemImage: "camera"
+                            )
+                        }
+                        .disabled(isCapturingOnSite)
+                        .fullScreenCover(isPresented: $showingCamera) {
+                            CameraCaptureView(onCapture: handleCameraCapture)
+                                .ignoresSafeArea()
+                        }
+                    }
+
                     ForEach(Array(onSitePhotos.enumerated()), id: \.element.id) { index, photo in
                         HStack {
                             if let uiImage = UIImage(data: photo.displayData) {
@@ -173,7 +200,7 @@ struct AddPlaceSheet: View {
                                     .frame(width: 32, height: 32)
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
                             }
-                            Text("On-site photo \(index + 1)")
+                            Text(photo.source == .camera ? "📷 Photo \(index + 1)" : "📌 On-site photo \(index + 1)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Spacer()
@@ -252,7 +279,7 @@ struct AddPlaceSheet: View {
                 } header: {
                     Text("Photos")
                 } footer: {
-                    Text("Attach up to \(Self.maxScreenshots) screenshots of a post and let AI read and organize them completely. Or, for a place you want to log with its own location: upload one or more photos of it (a sign, a menu, ...) and tap Log This Place — AI cross-references them all into one result, and its location and time come from the photos' own data.")
+                    Text("Attach up to \(Self.maxScreenshots) screenshots of a post and let AI read and organize them completely. Or, for a place you want to log with its own location: take a photo here or upload one or more photos of it (a sign, a menu, ...) and tap Log This Place — AI cross-references them all into one result, using your current location or the photos' own data.")
                 }
 
                 if extractErrorMessage != nil || extractResultMessage != nil || isGuessingAddresses {
@@ -575,9 +602,22 @@ struct AddPlaceSheet: View {
                 displayData: jpegData,
                 originalData: originalData,
                 assetLocation: assetLocation,
-                assetCreationDate: assetCreationDate
+                assetCreationDate: assetCreationDate,
+                source: .upload
             ))
         }
+    }
+
+    private func handleCameraCapture(_ data: Data?) {
+        showingCamera = false
+        guard let data else { return }
+        onSitePhotos.append(OnSitePhoto(
+            displayData: data,
+            originalData: Data(),
+            assetLocation: nil,
+            assetCreationDate: nil,
+            source: .camera
+        ))
     }
 
     /// The "Log This Place" flow: read each accumulated photo's own
@@ -600,9 +640,19 @@ struct AddPlaceSheet: View {
         let photos = onSitePhotos
         onSitePhotos = []
 
+        // A photo captured live through the camera isn't itself tagged
+        // with a location — it was taken right now, right here, so a live
+        // GPS fix (plus the current moment) stands in for the per-photo
+        // asset/EXIF lookup that uploaded photos use instead.
+        let hasCameraPhoto = photos.contains { $0.source == .camera }
+
         var coordinate: CLLocationCoordinate2D?
         var capturedAt: Date?
-        for photo in photos {
+        if hasCameraPhoto {
+            coordinate = await LocationService.currentLocation()
+            capturedAt = .now
+        }
+        for photo in photos where photo.source == .upload {
             // The Photos library's own record for this asset, when
             // available, is more reliable than EXIF parsed from the
             // (possibly privacy-stripped) image data — prefer it, only
@@ -675,17 +725,20 @@ struct AddPlaceSheet: View {
             }
         }
 
+        let locationSourceLabel = hasCameraPhoto ? "your current location" : "your photos' location"
         if let extractionFailureMessage {
             extractErrorMessage = extractionFailureMessage
         } else if coordinate == nil {
-            extractErrorMessage = "Couldn't find location info in those photos — add an address below, or upload a photo that has it."
+            extractErrorMessage = hasCameraPhoto
+                ? "Couldn't get your current location — add an address below, or check Location permission in Settings."
+                : "Couldn't find location info in those photos — add an address below, or upload a photo that has it."
         } else if extracted.isEmpty {
             extractResultMessage = foundNameFromLocation
-                ? "📍 Found a place at your photos' location — review below before saving."
-                : "📍 Read the location from your photos — fill in the place details below."
+                ? "📍 Found a place at \(locationSourceLabel) — review below before saving."
+                : "📍 Captured \(locationSourceLabel) — fill in the place details below."
         } else {
             let placeWord = extracted.count == 1 ? "place" : "places"
-            extractResultMessage = "📍 Read the location from your photos and found \(extracted.count) \(placeWord) — review below before saving."
+            extractResultMessage = "📍 Captured \(locationSourceLabel) and found \(extracted.count) \(placeWord) — review below before saving."
         }
     }
 
