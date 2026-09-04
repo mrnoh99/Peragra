@@ -43,9 +43,9 @@ export function EditPlaceModal({
   const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoMessage, setPhotoMessage] = useState<string | null>(null);
-  // A coordinate read from a photo (live GPS or EXIF) since the sheet
-  // opened — applied on Save instead of immediately, so Cancel still
-  // discards it like every other field here.
+  // A coordinate read from a photo's EXIF data since the sheet opened —
+  // applied on Save instead of immediately, so Cancel still discards it
+  // like every other field here.
   const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null);
   const uploadPhotosInputRef = useRef<HTMLInputElement>(null);
 
@@ -164,9 +164,9 @@ export function EditPlaceModal({
       notes: notes.trim(),
     });
 
-    // A coordinate captured from a photo (live GPS or its own EXIF) is
-    // already a real fix — more trustworthy than geocoding an address —
-    // so it's used directly instead of the address-change geocode below.
+    // A coordinate captured from a photo's own EXIF data is already a
+    // real fix — more trustworthy than geocoding an address — so it's
+    // used directly instead of the address-change geocode below.
     if (pendingCoords) {
       setPlaceCoords(place.id, pendingCoords, "located");
     } else if (trimmedAddress !== place.address) {

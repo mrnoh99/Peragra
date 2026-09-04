@@ -138,7 +138,7 @@ enum AIExtractionService {
     /// *same* place (e.g. a storefront sign, a menu, the interior) sent
     /// together in one request — letting the model cross-reference them
     /// into one accurate, consolidated result rather than reconciling
-    /// separate per-photo guesses itself. Used by "Take Photo Here"'s
+    /// separate per-photo guesses itself. Used by the on-site photo flow's
     /// multi-photo capture; the screenshot path still extracts one image
     /// at a time via the overload above, since those are typically
     /// unrelated places rather than multiple views of one.

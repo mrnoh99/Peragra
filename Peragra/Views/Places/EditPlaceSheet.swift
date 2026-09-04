@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import Photos
 import UIKit
 import CoreLocation
 
@@ -10,7 +11,14 @@ private struct OnSitePhoto: Identifiable {
     var displayData: Data
     // The raw bytes as picked, so EXIF metadata survives — re-encoding
     // through UIImage/jpegData (which produces `displayData`) strips it.
+    // Still the fallback source for location/time when `assetLocation`
+    // below isn't available.
     var originalData: Data
+    // Read straight from the Photos library's own record for this asset
+    // when the app has photo library access — more reliable than EXIF,
+    // since PhotosPicker strips location metadata from the image data it
+    // hands back unless the app has that access.
+    var assetLocation: CLLocationCoordinate2D?
 }
 
 struct EditPlaceSheet: View {
@@ -27,13 +35,14 @@ struct EditPlaceSheet: View {
     @State private var isSaving = false
 
     @State private var uploadPhotoItems: [PhotosPickerItem] = []
+    @State private var showingUploadPicker = false
     @State private var isProcessingPhotos = false
     @State private var onSitePhotos: [OnSitePhoto] = []
     @State private var photoErrorMessage: String?
     @State private var photoResultMessage: String?
-    // A coordinate read from a photo (live GPS or EXIF) since the sheet
-    // opened — applied on Save instead of immediately, so Cancel still
-    // discards it like every other field here.
+    // A coordinate read from a photo (its Photos library record, or EXIF)
+    // since the sheet opened — applied on Save instead of immediately, so
+    // Cancel still discards it like every other field here.
     @State private var pendingCoordinate: CLLocationCoordinate2D?
 
     private var aiSettings: AISettings { AISettings.shared }
@@ -72,17 +81,26 @@ struct EditPlaceSheet: View {
                 }
 
                 Section {
-                    PhotosPicker(
-                        selection: $uploadPhotoItems,
-                        maxSelectionCount: nil,
-                        matching: .images
-                    ) {
+                    Button {
+                        Task {
+                            // Requested here, before the picker opens, so
+                            // the picked items' itemIdentifier (needed to
+                            // resolve their PHAsset for accurate location)
+                            // is available from this very first pick
+                            // rather than only from the next one. A no-op
+                            // prompt-wise once already decided; silently
+                            // proceeds without it if denied.
+                            _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+                            showingUploadPicker = true
+                        }
+                    } label: {
                         Label(
                             onSitePhotos.isEmpty ? "Upload On-Site Photos" : "Add More On-Site Photos",
                             systemImage: "square.and.arrow.up"
                         )
                     }
                     .disabled(isProcessingPhotos)
+                    .photosPicker(isPresented: $showingUploadPicker, selection: $uploadPhotoItems, matching: .images)
 
                     ForEach(Array(onSitePhotos.enumerated()), id: \.element.id) { index, photo in
                         HStack {
@@ -177,9 +195,10 @@ struct EditPlaceSheet: View {
         place.phone = trimmedPhone.isEmpty ? nil : trimmedPhone
         place.notes = trimmedNotes
 
-        // A coordinate captured from a photo (live GPS or its own EXIF) is
-        // already a real fix — more trustworthy than geocoding an address
-        // — so it's used directly instead of the address-change geocode.
+        // A coordinate captured from a photo (its Photos library record,
+        // or EXIF) is already a real fix — more trustworthy than geocoding
+        // an address — so it's used directly instead of the
+        // address-change geocode.
         if let pendingCoordinate {
             place.latitude = pendingCoordinate.latitude
             place.longitude = pendingCoordinate.longitude
@@ -265,7 +284,14 @@ struct EditPlaceSheet: View {
                 photoErrorMessage = "Couldn't read one of those photos."
                 continue
             }
-            onSitePhotos.append(OnSitePhoto(displayData: jpegData, originalData: originalData))
+
+            var assetLocation: CLLocationCoordinate2D?
+            if let identifier = item.itemIdentifier,
+               let asset = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil).firstObject {
+                assetLocation = asset.location?.coordinate
+            }
+
+            onSitePhotos.append(OnSitePhoto(displayData: jpegData, originalData: originalData, assetLocation: assetLocation))
         }
     }
 
@@ -273,9 +299,10 @@ struct EditPlaceSheet: View {
     /// cross-reference them into one result) and uses whatever it finds to
     /// fill in fields that are still blank, plus appends any notes found —
     /// this only adds information, it never overwrites what's already
-    /// there. Also reads a coordinate from the photos' own EXIF GPS data
-    /// (using the first one found) — queued in `pendingCoordinate` for
-    /// save() to apply.
+    /// there. Also reads a coordinate from each photo's own location data
+    /// (its Photos library record, or EXIF as a fallback) — using the
+    /// first one found — queued in `pendingCoordinate` for save() to
+    /// apply.
     private func fillFromPhotos() async {
         guard !onSitePhotos.isEmpty else { return }
         isProcessingPhotos = true
@@ -288,8 +315,11 @@ struct EditPlaceSheet: View {
 
         var coordinate: CLLocationCoordinate2D?
         for photo in photos {
-            let metadata = PhotoMetadata.extract(from: photo.originalData)
-            if coordinate == nil { coordinate = metadata.location }
+            // The Photos library's own record for this asset, when
+            // available, is more reliable than EXIF parsed from the
+            // (possibly privacy-stripped) image data — prefer it.
+            let location = photo.assetLocation ?? PhotoMetadata.extract(from: photo.originalData).location
+            if coordinate == nil { coordinate = location }
         }
 
         var extracted: [AIExtractedPlace] = []

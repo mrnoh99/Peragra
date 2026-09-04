@@ -2,10 +2,9 @@ import CoreLocation
 import ImageIO
 
 /// Best-effort extraction of a photo's own embedded GPS coordinate and
-/// capture time (EXIF), for photos picked from the library via "Upload
-/// Photos" rather than taken live through "Take Photo Here" — those
-/// already have a live GPS fix and Date(), so this is only consulted for
-/// uploaded photos, which weren't necessarily taken here or now.
+/// capture time (EXIF) — the fallback source for the on-site photo flow's
+/// location/time when the photo's Photos library record (read via
+/// PHAsset, when the app has library access) isn't available.
 enum PhotoMetadata {
     static func extract(from data: Data) -> (location: CLLocationCoordinate2D?, capturedAt: Date?) {
         guard

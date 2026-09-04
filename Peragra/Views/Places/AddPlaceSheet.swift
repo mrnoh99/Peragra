@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import Photos
 import UIKit
 import CoreLocation
 
@@ -15,9 +16,9 @@ private struct CandidateRow: Identifiable {
     // form's own manual notes field at save time, not a replacement for it.
     var notes = ""
     var category: PlaceCategory = .restaurant
-    // Set when this row came from a "Take Photo Here" on-site capture
-    // rather than AI-extracted address text — geocodeAndStore uses these
-    // directly instead of geocoding, since a live GPS fix is more
+    // Set when this row came from the on-site photo flow rather than
+    // AI-extracted address text — geocodeAndStore uses these directly
+    // instead of geocoding, since a photo's own location is more
     // trustworthy than any address string.
     var manualLatitude: Double?
     var manualLongitude: Double?
@@ -36,7 +37,15 @@ private struct OnSitePhoto: Identifiable {
     var displayData: Data
     // The raw bytes as picked, so EXIF metadata survives — re-encoding
     // through UIImage/jpegData (which produces `displayData`) strips it.
+    // Still the fallback source for location/time when `assetLocation`/
+    // `assetCreationDate` below aren't available.
     var originalData: Data
+    // Read straight from the Photos library's own record for this asset
+    // when the app has photo library access — more reliable than EXIF,
+    // since PhotosPicker strips location metadata from the image data it
+    // hands back unless the app has that access.
+    var assetLocation: CLLocationCoordinate2D?
+    var assetCreationDate: Date?
 }
 
 struct AddPlaceSheet: View {
@@ -75,13 +84,15 @@ struct AddPlaceSheet: View {
 
     @State private var isCapturingOnSite = false
     @State private var uploadPhotoItems: [PhotosPickerItem] = []
+    @State private var showingUploadPicker = false
     @State private var isLoadingUploadPhotos = false
     /// Photos accumulated for the place currently being logged — several
     /// angles (sign, menu, interior, ...) — before "Log This Place" sends
     /// them all to AI in one request together, so it can cross-reference
     /// them into one accurate result instead of reconciling separate
-    /// per-photo guesses. Each photo's own EXIF data supplies the place's
-    /// location and capture time.
+    /// per-photo guesses. Each photo's own location/capture-time data
+    /// (from the Photos library, falling back to EXIF) supplies the
+    /// place's location and capture time.
     @State private var onSitePhotos: [OnSitePhoto] = []
 
     // Computed, not stored — a private *stored* property forces Swift's
@@ -121,11 +132,20 @@ struct AddPlaceSheet: View {
                         .disabled(isLoadingScreenshot)
                     }
 
-                    PhotosPicker(
-                        selection: $uploadPhotoItems,
-                        maxSelectionCount: nil,
-                        matching: .images
-                    ) {
+                    Button {
+                        Task {
+                            // Requested here, before the picker opens, so
+                            // the picked items' itemIdentifier (needed to
+                            // resolve their PHAsset for accurate
+                            // location/time) is available from this very
+                            // first pick rather than only from the next
+                            // one. A no-op prompt-wise once already
+                            // decided; silently proceeds without it if
+                            // denied.
+                            _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+                            showingUploadPicker = true
+                        }
+                    } label: {
                         if isLoadingUploadPhotos {
                             ProgressView()
                         } else {
@@ -136,6 +156,7 @@ struct AddPlaceSheet: View {
                         }
                     }
                     .disabled(isLoadingUploadPhotos || isCapturingOnSite)
+                    .photosPicker(isPresented: $showingUploadPicker, selection: $uploadPhotoItems, matching: .images)
 
                     ForEach(Array(onSitePhotos.enumerated()), id: \.element.id) { index, photo in
                         HStack {
@@ -491,20 +512,34 @@ struct AddPlaceSheet: View {
                 extractErrorMessage = "Couldn't read one of those photos."
                 continue
             }
-            onSitePhotos.append(OnSitePhoto(displayData: jpegData, originalData: originalData))
+
+            var assetLocation: CLLocationCoordinate2D?
+            var assetCreationDate: Date?
+            if let identifier = item.itemIdentifier,
+               let asset = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil).firstObject {
+                assetLocation = asset.location?.coordinate
+                assetCreationDate = asset.creationDate
+            }
+
+            onSitePhotos.append(OnSitePhoto(
+                displayData: jpegData,
+                originalData: originalData,
+                assetLocation: assetLocation,
+                assetCreationDate: assetCreationDate
+            ))
         }
     }
 
-    /// The "Log This Place" flow: read each accumulated photo's own EXIF
-    /// GPS/timestamp (using the first location and earliest time found
-    /// across the batch — a photo may lack either), then kick off (if
-    /// there's an AI key) one AI extraction call across *all* the photos
-    /// together — letting the model cross-reference several angles of the
-    /// same place into one accurate result — then replace the candidate
-    /// rows with whatever it found (or one blank row to fill in by hand if
-    /// there's no AI key configured). Every resulting row is tagged with a
-    /// coordinate/time so geocodeAndStore and save() use them directly
-    /// instead of geocoding an address.
+    /// The "Log This Place" flow: read each accumulated photo's own
+    /// location/timestamp (using the first location and earliest time
+    /// found across the batch — a photo may lack either), then kick off
+    /// (if there's an AI key) one AI extraction call across *all* the
+    /// photos together — letting the model cross-reference several angles
+    /// of the same place into one accurate result — then replace the
+    /// candidate rows with whatever it found (or one blank row to fill in
+    /// by hand if there's no AI key configured). Every resulting row is
+    /// tagged with a coordinate/time so geocodeAndStore and save() use
+    /// them directly instead of geocoding an address.
     private func captureOnSitePlace() async {
         guard !onSitePhotos.isEmpty else { return }
         isCapturingOnSite = true
@@ -518,9 +553,17 @@ struct AddPlaceSheet: View {
         var coordinate: CLLocationCoordinate2D?
         var capturedAt: Date?
         for photo in photos {
-            let metadata = PhotoMetadata.extract(from: photo.originalData)
-            if coordinate == nil { coordinate = metadata.location }
-            if let date = metadata.capturedAt, capturedAt == nil || date < capturedAt! {
+            // The Photos library's own record for this asset, when
+            // available, is more reliable than EXIF parsed from the
+            // (possibly privacy-stripped) image data — prefer it, only
+            // falling back to EXIF for whichever of the two it lacks.
+            let exif = (photo.assetLocation == nil || photo.assetCreationDate == nil)
+                ? PhotoMetadata.extract(from: photo.originalData)
+                : nil
+            let location = photo.assetLocation ?? exif?.location
+            let date = photo.assetCreationDate ?? exif?.capturedAt
+            if coordinate == nil { coordinate = location }
+            if let date, capturedAt == nil || date < capturedAt! {
                 capturedAt = date
             }
         }
@@ -635,9 +678,9 @@ struct AddPlaceSheet: View {
     /// approximate. Only `.failed` once both the real geocode and the AI
     /// estimate come up empty (or there's no API key to try at all).
     ///
-    /// A row from "Take Photo Here" already has a real GPS fix, which is
-    /// more trustworthy than geocoding any address text, so that's used
-    /// directly instead — skipping geocoding entirely.
+    /// A row from the on-site photo flow already has a real location fix,
+    /// which is more trustworthy than geocoding any address text, so
+    /// that's used directly instead — skipping geocoding entirely.
     private func geocodeAndStore(_ place: Place, row: CandidateRow) async {
         if let latitude = row.manualLatitude, let longitude = row.manualLongitude {
             place.latitude = latitude

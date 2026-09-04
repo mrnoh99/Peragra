@@ -29,9 +29,9 @@ interface CandidateRow {
   // form's own manual Notes field at save time, not a replacement for it.
   notes: string;
   category: PlaceCategory;
-  // Set when this row came from a "Take Photo Here" on-site capture
-  // rather than AI-extracted address text — geocodeAndStore uses these
-  // directly instead of geocoding, since a live GPS fix is more
+  // Set when this row came from the on-site photo flow rather than
+  // AI-extracted address text — geocodeAndStore uses these directly
+  // instead of geocoding, since a photo's own location is more
   // trustworthy than any address string.
   manualLat?: number;
   manualLng?: number;
@@ -338,7 +338,7 @@ export function AddPlaceModal({
    * "failed" once both the real geocode and the AI estimate come up
    * empty (or there's no API key to try the estimate with at all).
    *
-   * A row from "Take Photo Here" already has a real GPS fix, which is
+   * A row from the on-site photo flow already has a real location fix, which is
    * more trustworthy than geocoding any address text, so that's used
    * directly instead — skipping geocoding entirely.
    */

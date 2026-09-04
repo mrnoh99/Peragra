@@ -1,12 +1,10 @@
 /**
- * Minimal JPEG/EXIF reader for photos picked from the file system or photo
- * library rather than taken live through "Take Photo Here" — those photos
- * already carry their own GPS coordinate and capture time from when they
- * were actually taken, so this reads that back out instead of using the
- * device's current location/time (which would be wrong for a photo taken
- * somewhere else, at some other point). No dependency: hand-parses the
- * JPEG's APP1 segment and the TIFF/IFD structure EXIF uses, reading only
- * the GPS and DateTimeOriginal tags this app actually needs.
+ * Minimal JPEG/EXIF reader for the on-site photo flow — a photo already
+ * carries its own GPS coordinate and capture time from when it was taken,
+ * so this reads that back out rather than relying on any live device
+ * location. No dependency: hand-parses the JPEG's APP1 segment and the
+ * TIFF/IFD structure EXIF uses, reading only the GPS and DateTimeOriginal
+ * tags this app actually needs.
  */
 
 export interface PhotoExifInfo {
