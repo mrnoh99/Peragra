@@ -256,17 +256,38 @@ struct TripDetailView: View {
             HStack(spacing: 8) {
                 chip(title: "All places", isSelected: activeCollection == nil) { activeCollection = nil }
                 ForEach(collections) { collection in
-                    chip(
+                    let collectionChip = chip(
                         title: chipTitle(for: collection),
                         isSelected: activeCollection?.id == collection.id
                     ) {
                         activeCollection = (activeCollection?.id == collection.id) ? nil : collection
+                    }
+                    // The default Favorites/Visited lists aren't
+                    // deletable, so they get no long-press menu at all.
+                    if collection.isFavoritesList || collection.isVisitedList {
+                        collectionChip
+                    } else {
+                        collectionChip.contextMenu {
+                            Button(role: .destructive) {
+                                deleteCollection(collection)
+                            } label: {
+                                Label("Delete List", systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }
             .padding(.horizontal)
             .padding(.top, 8)
         }
+    }
+
+    private func deleteCollection(_ collection: PlaceCollection) {
+        guard !collection.isFavoritesList, !collection.isVisitedList else { return }
+        if activeCollection?.id == collection.id {
+            activeCollection = nil
+        }
+        modelContext.delete(collection)
     }
 
     private func chipTitle(for collection: PlaceCollection) -> String {
