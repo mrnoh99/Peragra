@@ -56,7 +56,7 @@ struct GoogleMapWebView: UIViewRepresentable {
         )
     }
 
-    private struct Signature: Equatable {
+    fileprivate struct Signature: Equatable {
         let apiKey: String
         let places: [MarkerPlace]
         let tripDestination: String
@@ -69,7 +69,7 @@ struct GoogleMapWebView: UIViewRepresentable {
     /// WebView, which would just replace the map with a bare page and
     /// leave no way back.
     final class Coordinator: NSObject, WKNavigationDelegate {
-        private var loadedSignature: Signature?
+        fileprivate var loadedSignature: Signature?
 
         func webView(
             _ webView: WKWebView,
