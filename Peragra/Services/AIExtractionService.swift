@@ -131,11 +131,26 @@ enum AIExtractionService {
     """
 
     static func extractPlaces(imageData: Data, mediaType: String) async throws -> [AIExtractedPlace] {
-        let base64 = imageData.base64EncodedString()
+        try await extractPlaces(images: [(data: imageData, mediaType: mediaType)])
+    }
+
+    /// Same as the single-image overload, but for several photos of the
+    /// *same* place (e.g. a storefront sign, a menu, the interior) sent
+    /// together in one request — letting the model cross-reference them
+    /// into one accurate, consolidated result rather than reconciling
+    /// separate per-photo guesses itself. Used by "Take Photo Here"'s
+    /// multi-photo capture; the screenshot path still extracts one image
+    /// at a time via the overload above, since those are typically
+    /// unrelated places rather than multiple views of one.
+    static func extractPlaces(images: [(data: Data, mediaType: String)]) async throws -> [AIExtractedPlace] {
+        let encoded = images.map { (mediaType: $0.mediaType, base64: $0.data.base64EncodedString()) }
+        let textPrompt = images.count > 1
+            ? "These photos all show the same place — extract one consolidated, accurate result for it, cross-referencing all the photos (for example, a storefront sign for the name and a menu photo for prices/items)."
+            : "Extract every place recommended in this screenshot's caption."
         let text = try await performChatRequest(
             systemPrompt: systemPrompt,
-            textPrompt: "Extract every place recommended in this screenshot's caption.",
-            image: (mediaType, base64)
+            textPrompt: textPrompt,
+            images: encoded
         )
         return try parsePlaces(from: text)
     }
@@ -151,7 +166,7 @@ enum AIExtractionService {
             .map { "\($0.offset + 1). \($0.element)" }
             .joined(separator: "\n")
         let textPrompt = "Destination: \(destination)\n\nPlaces:\n\(placesList)"
-        let text = try await performChatRequest(systemPrompt: addressGuessSystemPrompt, textPrompt: textPrompt, image: nil)
+        let text = try await performChatRequest(systemPrompt: addressGuessSystemPrompt, textPrompt: textPrompt, images: [])
         return try parseAddressGuesses(from: text, count: placeNames.count)
     }
 
@@ -177,7 +192,7 @@ enum AIExtractionService {
         .compactMap { $0 }
         .joined(separator: "\n")
         let textPrompt = "Destination: \(destination)\n\n\(details)"
-        let text = try await performChatRequest(systemPrompt: nearestLocationSystemPrompt, textPrompt: textPrompt, image: nil)
+        let text = try await performChatRequest(systemPrompt: nearestLocationSystemPrompt, textPrompt: textPrompt, images: [])
         return try parseNearestLocation(from: text)
     }
 
@@ -185,7 +200,7 @@ enum AIExtractionService {
     private static func performChatRequest(
         systemPrompt: String,
         textPrompt: String,
-        image: (mediaType: String, base64: String)?
+        images: [(mediaType: String, base64: String)]
     ) async throws -> String {
         let settings = AISettings.shared
         switch settings.provider {
@@ -196,7 +211,7 @@ enum AIExtractionService {
                 apiKey: apiKey,
                 model: settings.model,
                 systemPrompt: systemPrompt,
-                userContent: openAICompatibleUserContent(text: textPrompt, image: image),
+                userContent: openAICompatibleUserContent(text: textPrompt, images: images),
                 serviceLabel: "the gateway"
             )
         case .openai:
@@ -206,11 +221,11 @@ enum AIExtractionService {
                 apiKey: apiKey,
                 model: settings.openaiModel,
                 systemPrompt: systemPrompt,
-                userContent: openAICompatibleUserContent(text: textPrompt, image: image),
+                userContent: openAICompatibleUserContent(text: textPrompt, images: images),
                 serviceLabel: "OpenAI"
             )
         case .perplexity:
-            if image != nil { throw AIExtractionError.visionUnsupported("Perplexity") }
+            if !images.isEmpty { throw AIExtractionError.visionUnsupported("Perplexity") }
             let apiKey = try requireKey(settings.perplexityAPIKey, label: "Perplexity")
             return try await performOpenAICompatibleRequest(
                 endpoint: perplexityEndpoint,
@@ -226,7 +241,7 @@ enum AIExtractionService {
                 apiKey: apiKey,
                 model: settings.anthropicModel,
                 systemPrompt: systemPrompt,
-                userContent: anthropicUserContent(text: textPrompt, image: image)
+                userContent: anthropicUserContent(text: textPrompt, images: images)
             )
         case .gemini:
             let apiKey = try requireKey(settings.geminiAPIKey, label: "Gemini")
@@ -235,7 +250,7 @@ enum AIExtractionService {
                 model: settings.geminiModel,
                 systemPrompt: systemPrompt,
                 textPrompt: textPrompt,
-                image: image
+                images: images
             )
         }
     }
@@ -246,20 +261,20 @@ enum AIExtractionService {
         return trimmed
     }
 
-    private static func openAICompatibleUserContent(text: String, image: (mediaType: String, base64: String)?) -> Any {
-        guard let image else { return text }
-        return [
-            ["type": "text", "text": text],
-            ["type": "image_url", "image_url": ["url": "data:\(image.mediaType);base64,\(image.base64)"]],
-        ]
+    private static func openAICompatibleUserContent(text: String, images: [(mediaType: String, base64: String)]) -> Any {
+        guard !images.isEmpty else { return text }
+        var content: [[String: Any]] = [["type": "text", "text": text]]
+        for image in images {
+            content.append(["type": "image_url", "image_url": ["url": "data:\(image.mediaType);base64,\(image.base64)"]])
+        }
+        return content
     }
 
-    private static func anthropicUserContent(text: String, image: (mediaType: String, base64: String)?) -> [[String: Any]] {
-        guard let image else { return [["type": "text", "text": text]] }
-        return [
-            ["type": "image", "source": ["type": "base64", "media_type": image.mediaType, "data": image.base64]],
-            ["type": "text", "text": text],
-        ]
+    private static func anthropicUserContent(text: String, images: [(mediaType: String, base64: String)]) -> [[String: Any]] {
+        let imageBlocks = images.map { image in
+            ["type": "image", "source": ["type": "base64", "media_type": image.mediaType, "data": image.base64]] as [String: Any]
+        }
+        return imageBlocks + [["type": "text", "text": text]]
     }
 
     /// Shared by the gateway, OpenAI-direct, and Perplexity — all speak
@@ -366,10 +381,10 @@ enum AIExtractionService {
         model: String,
         systemPrompt: String,
         textPrompt: String,
-        image: (mediaType: String, base64: String)?
+        images: [(mediaType: String, base64: String)]
     ) async throws -> String {
         var parts: [[String: Any]] = [["text": textPrompt]]
-        if let image {
+        for image in images {
             parts.append(["inline_data": ["mime_type": image.mediaType, "data": image.base64]])
         }
 
