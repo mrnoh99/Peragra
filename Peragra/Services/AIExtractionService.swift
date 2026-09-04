@@ -130,11 +130,6 @@ enum AIExtractionService {
     matching exactly this shape: {"address": string | null}
     """
 
-    static func extractPlaces(captionText: String) async throws -> [AIExtractedPlace] {
-        let text = try await performChatRequest(systemPrompt: systemPrompt, textPrompt: captionText, image: nil)
-        return try parsePlaces(from: text)
-    }
-
     static func extractPlaces(imageData: Data, mediaType: String) async throws -> [AIExtractedPlace] {
         let base64 = imageData.base64EncodedString()
         let text = try await performChatRequest(

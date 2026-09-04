@@ -332,12 +332,6 @@ function parsePlacesResponse(content: string | null | undefined): AIExtractedPla
   return result.data.places;
 }
 
-/** Extracts places from pasted/OCR'd caption text using the active provider. */
-export async function extractPlacesFromText(captionText: string): Promise<AIExtractedPlace[]> {
-  const content = await callModel({ systemPrompt: SYSTEM_PROMPT, text: captionText });
-  return parsePlacesResponse(content);
-}
-
 /**
  * Extracts places directly from a caption screenshot via vision — combines
  * OCR and extraction in a single step, generally more accurate than running

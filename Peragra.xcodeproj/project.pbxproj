@@ -17,7 +17,6 @@
 		51C64D7BB7E7C26F899DDC50 /* GatewayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06814E248FCB3AB0A38050BB /* GatewayModels.swift */; };
 		58BF451C8ED81EBA0F79972F /* InstagramEmbedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A724FCCA820579F5A284A7A /* InstagramEmbedView.swift */; };
 		5D1744EAB307E60EBE13C935 /* PlaceListingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8BC485BB5A43C5FE5BF7D88 /* PlaceListingView.swift */; };
-		5FC04A3C96AA30459C221D9C /* CaptionParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 910E4474B483A1D7998FCD7A /* CaptionParser.swift */; };
 		64644134808E5774D2F023BD /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67754B66A448FD1EF6D5B920 /* KeychainService.swift */; };
 		6E6844D2B9A89DD6613ABD38 /* GeocodingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E74D7D82C88C55F4E7AA03 /* GeocodingService.swift */; };
 		70F14B7899E319410C055906 /* AddPlaceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D74B1688389732B5CD38E3 /* AddPlaceSheet.swift */; };
@@ -52,7 +51,6 @@
 		718642978CE1880FF3A7401F /* InstagramLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InstagramLink.swift; path = Peragra/Services/InstagramLink.swift; sourceTree = "<group>"; };
 		7C264C7A93EFFFAD7D5CB188 /* EditPlaceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EditPlaceSheet.swift; path = Peragra/Views/Places/EditPlaceSheet.swift; sourceTree = "<group>"; };
 		84A949D6936EFF5314976F72 /* Place.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Place.swift; path = Peragra/Models/Place.swift; sourceTree = "<group>"; };
-		910E4474B483A1D7998FCD7A /* CaptionParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CaptionParser.swift; path = Peragra/Services/CaptionParser.swift; sourceTree = "<group>"; };
 		9559465AB5ABEDDDE992B896 /* KMLService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KMLService.swift; path = Peragra/Services/KMLService.swift; sourceTree = "<group>"; };
 		9A724FCCA820579F5A284A7A /* InstagramEmbedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InstagramEmbedView.swift; path = Peragra/Views/Places/InstagramEmbedView.swift; sourceTree = "<group>"; };
 		A09D4E01A03ED8194F5A9673 /* AIExtractionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AIExtractionService.swift; path = Peragra/Services/AIExtractionService.swift; sourceTree = "<group>"; };
@@ -85,7 +83,6 @@
 			children = (
 				51E74D7D82C88C55F4E7AA03 /* GeocodingService.swift */,
 				718642978CE1880FF3A7401F /* InstagramLink.swift */,
-				910E4474B483A1D7998FCD7A /* CaptionParser.swift */,
 				67754B66A448FD1EF6D5B920 /* KeychainService.swift */,
 				A09D4E01A03ED8194F5A9673 /* AIExtractionService.swift */,
 				C1AB455D80578B776DC3D4A3 /* GoogleGeocodingService.swift */,
@@ -254,7 +251,6 @@
 				6E6844D2B9A89DD6613ABD38 /* GeocodingService.swift in Sources */,
 				91D8479C85B75865CE35EE18 /* InstagramLink.swift in Sources */,
 				DCC245A680422C9294F58E78 /* PeragraApp.swift in Sources */,
-				5FC04A3C96AA30459C221D9C /* CaptionParser.swift in Sources */,
 				64644134808E5774D2F023BD /* KeychainService.swift in Sources */,
 				BA4340C4920B2224AF4EBC56 /* AIExtractionService.swift in Sources */,
 				B510449A8E13CF05A23F0946 /* AISettings.swift in Sources */,

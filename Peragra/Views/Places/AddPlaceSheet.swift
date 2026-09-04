@@ -19,7 +19,7 @@ private struct CandidateRow: Identifiable {
 struct AddPlaceSheet: View {
     /// Reading more screenshots than this in one AI pass gets slow and
     /// costly for what's still just "a few saved posts" — this caps it.
-    private static let maxScreenshots = 3
+    private static let maxScreenshots = 10
 
     let trip: Trip
     var defaultCollection: PlaceCollection?
@@ -36,7 +36,6 @@ struct AddPlaceSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var instagramInput = ""
-    @State private var captionText = ""
     @State private var notes = ""
     @State private var rows: [CandidateRow] = [CandidateRow()]
     @State private var isSaving = false
@@ -70,9 +69,6 @@ struct AddPlaceSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Paste the post's caption here…", text: $captionText, axis: .vertical)
-                        .lineLimit(3...6)
-
                     if screenshotDatas.count < Self.maxScreenshots {
                         PhotosPicker(
                             selection: $screenshotItems,
@@ -114,26 +110,20 @@ struct AddPlaceSheet: View {
                         }
                     }
 
-                    HStack {
-                        Button("🔍 Find Places (Free)") { runPatternExtraction() }
-                            .disabled(captionText.trimmingCharacters(in: .whitespaces).isEmpty)
-                            .buttonStyle(.bordered)
-
-                        if aiSettings.activeAPIKey != nil {
-                            Button {
-                                Task { await runAIExtraction() }
-                            } label: {
-                                if let aiProgress, aiProgress.total > 1 {
-                                    Text("Reading \(min(aiProgress.current + 1, aiProgress.total))/\(aiProgress.total)…")
-                                } else if aiProgress != nil {
-                                    ProgressView()
-                                } else {
-                                    Text("✨ Find Places (AI)")
-                                }
+                    if aiSettings.activeAPIKey != nil {
+                        Button {
+                            Task { await runAIExtraction() }
+                        } label: {
+                            if let aiProgress, aiProgress.total > 1 {
+                                Text("Reading \(min(aiProgress.current + 1, aiProgress.total))/\(aiProgress.total)…")
+                            } else if aiProgress != nil {
+                                ProgressView()
+                            } else {
+                                Text("✨ Find Places (AI)")
                             }
-                            .disabled(aiProgress != nil || (captionText.trimmingCharacters(in: .whitespaces).isEmpty && screenshotDatas.isEmpty))
-                            .buttonStyle(.borderedProminent)
                         }
+                        .disabled(aiProgress != nil || screenshotDatas.isEmpty)
+                        .buttonStyle(.borderedProminent)
                     }
 
                     if let aiProgress, aiProgress.total > 1 {
@@ -146,9 +136,9 @@ struct AddPlaceSheet: View {
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("Caption text (optional)")
+                    Text("Screenshots")
                 } footer: {
-                    Text("If a post recommends one place or several, paste the caption and use free pattern matching — or attach a screenshot and let AI read and organize it completely.")
+                    Text("Attach up to \(Self.maxScreenshots) screenshots of a post and let AI read and organize them completely.")
                 }
 
                 if extractErrorMessage != nil || extractResultMessage != nil || isGuessingAddresses {
@@ -215,7 +205,7 @@ struct AddPlaceSheet: View {
                 } header: {
                     Text("Instagram post link (optional, just a reference)")
                 } footer: {
-                    Text("Instagram doesn't let apps read a post's info from its link, so this doesn't fill in anything above — use caption text or a screenshot for that. Paste it only if you want the original post embedded here for reference.")
+                    Text("Instagram doesn't let apps read a post's info from its link, so this doesn't fill in anything above — attach a screenshot for that. Paste it only if you want the original post embedded here for reference.")
                 }
 
                 Section("Notes") {
@@ -282,11 +272,6 @@ struct AddPlaceSheet: View {
         }
     }
 
-    private enum ExtractionSource: Equatable {
-        case pattern
-        case ai
-    }
-
     private func applyCategoryToSelected(_ category: PlaceCategory) {
         for index in rows.indices where rows[index].selected {
             rows[index].category = category
@@ -294,8 +279,7 @@ struct AddPlaceSheet: View {
     }
 
     private func replaceRows(
-        with places: [(name: String?, address: String?, telephone: String?, notes: String?)],
-        source: ExtractionSource
+        with places: [(name: String?, address: String?, telephone: String?, notes: String?)]
     ) {
         let usable = places.filter { $0.name != nil }
         if !usable.isEmpty {
@@ -310,25 +294,17 @@ struct AddPlaceSheet: View {
         }
 
         // The whole point of extraction is getting an address onto the
-        // map — a name-only fallback (the parser's last resort: any
-        // short, non-hashtag line) can still fire on pure noise, so check
-        // for at least one real address rather than just "found a name".
+        // map — a name-only fallback can still fire on pure noise, so
+        // check for at least one real address rather than just "found a
+        // name".
         let withAddress = places.filter { $0.address != nil }.count
         if usable.isEmpty || withAddress == 0 {
             extractResultMessage = nil
-            switch source {
-            case .pattern:
-                extractErrorMessage = aiSettings.activeAPIKey != nil
-                    ? "Couldn't find a usable address in that text — try ✨ Find Places (AI) instead."
-                    : "Couldn't find any places in that text."
-            case .ai:
-                extractErrorMessage = "AI couldn't find a usable address there — try a clearer screenshot, or edit the place below manually."
-            }
+            extractErrorMessage = "AI couldn't find a usable address there — try a clearer screenshot, or edit the place below manually."
         } else {
             extractErrorMessage = nil
-            let label = source == .ai ? "AI" : "Pattern matching"
             let placeWord = usable.count == 1 ? "place" : "places"
-            extractResultMessage = "\(label) found \(usable.count) \(placeWord) (\(withAddress) with an address) — review below before saving."
+            extractResultMessage = "AI found \(usable.count) \(placeWord) (\(withAddress) with an address) — review below before saving."
         }
 
         guard !usable.isEmpty, aiSettings.activeAPIKey != nil else { return }
@@ -373,47 +349,27 @@ struct AddPlaceSheet: View {
         }
     }
 
-    private func runPatternExtraction() {
-        extractErrorMessage = nil
-        extractResultMessage = nil
-        let results = CaptionParser.parseMultiple(captionText)
-        replaceRows(with: results.map { ($0.name, $0.address, nil, nil) }, source: .pattern)
-    }
-
     private func runAIExtraction() async {
-        guard aiSettings.activeAPIKey != nil else { return }
+        guard aiSettings.activeAPIKey != nil, !screenshotDatas.isEmpty else { return }
         extractErrorMessage = nil
         extractResultMessage = nil
         defer { aiProgress = nil }
 
         do {
-            let results: [AIExtractedPlace]
-            if !screenshotDatas.isEmpty {
-                // Read one screenshot at a time (rather than in parallel)
-                // so progress reflects real completions, not just
-                // requests fired.
-                var allResults: [AIExtractedPlace] = []
-                aiProgress = (current: 0, total: screenshotDatas.count)
-                for (index, data) in screenshotDatas.enumerated() {
-                    let pageResults = try await AIExtractionService.extractPlaces(
-                        imageData: data,
-                        mediaType: "image/jpeg"
-                    )
-                    allResults.append(contentsOf: pageResults)
-                    aiProgress = (current: index + 1, total: screenshotDatas.count)
-                }
-                results = allResults
-            } else if !captionText.trimmingCharacters(in: .whitespaces).isEmpty {
-                aiProgress = (current: 0, total: 1)
-                results = try await AIExtractionService.extractPlaces(captionText: captionText)
-                aiProgress = (current: 1, total: 1)
-            } else {
-                extractErrorMessage = "Paste a caption or upload a screenshot first."
-                return
+            // Read one screenshot at a time (rather than in parallel) so
+            // progress reflects real completions, not just requests fired.
+            var allResults: [AIExtractedPlace] = []
+            aiProgress = (current: 0, total: screenshotDatas.count)
+            for (index, data) in screenshotDatas.enumerated() {
+                let pageResults = try await AIExtractionService.extractPlaces(
+                    imageData: data,
+                    mediaType: "image/jpeg"
+                )
+                allResults.append(contentsOf: pageResults)
+                aiProgress = (current: index + 1, total: screenshotDatas.count)
             }
             replaceRows(
-                with: results.map { (name: $0.name as String?, address: $0.address, telephone: $0.telephone, notes: $0.notes) },
-                source: .ai
+                with: allResults.map { (name: $0.name as String?, address: $0.address, telephone: $0.telephone, notes: $0.notes) }
             )
         } catch {
             extractResultMessage = nil

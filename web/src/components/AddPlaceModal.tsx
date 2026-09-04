@@ -3,10 +3,8 @@ import { Modal } from "./Modal";
 import { InstagramEmbed } from "./InstagramEmbed";
 import { geocodePlace } from "../lib/geocode";
 import { isInstagramPostUrl, normalizeInstagramUrl } from "../lib/instagram";
-import { parsePlaces } from "../lib/captionParser";
 import {
   extractPlacesFromImage,
-  extractPlacesFromText,
   fileToBase64,
   guessMissingAddresses,
   guessNearestAddress,
@@ -33,7 +31,7 @@ interface CandidateRow {
 
 /** Reading more screenshots than this in one AI pass gets slow and costly
  * for what's still just "a few saved posts" — this caps it. */
-const MAX_SCREENSHOTS = 3;
+const MAX_SCREENSHOTS = 10;
 
 function makeRow(partial?: Partial<CandidateRow>): CandidateRow {
   return {
@@ -64,7 +62,6 @@ export function AddPlaceModal({
   const apiKey = useAISettingsStore(selectActiveApiKey);
 
   const [instagramInput, setInstagramInput] = useState("");
-  const [captionText, setCaptionText] = useState("");
   const [notes, setNotes] = useState("");
   const [rows, setRows] = useState<CandidateRow[]>([makeRow()]);
   const [saving, setSaving] = useState(false);
@@ -137,7 +134,6 @@ export function AddPlaceModal({
       telephone?: string | null;
       notes?: string | null;
     }[],
-    source: "pattern" | "ai",
   ) {
     const usable = places.filter((p) => p.name);
     let newRows: CandidateRow[] = [];
@@ -154,27 +150,17 @@ export function AddPlaceModal({
     }
 
     // The whole point of extraction is getting an address onto the map —
-    // a name-only fallback (the parser's last resort: any short,
-    // non-hashtag line) can still fire on pure noise, so check for at
+    // a name-only fallback can still fire on pure noise, so check for at
     // least one real address rather than just "found a name".
     const withAddress = places.filter((p) => p.address).length;
     const hasAddress = withAddress > 0;
     if (usable.length === 0 || !hasAddress) {
       setExtractResultMessage(null);
-      if (source === "pattern") {
-        setExtractError(
-          apiKey
-            ? "Couldn't find a usable address in that text — try ✨ Find places (AI) instead."
-            : "Couldn't find any places in that text.",
-        );
-      } else {
-        setExtractError("AI couldn't find a usable address there — try a clearer screenshot, or edit the place below manually.");
-      }
+      setExtractError("AI couldn't find a usable address there — try a clearer screenshot, or edit the place below manually.");
     } else {
       setExtractError(null);
-      const label = source === "ai" ? "AI" : "Pattern matching";
       setExtractResultMessage(
-        `${label} found ${usable.length} place${usable.length === 1 ? "" : "s"} (${withAddress} with an address) — review below before saving.`,
+        `AI found ${usable.length} place${usable.length === 1 ? "" : "s"} (${withAddress} with an address) — review below before saving.`,
       );
     }
 
@@ -199,43 +185,26 @@ export function AddPlaceModal({
     setScreenshotFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function handlePatternExtract() {
-    setExtractError(null);
-    setExtractResultMessage(null);
-    replaceRowsFromExtraction(parsePlaces(captionText), "pattern");
-  }
-
   async function handleAIExtract() {
-    if (!apiKey) return;
+    if (!apiKey || screenshotFiles.length === 0) return;
     setExtractError(null);
     setExtractResultMessage(null);
     try {
-      let results: AIExtractedPlace[];
-      if (screenshotFiles.length > 0) {
-        // Read one screenshot at a time (rather than in parallel) so
-        // progress reflects real completions, not just requests fired.
-        const allResults: AIExtractedPlace[] = [];
-        setAiProgress({ current: 0, total: screenshotFiles.length });
-        for (const file of screenshotFiles) {
-          const mediaType = file.type;
-          if (!isSupportedImageMediaType(mediaType)) {
-            throw new AIExtractionError("That image format isn't supported — try a JPEG or PNG.");
-          }
-          const base64 = await fileToBase64(file);
-          const fileResults = await extractPlacesFromImage(base64, mediaType);
-          allResults.push(...fileResults);
-          setAiProgress((prev) => (prev ? { current: prev.current + 1, total: prev.total } : prev));
+      // Read one screenshot at a time (rather than in parallel) so
+      // progress reflects real completions, not just requests fired.
+      const allResults: AIExtractedPlace[] = [];
+      setAiProgress({ current: 0, total: screenshotFiles.length });
+      for (const file of screenshotFiles) {
+        const mediaType = file.type;
+        if (!isSupportedImageMediaType(mediaType)) {
+          throw new AIExtractionError("That image format isn't supported — try a JPEG or PNG.");
         }
-        results = allResults;
-      } else if (captionText.trim()) {
-        setAiProgress({ current: 0, total: 1 });
-        results = await extractPlacesFromText(captionText);
-        setAiProgress({ current: 1, total: 1 });
-      } else {
-        setExtractError("Paste a caption or upload a screenshot first.");
-        return;
+        const base64 = await fileToBase64(file);
+        const fileResults = await extractPlacesFromImage(base64, mediaType);
+        allResults.push(...fileResults);
+        setAiProgress((prev) => (prev ? { current: prev.current + 1, total: prev.total } : prev));
       }
-      replaceRowsFromExtraction(results, "ai");
+      replaceRowsFromExtraction(allResults);
     } catch (error) {
       setExtractError(error instanceof AIExtractionError ? error.message : "AI extraction failed.");
     } finally {
@@ -318,21 +287,13 @@ export function AddPlaceModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="rounded-lg border border-dashed border-neutral-300 p-3">
           <label className="mb-1 block text-sm font-medium text-neutral-700">
-            Caption text <span className="font-normal text-neutral-400">(optional)</span>
+            Screenshots
           </label>
           <p className="mb-2 text-xs text-neutral-400">
-            If a post recommends one place or several, paste the caption below and use free
-            pattern matching — or attach a screenshot and let AI read and organize it completely
-            (requires an AI extraction API key in Settings; on-device text recognition struggles with
-            stylized graphics, so this app doesn't try to guess at photo text itself).
+            Attach up to {MAX_SCREENSHOTS} screenshots of a post and let AI read and organize them
+            completely (requires an AI extraction API key in Settings; on-device text recognition
+            struggles with stylized graphics, so this app doesn't try to guess at photo text itself).
           </p>
-          <textarea
-            value={captionText}
-            onChange={(e) => setCaptionText(e.target.value)}
-            rows={3}
-            placeholder="Paste the post's caption here…"
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-          />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input
               ref={fileInputRef}
@@ -368,21 +329,11 @@ export function AddPlaceModal({
               </span>
             ))}
 
-            <span className="mx-1 h-4 w-px bg-neutral-200" />
-
-            <button
-              type="button"
-              onClick={handlePatternExtract}
-              disabled={!captionText.trim()}
-              className="rounded-lg bg-neutral-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              🔍 Find places (free)
-            </button>
             {apiKey && (
               <button
                 type="button"
                 onClick={handleAIExtract}
-                disabled={aiProgress !== null || (!captionText.trim() && screenshotFiles.length === 0)}
+                disabled={aiProgress !== null || screenshotFiles.length === 0}
                 className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {aiProgress
@@ -534,8 +485,8 @@ export function AddPlaceModal({
           />
           <p className="mt-1 text-xs text-neutral-400">
             Instagram doesn't let apps read a post's info from its link, so this doesn't fill in
-            anything above — use caption text or a screenshot for that. Paste it only if you want
-            the original post embedded here for reference.
+            anything above — attach a screenshot for that. Paste it only if you want the original
+            post embedded here for reference.
           </p>
           {instagramInput && !instagramUrl && (
             <p className="mt-1 text-xs text-amber-600">
