@@ -18,12 +18,14 @@ export function ListingView({
 }) {
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showListPicker, setShowListPicker] = useState(false);
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
   const addPlacesToCollection = useStore((s) => s.addPlacesToCollection);
 
   function toggleSelecting() {
     setIsSelecting((v) => !v);
     setSelectedIds(new Set());
+    setShowListPicker(false);
   }
 
   function toggleSelected(placeId: string) {
@@ -41,10 +43,17 @@ export function ListingView({
     setIsSelecting(false);
   }
 
+  // A place can belong to any number of lists at once, so this only ever
+  // adds (never removes, never closes the selection) — the same
+  // selection can be sent to several lists one after another.
   function applyBulkAddToList(collectionId: string) {
     addPlacesToCollection([...selectedIds], collectionId);
-    setSelectedIds(new Set());
-    setIsSelecting(false);
+  }
+
+  /** Whether every currently-selected place already belongs to this list. */
+  function isCollectionOnAllSelected(collectionId: string): boolean {
+    const selected = places.filter((p) => selectedIds.has(p.id));
+    return selected.length > 0 && selected.every((p) => p.collectionIds.includes(collectionId));
   }
 
   function sendSelectedToGoogleMaps() {
@@ -92,23 +101,36 @@ export function ListingView({
             ))}
           </select>
           {collections.length > 0 && (
-            <select
-              disabled={selectedIds.size === 0}
-              value=""
-              onChange={(e) => {
-                if (e.target.value) applyBulkAddToList(e.target.value);
-              }}
-              className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm disabled:opacity-50"
-            >
-              <option value="" disabled>
-                Send to list…
-              </option>
-              {collections.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowListPicker((v) => !v)}
+                disabled={selectedIds.size === 0}
+                className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                📋 Send to list… {showListPicker ? "▲" : "▼"}
+              </button>
+              {showListPicker && (
+                <div className="absolute left-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
+                  {collections.map((c) => {
+                    const onAll = isCollectionOnAllSelected(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => applyBulkAddToList(c.id)}
+                        className={`whitespace-nowrap rounded px-2 py-1 text-left text-sm ${
+                          onAll ? "bg-brand-50 text-brand-700" : "text-neutral-600 hover:bg-neutral-50"
+                        }`}
+                      >
+                        {onAll ? "✓ " : ""}
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
           <button
             onClick={sendSelectedToGoogleMaps}

@@ -88,7 +88,11 @@ struct PlaceListingView: View {
                         Button {
                             addSelected(to: collection)
                         } label: {
-                            Text(collection.name)
+                            if isOnAllSelected(collection) {
+                                Label(collection.name, systemImage: "checkmark")
+                            } else {
+                                Text(collection.name)
+                            }
                         }
                     }
                 } label: {
@@ -130,14 +134,22 @@ struct PlaceListingView: View {
     /// Adds rather than toggles — a bulk selection can mix places already
     /// in the list with ones that aren't, and "send to list" should only
     /// ever add, never accidentally remove someone who was already there.
+    /// Leaves the selection in place afterward (unlike applyCategory) so
+    /// the same places can be sent to another list right after, since a
+    /// place can belong to any number of lists at once.
     private func addSelected(to collection: PlaceCollection) {
         for place in places where selectedIDs.contains(place.id) {
             if !place.collections.contains(where: { $0.id == collection.id }) {
                 place.collections.append(collection)
             }
         }
-        selectedIDs.removeAll()
-        isSelecting = false
+    }
+
+    /// Whether every currently-selected place already belongs to this list.
+    private func isOnAllSelected(_ collection: PlaceCollection) -> Bool {
+        let selected = places.filter { selectedIDs.contains($0.id) }
+        guard !selected.isEmpty else { return false }
+        return selected.allSatisfy { place in place.collections.contains(where: { $0.id == collection.id }) }
     }
 
     private func sendSelectedToGoogleMaps() {
