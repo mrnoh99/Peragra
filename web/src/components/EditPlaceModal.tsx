@@ -8,7 +8,6 @@ import {
   AIExtractionError,
   type AIExtractedPlace,
 } from "../lib/aiExtract";
-import { getCurrentLocation } from "../lib/currentLocation";
 import { readPhotoExif } from "../lib/photoExif";
 import { geocodePlace } from "../lib/geocode";
 import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
@@ -18,11 +17,6 @@ import { PLACE_CATEGORIES, type Place, type PlaceCategory } from "../types";
 interface OnSitePhoto {
   id: string;
   file: File;
-  // "camera": just taken with Take Photo Here — the live GPS fix is
-  // trustworthy. "upload": picked from the file system, possibly taken
-  // elsewhere or long ago — its own EXIF GPS (if any) is used instead of
-  // the device's current location.
-  source: "camera" | "upload";
 }
 
 export function EditPlaceModal({
@@ -53,26 +47,15 @@ export function EditPlaceModal({
   // opened — applied on Save instead of immediately, so Cancel still
   // discards it like every other field here.
   const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const uploadPhotosInputRef = useRef<HTMLInputElement>(null);
 
   const canSubmit = name.trim().length > 0;
-
-  function handleCameraChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
-    if (!file) return;
-    setOnSitePhotos((prev) => [...prev, { id: crypto.randomUUID(), file, source: "camera" }]);
-  }
 
   function handleUploadPhotosChange(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files ?? []);
     if (uploadPhotosInputRef.current) uploadPhotosInputRef.current.value = "";
     if (picked.length === 0) return;
-    setOnSitePhotos((prev) => [
-      ...prev,
-      ...picked.map((file) => ({ id: crypto.randomUUID(), file, source: "upload" as const })),
-    ]);
+    setOnSitePhotos((prev) => [...prev, ...picked.map((file) => ({ id: crypto.randomUUID(), file }))]);
   }
 
   function removeOnSitePhoto(id: string) {
@@ -84,9 +67,9 @@ export function EditPlaceModal({
    * cross-reference them into one result) and uses whatever it finds to
    * fill in fields that are still blank, plus appends any notes found —
    * this only adds information, it never overwrites what's already
-   * there. Also resolves a coordinate the same way "Take Photo Here" does
-   * in Add Place: live GPS for a fresh photo, or each uploaded photo's
-   * own EXIF GPS otherwise — queued in `pendingCoords` for Save to apply.
+   * there. Also reads a coordinate from the photos' own EXIF GPS data
+   * (using the first one found) — queued in `pendingCoords` for Save to
+   * apply.
    */
   async function fillFromPhotos() {
     if (onSitePhotos.length === 0) return;
@@ -96,16 +79,11 @@ export function EditPlaceModal({
 
     const photos = onSitePhotos;
     setOnSitePhotos([]);
-    const hasCameraPhoto = photos.some((p) => p.source === "camera");
 
     let location: { lat: number; lng: number } | null = null;
-    if (hasCameraPhoto) {
-      location = await getCurrentLocation();
-    } else {
-      for (const photo of photos) {
-        const exif = await readPhotoExif(photo.file);
-        if (!location && exif.location) location = exif.location;
-      }
+    for (const photo of photos) {
+      const exif = await readPhotoExif(photo.file);
+      if (!location && exif.location) location = exif.location;
     }
 
     let extracted: AIExtractedPlace[] = [];
@@ -254,28 +232,11 @@ export function EditPlaceModal({
         <div className="rounded-lg border border-dashed border-neutral-300 p-3">
           <label className="mb-1 block text-sm font-medium text-neutral-700">Add info from a photo</label>
           <p className="mb-2 text-xs text-neutral-400">
-            Take or upload a photo of this place (a sign, a menu, ...) and AI reads it to fill in
-            whatever's still blank below — it never overwrites what you've already entered. A
-            location read from the photo is queued to apply when you save.
+            Upload a photo of this place (a sign, a menu, ...) and AI reads it to fill in whatever's
+            still blank below — it never overwrites what you've already entered. A location read
+            from the photo is queued to apply when you save.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleCameraChange}
-              className="hidden"
-              id="edit-onsite-camera-input"
-            />
-            <label
-              htmlFor="edit-onsite-camera-input"
-              className={`cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 ${
-                isProcessingPhotos ? "pointer-events-none opacity-40" : ""
-              }`}
-            >
-              {onSitePhotos.some((p) => p.source === "camera") ? "📍 Add Another Photo" : "📍 Take Photo Here"}
-            </label>
             <input
               ref={uploadPhotosInputRef}
               type="file"
@@ -291,14 +252,14 @@ export function EditPlaceModal({
                 isProcessingPhotos ? "pointer-events-none opacity-40" : ""
               }`}
             >
-              {onSitePhotos.some((p) => p.source === "upload") ? "📌 Add More On-Site Photos" : "📌 Upload On-Site Photos"}
+              {onSitePhotos.length === 0 ? "📌 Upload On-Site Photos" : "📌 Add More On-Site Photos"}
             </label>
             {onSitePhotos.map((photo, i) => (
               <span
                 key={photo.id}
                 className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-600"
               >
-                {photo.source === "camera" ? `📍 On-site photo ${i + 1}` : `📌 Uploaded photo ${i + 1}`}
+                {`📌 On-site photo ${i + 1}`}
                 <button
                   type="button"
                   onClick={() => removeOnSitePhoto(photo.id)}

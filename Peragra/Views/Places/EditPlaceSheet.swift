@@ -6,16 +6,11 @@ import CoreLocation
 
 private struct OnSitePhoto: Identifiable {
     let id = UUID()
+    // The JPEG-recompressed version used for the AI call and thumbnail.
     var displayData: Data
-    // Only set for `.upload` photos — the raw bytes as picked, so EXIF
-    // metadata survives (re-encoding through UIImage/jpegData strips it).
-    var originalData: Data?
-    var source: Source
-
-    enum Source {
-        case camera
-        case upload
-    }
+    // The raw bytes as picked, so EXIF metadata survives — re-encoding
+    // through UIImage/jpegData (which produces `displayData`) strips it.
+    var originalData: Data
 }
 
 struct EditPlaceSheet: View {
@@ -31,7 +26,6 @@ struct EditPlaceSheet: View {
     @State private var notes: String
     @State private var isSaving = false
 
-    @State private var showingCamera = false
     @State private var uploadPhotoItems: [PhotosPickerItem] = []
     @State private var isProcessingPhotos = false
     @State private var onSitePhotos: [OnSitePhoto] = []
@@ -78,25 +72,13 @@ struct EditPlaceSheet: View {
                 }
 
                 Section {
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                        Button {
-                            showingCamera = true
-                        } label: {
-                            Label(
-                                onSitePhotos.contains { $0.source == .camera } ? "Add Another Photo" : "Take Photo Here",
-                                systemImage: "camera.fill"
-                            )
-                        }
-                        .disabled(isProcessingPhotos)
-                    }
-
                     PhotosPicker(
                         selection: $uploadPhotoItems,
                         maxSelectionCount: nil,
                         matching: .images
                     ) {
                         Label(
-                            onSitePhotos.contains { $0.source == .upload } ? "Add More On-Site Photos" : "Upload On-Site Photos",
+                            onSitePhotos.isEmpty ? "Upload On-Site Photos" : "Add More On-Site Photos",
                             systemImage: "square.and.arrow.up"
                         )
                     }
@@ -111,7 +93,7 @@ struct EditPlaceSheet: View {
                                     .frame(width: 32, height: 32)
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
                             }
-                            Text(photo.source == .camera ? "On-site photo \(index + 1)" : "Uploaded photo \(index + 1)")
+                            Text("On-site photo \(index + 1)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Spacer()
@@ -151,7 +133,7 @@ struct EditPlaceSheet: View {
                 } header: {
                     Text("Add Info From a Photo")
                 } footer: {
-                    Text("Take or upload a photo of this place (a sign, a menu, ...) and AI reads it to fill in whatever's still blank above — it never overwrites what you've already entered. A location read from the photo is queued to apply when you save.")
+                    Text("Upload a photo of this place (a sign, a menu, ...) and AI reads it to fill in whatever's still blank above — it never overwrites what you've already entered. A location read from the photo is queued to apply when you save.")
                 }
             }
             .navigationTitle("Edit Place")
@@ -162,10 +144,6 @@ struct EditPlaceSheet: View {
                     await loadUploadPhotos(newItems)
                     uploadPhotoItems = []
                 }
-            }
-            .fullScreenCover(isPresented: $showingCamera) {
-                CameraCaptureView(onCapture: handleCameraCapture)
-                    .ignoresSafeArea()
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -272,12 +250,6 @@ struct EditPlaceSheet: View {
         place.geocodeStatus = .failed
     }
 
-    private func handleCameraCapture(_ data: Data?) {
-        showingCamera = false
-        guard let data else { return }
-        onSitePhotos.append(OnSitePhoto(displayData: data, originalData: nil, source: .camera))
-    }
-
     private func loadUploadPhotos(_ items: [PhotosPickerItem]) async {
         isProcessingPhotos = true
         photoErrorMessage = nil
@@ -293,7 +265,7 @@ struct EditPlaceSheet: View {
                 photoErrorMessage = "Couldn't read one of those photos."
                 continue
             }
-            onSitePhotos.append(OnSitePhoto(displayData: jpegData, originalData: originalData, source: .upload))
+            onSitePhotos.append(OnSitePhoto(displayData: jpegData, originalData: originalData))
         }
     }
 
@@ -301,9 +273,8 @@ struct EditPlaceSheet: View {
     /// cross-reference them into one result) and uses whatever it finds to
     /// fill in fields that are still blank, plus appends any notes found —
     /// this only adds information, it never overwrites what's already
-    /// there. Also resolves a coordinate the same way "Take Photo Here"
-    /// does in Add Place: live GPS for a fresh photo, or each uploaded
-    /// photo's own EXIF GPS otherwise — queued in `pendingCoordinate` for
+    /// there. Also reads a coordinate from the photos' own EXIF GPS data
+    /// (using the first one found) — queued in `pendingCoordinate` for
     /// save() to apply.
     private func fillFromPhotos() async {
         guard !onSitePhotos.isEmpty else { return }
@@ -314,16 +285,11 @@ struct EditPlaceSheet: View {
 
         let photos = onSitePhotos
         onSitePhotos = []
-        let hasCameraPhoto = photos.contains { $0.source == .camera }
 
         var coordinate: CLLocationCoordinate2D?
-        if hasCameraPhoto {
-            coordinate = await LocationService.currentLocation()
-        } else {
-            for photo in photos {
-                let metadata = PhotoMetadata.extract(from: photo.originalData ?? photo.displayData)
-                if coordinate == nil { coordinate = metadata.location }
-            }
+        for photo in photos {
+            let metadata = PhotoMetadata.extract(from: photo.originalData)
+            if coordinate == nil { coordinate = metadata.location }
         }
 
         var extracted: [AIExtractedPlace] = []

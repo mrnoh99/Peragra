@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Modal } from "./Modal";
 import { InstagramEmbed } from "./InstagramEmbed";
-import { getCurrentLocation } from "../lib/currentLocation";
 import { readPhotoExif } from "../lib/photoExif";
 import { geocodePlace } from "../lib/geocode";
 import { isInstagramPostUrl, normalizeInstagramUrl } from "../lib/instagram";
@@ -50,12 +49,6 @@ const MAX_SCREENSHOTS = 10;
 interface OnSitePhoto {
   id: string;
   file: File;
-  // "camera": just taken with Take Photo Here — the live GPS fix and the
-  // moment it's logged are trustworthy. "upload": picked from the file
-  // system/library, possibly taken elsewhere or long ago — its own EXIF
-  // GPS/timestamp (if any) is used instead of the device's current
-  // location and time.
-  source: "camera" | "upload";
 }
 
 function makeRow(partial?: Partial<CandidateRow>): CandidateRow {
@@ -102,7 +95,6 @@ export function AddPlaceModal({
   const [isCapturingOnSite, setIsCapturingOnSite] = useState(false);
   const [onSitePhotos, setOnSitePhotos] = useState<OnSitePhoto[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const uploadPhotosInputRef = useRef<HTMLInputElement>(null);
 
   const instagramUrl = isInstagramPostUrl(instagramInput)
@@ -242,21 +234,11 @@ export function AddPlaceModal({
     }
   }
 
-  function handleCameraChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
-    if (!file) return;
-    setOnSitePhotos((prev) => [...prev, { id: crypto.randomUUID(), file, source: "camera" }]);
-  }
-
   function handleUploadPhotosChange(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files ?? []);
     if (uploadPhotosInputRef.current) uploadPhotosInputRef.current.value = "";
     if (picked.length === 0) return;
-    setOnSitePhotos((prev) => [
-      ...prev,
-      ...picked.map((file) => ({ id: crypto.randomUUID(), file, source: "upload" as const })),
-    ]);
+    setOnSitePhotos((prev) => [...prev, ...picked.map((file) => ({ id: crypto.randomUUID(), file }))]);
   }
 
   function removeOnSitePhoto(id: string) {
@@ -264,22 +246,16 @@ export function AddPlaceModal({
   }
 
   /**
-   * The "Log This Place" flow: kick off an AI extraction over all
-   * accumulated on-site photos in one request (so the model can
-   * cross-reference them — e.g. a storefront sign for the name, a menu
-   * photo for prices — into one consolidated result), then replace the
-   * candidate rows with whatever AI found (or one blank row to fill in by
-   * hand if there's no AI key configured) — all tagged with a
-   * coordinate/time so geocodeAndStore and handleSubmit use them directly
-   * instead of geocoding an address.
-   *
-   * Where that coordinate/time comes from depends on the batch: if it
-   * includes any live "Take Photo Here" shot, a fresh GPS fix and the
-   * current moment are used (as trustworthy as a photo taken here, right
-   * now, can be). If every photo was uploaded instead, those weren't
-   * necessarily taken here or now — so each photo's own EXIF GPS/timestamp
-   * is read back out instead, using the first location and earliest time
-   * found across the batch.
+   * The "Log This Place" flow: read each accumulated photo's own EXIF
+   * GPS/timestamp (using the first location and earliest time found across
+   * the batch — a photo may lack either), then kick off an AI extraction
+   * over all the photos in one request (so the model can cross-reference
+   * them — e.g. a storefront sign for the name, a menu photo for prices —
+   * into one consolidated result), then replace the candidate rows with
+   * whatever AI found (or one blank row to fill in by hand if there's no
+   * AI key configured) — all tagged with a coordinate/time so
+   * geocodeAndStore and handleSubmit use them directly instead of
+   * geocoding an address.
    */
   async function captureOnSitePlace() {
     if (onSitePhotos.length === 0) return;
@@ -289,20 +265,14 @@ export function AddPlaceModal({
 
     const photos = onSitePhotos;
     setOnSitePhotos([]);
-    const hasCameraPhoto = photos.some((p) => p.source === "camera");
 
     let location: { lat: number; lng: number } | null = null;
     let capturedAt: number | null = null;
-    if (hasCameraPhoto) {
-      capturedAt = Date.now();
-      location = await getCurrentLocation();
-    } else {
-      for (const photo of photos) {
-        const exif = await readPhotoExif(photo.file);
-        if (!location && exif.location) location = exif.location;
-        if (exif.capturedAt !== null && (capturedAt === null || exif.capturedAt < capturedAt)) {
-          capturedAt = exif.capturedAt;
-        }
+    for (const photo of photos) {
+      const exif = await readPhotoExif(photo.file);
+      if (!location && exif.location) location = exif.location;
+      if (exif.capturedAt !== null && (capturedAt === null || exif.capturedAt < capturedAt)) {
+        capturedAt = exif.capturedAt;
       }
     }
 
@@ -347,22 +317,12 @@ export function AddPlaceModal({
     if (extractionFailureMessage) {
       setExtractError(extractionFailureMessage);
     } else if (!location) {
-      setExtractError(
-        hasCameraPhoto
-          ? "Couldn't get your current location — allow location access in your browser, or add an address below."
-          : "Couldn't find location info in those photos — add an address below, or upload a photo that has it.",
-      );
+      setExtractError("Couldn't find location info in those photos — add an address below, or upload a photo that has it.");
     } else if (extracted.length === 0) {
-      setExtractResultMessage(
-        hasCameraPhoto
-          ? "📍 Captured your current location — fill in the place details below."
-          : "📍 Read the location from your photos — fill in the place details below.",
-      );
+      setExtractResultMessage("📍 Read the location from your photos — fill in the place details below.");
     } else {
       setExtractResultMessage(
-        hasCameraPhoto
-          ? `📍 Captured your current location and found ${extracted.length} place${extracted.length === 1 ? "" : "s"} — review below before saving.`
-          : `📍 Read the location from your photos and found ${extracted.length} place${extracted.length === 1 ? "" : "s"} — review below before saving.`,
+        `📍 Read the location from your photos and found ${extracted.length} place${extracted.length === 1 ? "" : "s"} — review below before saving.`,
       );
     }
 
@@ -460,13 +420,11 @@ export function AddPlaceModal({
           </label>
           <p className="mb-2 text-xs text-neutral-400">
             Attach up to {MAX_SCREENSHOTS} screenshots of a post and let AI read and organize them
-            completely. Or, for a place you want to log with its own location: take one or more
-            photos right now (a sign, a menu, ...), or upload photos you already took earlier — tap
-            Log This Place and AI cross-references them all into one result. Location and time come
-            from live GPS for a fresh photo, or from the uploaded photo's own data for one taken
-            earlier (requires an AI extraction API key in Settings; on-device text recognition
-            struggles with stylized graphics, so this app doesn't try to guess at photo text
-            itself).
+            completely. Or, for a place you want to log with its own location: upload one or more
+            photos of it (a sign, a menu, ...) and tap Log This Place — AI cross-references them
+            all into one result, and its location and time come from the photos' own data
+            (requires an AI extraction API key in Settings; on-device text recognition struggles
+            with stylized graphics, so this app doesn't try to guess at photo text itself).
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input
@@ -487,27 +445,6 @@ export function AddPlaceModal({
               </label>
             )}
             <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleCameraChange}
-              className="hidden"
-              id="on-site-camera-input"
-            />
-            <label
-              htmlFor="on-site-camera-input"
-              className={`cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 ${
-                isCapturingOnSite ? "pointer-events-none opacity-40" : ""
-              }`}
-            >
-              {isCapturingOnSite
-                ? "Reading photos…"
-                : onSitePhotos.some((p) => p.source === "camera")
-                  ? "📍 Add another photo"
-                  : "📍 Take photo here"}
-            </label>
-            <input
               ref={uploadPhotosInputRef}
               type="file"
               accept="image/*"
@@ -522,14 +459,18 @@ export function AddPlaceModal({
                 isCapturingOnSite ? "pointer-events-none opacity-40" : ""
               }`}
             >
-              {onSitePhotos.some((p) => p.source === "upload") ? "📌 Add More On-Site Photos" : "📌 Upload On-Site Photos"}
+              {isCapturingOnSite
+                ? "Reading photos…"
+                : onSitePhotos.length === 0
+                  ? "📌 Upload On-Site Photos"
+                  : "📌 Add More On-Site Photos"}
             </label>
             {onSitePhotos.map((photo, i) => (
               <span
                 key={photo.id}
                 className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-600"
               >
-                {photo.source === "camera" ? `📍 On-site photo ${i + 1}` : `📌 Uploaded photo ${i + 1}`}
+                {`📌 On-site photo ${i + 1}`}
                 <button
                   type="button"
                   onClick={() => removeOnSitePhoto(photo.id)}

@@ -35,9 +35,7 @@
 		F7974463AE67093D8AF2EDC8 /* KMLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9559465AB5ABEDDDE992B896 /* KMLService.swift */; };
 		73C14CCED1F50796BA176AA6 /* GoogleMapsOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CA141563EA6082C6D8EA1F /* GoogleMapsOpener.swift */; };
 		C2C9BD7BCF298521D33647B6 /* PlaceFilterBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB583D3A90CE85D33F3818BB /* PlaceFilterBar.swift */; };
-		0CCE2204017F3E76E0637CCD /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A33B1A4F2AEF95CDEDE5760 /* LocationService.swift */; };
 		4C81FABB20A2E8C839CCF11D /* PhotoMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */; };
-		C2E1CE43DE241640516C97C7 /* CameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 853E08D8F5B969C6DE22F73C /* CameraCaptureView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -70,9 +68,7 @@
 		EBA04DC7BF07B250AF95A74F /* PlaceRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceRowView.swift; path = Peragra/Views/Places/PlaceRowView.swift; sourceTree = "<group>"; };
 		33CA141563EA6082C6D8EA1F /* GoogleMapsOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoogleMapsOpener.swift; path = Peragra/Services/GoogleMapsOpener.swift; sourceTree = "<group>"; };
 		EB583D3A90CE85D33F3818BB /* PlaceFilterBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceFilterBar.swift; path = Peragra/Views/Places/PlaceFilterBar.swift; sourceTree = "<group>"; };
-		4A33B1A4F2AEF95CDEDE5760 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LocationService.swift; path = Peragra/Services/LocationService.swift; sourceTree = "<group>"; };
 		B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PhotoMetadata.swift; path = Peragra/Services/PhotoMetadata.swift; sourceTree = "<group>"; };
-		853E08D8F5B969C6DE22F73C /* CameraCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraCaptureView.swift; path = Peragra/Views/Places/CameraCaptureView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -94,7 +90,6 @@
 				C1AB455D80578B776DC3D4A3 /* GoogleGeocodingService.swift */,
 				9559465AB5ABEDDDE992B896 /* KMLService.swift */,
 				33CA141563EA6082C6D8EA1F /* GoogleMapsOpener.swift */,
-				4A33B1A4F2AEF95CDEDE5760 /* LocationService.swift */,
 				B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */,
 			);
 			name = Services;
@@ -111,7 +106,6 @@
 				7C264C7A93EFFFAD7D5CB188 /* EditPlaceSheet.swift */,
 				B7ED4E179AD24B6F86E577A6 /* GoogleMapWebView.swift */,
 				EB583D3A90CE85D33F3818BB /* PlaceFilterBar.swift */,
-				853E08D8F5B969C6DE22F73C /* CameraCaptureView.swift */,
 			);
 			name = Places;
 			sourceTree = "<group>";
@@ -272,9 +266,7 @@
 				51C64D7BB7E7C26F899DDC50 /* GatewayModels.swift in Sources */,
 				73C14CCED1F50796BA176AA6 /* GoogleMapsOpener.swift in Sources */,
 				C2C9BD7BCF298521D33647B6 /* PlaceFilterBar.swift in Sources */,
-				0CCE2204017F3E76E0637CCD /* LocationService.swift in Sources */,
 				4C81FABB20A2E8C839CCF11D /* PhotoMetadata.swift in Sources */,
-				C2E1CE43DE241640516C97C7 /* CameraCaptureView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -312,8 +304,6 @@
 				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Peragra;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Peragra uses your camera to take a photo of the place you're visiting, so AI can read its name and details.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Peragra uses your location to tag a place with exactly where you took its photo.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -360,8 +350,6 @@
 				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Peragra;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Peragra uses your camera to take a photo of the place you're visiting, so AI can read its name and details.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Peragra uses your location to tag a place with exactly where you took its photo.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
