@@ -7,7 +7,7 @@ import { PlaceFilterBar, type SortMode } from "../components/PlaceFilterBar";
 import { distanceKm } from "../lib/distance";
 import { generateKML } from "../lib/kml";
 import { useStore } from "../store/useStore";
-import { PLACE_CATEGORIES, type Place, type PlaceCategory } from "../types";
+import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory } from "../types";
 
 type Tab = "listing" | "map";
 
@@ -21,25 +21,30 @@ export function TripDetailPage() {
   const addCollection = useStore((s) => s.addCollection);
   const deleteCollection = useStore((s) => s.deleteCollection);
   const ensureVisitedCollection = useStore((s) => s.ensureVisitedCollection);
+  const ensureFavoritesCollection = useStore((s) => s.ensureFavoritesCollection);
 
   const trip = useMemo(() => trips.find((t) => t.id === tripId), [trips, tripId]);
   const places = useMemo(
     () => allPlaces.filter((p) => p.tripId === tripId),
     [allPlaces, tripId],
   );
+  // Default lists are pinned ahead of whatever order the user's own
+  // lists were created in — Favorites right after "All places", then
+  // Visited, matching the sidebar's fixed reading order.
+  const defaultListRank = (c: Collection) => (c.isFavoritesList ? 0 : c.isVisitedList ? 1 : 2);
   const collections = useMemo(() => {
     const tripCollections = allCollections.filter((c) => c.tripId === tripId);
-    // Visited is a default list — keep it pinned first, ahead of
-    // whatever order the user's own lists were created in.
-    return [...tripCollections].sort((a, b) => Number(!!b.isVisitedList) - Number(!!a.isVisitedList));
+    return [...tripCollections].sort((a, b) => defaultListRank(a) - defaultListRank(b));
   }, [allCollections, tripId]);
 
-  // Trips created before the Visited-list feature don't have one yet —
-  // back-fill it lazily so it always shows in the sidebar, not just after
-  // the first place gets marked visited.
+  // Trips created before the Visited/Favorites-list feature don't have
+  // them yet — back-fill lazily so they always show in the sidebar, not
+  // just after the first place gets marked visited/favorited.
   useEffect(() => {
-    if (tripId) ensureVisitedCollection(tripId);
-  }, [tripId, ensureVisitedCollection]);
+    if (!tripId) return;
+    ensureVisitedCollection(tripId);
+    ensureFavoritesCollection(tripId);
+  }, [tripId, ensureVisitedCollection, ensureFavoritesCollection]);
 
   const [tab, setTab] = useState<Tab>("listing");
   const [showAddPlace, setShowAddPlace] = useState(false);
@@ -153,6 +158,7 @@ export function TripDetailPage() {
   );
 
   const visitedCount = useMemo(() => places.filter((p) => p.visited).length, [places]);
+  const favoritesCount = useMemo(() => places.filter((p) => p.favorite).length, [places]);
   const locatedCount = useMemo(() => sorted.filter((p) => p.lat !== null).length, [sorted]);
 
   function exportToGoogleMaps() {
@@ -261,13 +267,16 @@ export function TripDetailPage() {
                       : "text-neutral-600 hover:bg-neutral-100"
                   }`}
                 >
-                  {c.isVisitedList ? "✅ " : ""}
+                  {c.isFavoritesList ? "⭐ " : c.isVisitedList ? "✅ " : ""}
                   {c.name}
+                  {c.isFavoritesList && (
+                    <span className="ml-1 text-xs text-neutral-400">({favoritesCount})</span>
+                  )}
                   {c.isVisitedList && (
                     <span className="ml-1 text-xs text-neutral-400">({visitedCount})</span>
                   )}
                 </button>
-                {!c.isVisitedList && (
+                {!c.isVisitedList && !c.isFavoritesList && (
                   <button
                     onClick={() => {
                       if (activeCollectionId === c.id) setActiveCollectionId(null);

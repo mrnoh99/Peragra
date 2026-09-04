@@ -88,7 +88,7 @@ struct PlaceListingView: View {
                         Button {
                             addSelected(to: collection)
                         } label: {
-                            let title = collection.isVisitedList ? "✅ \(collection.name)" : collection.name
+                            let title = collectionLabel(collection)
                             if isOnAllSelected(collection) {
                                 Label(title, systemImage: "checkmark")
                             } else {
@@ -146,7 +146,16 @@ struct PlaceListingView: View {
             if collection.isVisitedList {
                 place.visited = true
             }
+            if collection.isFavoritesList {
+                place.favorite = true
+            }
         }
+    }
+
+    private func collectionLabel(_ collection: PlaceCollection) -> String {
+        if collection.isFavoritesList { return "⭐ \(collection.name)" }
+        if collection.isVisitedList { return "✅ \(collection.name)" }
+        return collection.name
     }
 
     /// Whether every currently-selected place already belongs to this list.

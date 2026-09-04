@@ -28,7 +28,7 @@ struct PlaceRowView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Button {
-                            withAnimation { place.favorite.toggle() }
+                            withAnimation { place.toggleFavorite(context: modelContext) }
                         } label: {
                             Image(systemName: place.favorite ? "star.fill" : "star")
                                 .foregroundStyle(place.favorite ? .yellow : .secondary)
@@ -195,7 +195,7 @@ private struct CollectionPickerSheet: View {
                     toggle(collection)
                 } label: {
                     HStack {
-                        Text(collection.isVisitedList ? "✅ \(collection.name)" : collection.name)
+                        Text(collectionLabel(collection))
                         Spacer()
                         if isMember(collection) {
                             Image(systemName: "checkmark")
@@ -219,16 +219,24 @@ private struct CollectionPickerSheet: View {
         place.collections.contains(where: { $0.id == collection.id })
     }
 
-    // Toggling membership in the Visited list is another way of marking
-    // a place visited/unvisited — keep `visited` in sync so either
-    // control (this picker or the row's own checkmark button) agrees.
+    private func collectionLabel(_ collection: PlaceCollection) -> String {
+        if collection.isFavoritesList { return "⭐ \(collection.name)" }
+        if collection.isVisitedList { return "✅ \(collection.name)" }
+        return collection.name
+    }
+
+    // Toggling membership in the Visited/Favorites list is another way
+    // of marking a place visited/favorite — keep those flags in sync so
+    // either control (this picker or the row's own buttons) agrees.
     private func toggle(_ collection: PlaceCollection) {
         if isMember(collection) {
             place.collections.removeAll { $0.id == collection.id }
             if collection.isVisitedList { place.visited = false }
+            if collection.isFavoritesList { place.favorite = false }
         } else {
             place.collections.append(collection)
             if collection.isVisitedList { place.visited = true }
+            if collection.isFavoritesList { place.favorite = true }
         }
     }
 }

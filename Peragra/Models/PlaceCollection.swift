@@ -15,16 +15,20 @@ final class PlaceCollection {
     // just set in init()) so SwiftData's lightweight migration can
     // backfill it on existing rows — same reason Place.favorite has one.
     var isVisitedList: Bool = false
+    // Same idea as isVisitedList, kept in sync with each place's
+    // `favorite` flag instead.
+    var isFavoritesList: Bool = false
 
     var trip: Trip?
     var places: [Place] = []
 
-    init(name: String, trip: Trip?, isVisitedList: Bool = false) {
+    init(name: String, trip: Trip?, isVisitedList: Bool = false, isFavoritesList: Bool = false) {
         self.id = UUID()
         self.name = name
         self.createdAt = .now
         self.trip = trip
         self.isVisitedList = isVisitedList
+        self.isFavoritesList = isFavoritesList
     }
 
     /// Finds the trip's auto-created "Visited" list, creating (and
@@ -34,6 +38,16 @@ final class PlaceCollection {
             return existing
         }
         let collection = PlaceCollection(name: "Visited", trip: trip, isVisitedList: true)
+        context.insert(collection)
+        return collection
+    }
+
+    /// Same as ensureVisitedList, for the auto-created "Favorites" list.
+    static func ensureFavoritesList(for trip: Trip, context: ModelContext) -> PlaceCollection {
+        if let existing = trip.collections.first(where: { $0.isFavoritesList }) {
+            return existing
+        }
+        let collection = PlaceCollection(name: "Favorites", trip: trip, isFavoritesList: true)
         context.insert(collection)
         return collection
     }

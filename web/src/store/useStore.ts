@@ -50,6 +50,8 @@ interface AppState {
   /** Finds the trip's auto-created "Visited" list, creating it if this
    *  trip predates the feature. */
   ensureVisitedCollection: (tripId: string) => Collection;
+  /** Same as ensureVisitedCollection, for the auto-created "Favorites" list. */
+  ensureFavoritesCollection: (tripId: string) => Collection;
 }
 
 export const useStore = create<AppState>()(
@@ -69,6 +71,13 @@ export const useStore = create<AppState>()(
           endDate: input.endDate,
           createdAt: Date.now(),
         };
+        const favoritesCollection: Collection = {
+          id: makeId(),
+          tripId: trip.id,
+          name: "Favorites",
+          isFavoritesList: true,
+          createdAt: Date.now(),
+        };
         const visitedCollection: Collection = {
           id: makeId(),
           tripId: trip.id,
@@ -78,7 +87,7 @@ export const useStore = create<AppState>()(
         };
         set((state) => ({
           trips: [trip, ...state.trips],
-          collections: [...state.collections, visitedCollection],
+          collections: [...state.collections, favoritesCollection, visitedCollection],
         }));
         return trip;
       },
@@ -157,10 +166,20 @@ export const useStore = create<AppState>()(
       },
 
       toggleFavorite: (placeId) => {
+        const place = get().places.find((p) => p.id === placeId);
+        if (!place) return;
+        const willBeFavorite = !place.favorite;
+        const favoritesCollection = get().ensureFavoritesCollection(place.tripId);
         set((state) => ({
-          places: state.places.map((p) =>
-            p.id === placeId ? { ...p, favorite: !p.favorite } : p,
-          ),
+          places: state.places.map((p) => {
+            if (p.id !== placeId) return p;
+            const collectionIds = willBeFavorite
+              ? p.collectionIds.includes(favoritesCollection.id)
+                ? p.collectionIds
+                : [...p.collectionIds, favoritesCollection.id]
+              : p.collectionIds.filter((id) => id !== favoritesCollection.id);
+            return { ...p, favorite: willBeFavorite, collectionIds };
+          }),
         }));
       },
 
@@ -176,10 +195,11 @@ export const useStore = create<AppState>()(
       },
 
       deleteCollection: (collectionId) => {
-        // The auto-created Visited list isn't user-deletable — the UI
-        // never shows a delete control for it, but guard here too.
+        // The auto-created Visited/Favorites lists aren't user-deletable
+        // — the UI never shows a delete control for them, but guard here
+        // too.
         const collection = get().collections.find((c) => c.id === collectionId);
-        if (collection?.isVisitedList) return;
+        if (collection?.isVisitedList || collection?.isFavoritesList) return;
         set((state) => ({
           collections: state.collections.filter((c) => c.id !== collectionId),
           places: state.places.map((p) => ({
@@ -190,9 +210,10 @@ export const useStore = create<AppState>()(
       },
 
       togglePlaceCollection: (placeId, collectionId) => {
-        // Toggling membership in the Visited list is another way of
-        // marking a place visited/unvisited — keep `visited` in sync so
-        // either control (the checkbox or this list) works the same.
+        // Toggling membership in the Visited/Favorites list is another
+        // way of marking a place visited/favorite — keep those flags in
+        // sync so either control (the checkbox/star or this list) works
+        // the same.
         const collection = get().collections.find((c) => c.id === collectionId);
         set((state) => ({
           places: state.places.map((p) => {
@@ -204,6 +225,7 @@ export const useStore = create<AppState>()(
                 ? p.collectionIds.filter((id) => id !== collectionId)
                 : [...p.collectionIds, collectionId],
               visited: collection?.isVisitedList ? !has : p.visited,
+              favorite: collection?.isFavoritesList ? !has : p.favorite,
             };
           }),
         }));
@@ -213,8 +235,8 @@ export const useStore = create<AppState>()(
         // Adds rather than toggles — a bulk selection can mix places
         // already in the list with ones that aren't, and "send to list"
         // should only ever add, never accidentally remove someone who
-        // was already there. Adding to the Visited list also marks
-        // those places visited, same as togglePlaceCollection.
+        // was already there. Adding to the Visited/Favorites list also
+        // sets that flag, same as togglePlaceCollection.
         const idSet = new Set(placeIds);
         const collection = get().collections.find((c) => c.id === collectionId);
         set((state) => ({
@@ -224,6 +246,7 @@ export const useStore = create<AppState>()(
               ...p,
               collectionIds: [...p.collectionIds, collectionId],
               visited: collection?.isVisitedList ? true : p.visited,
+              favorite: collection?.isFavoritesList ? true : p.favorite,
             };
           }),
         }));
@@ -237,6 +260,20 @@ export const useStore = create<AppState>()(
           tripId,
           name: "Visited",
           isVisitedList: true,
+          createdAt: Date.now(),
+        };
+        set((state) => ({ collections: [...state.collections, collection] }));
+        return collection;
+      },
+
+      ensureFavoritesCollection: (tripId) => {
+        const existing = get().collections.find((c) => c.tripId === tripId && c.isFavoritesList);
+        if (existing) return existing;
+        const collection: Collection = {
+          id: makeId(),
+          tripId,
+          name: "Favorites",
+          isFavoritesList: true,
           createdAt: Date.now(),
         };
         set((state) => ({ collections: [...state.collections, collection] }));

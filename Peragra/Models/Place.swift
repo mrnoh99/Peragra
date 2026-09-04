@@ -90,4 +90,19 @@ final class Place {
             collections.removeAll { $0.id == visitedList.id }
         }
     }
+
+    /// Same as toggleVisited, for `favorite` and the default "Favorites" list.
+    func toggleFavorite(context: ModelContext) {
+        let willBeFavorite = !favorite
+        favorite = willBeFavorite
+        guard let trip else { return }
+        let favoritesList = PlaceCollection.ensureFavoritesList(for: trip, context: context)
+        if willBeFavorite {
+            if !collections.contains(where: { $0.id == favoritesList.id }) {
+                collections.append(favoritesList)
+            }
+        } else {
+            collections.removeAll { $0.id == favoritesList.id }
+        }
+    }
 }

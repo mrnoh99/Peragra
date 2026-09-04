@@ -50,6 +50,9 @@ export interface Collection {
   // gets — kept in sync with each place's `visited` flag in both
   // directions, rather than a regular user-managed list.
   isVisitedList?: boolean;
+  // Same idea as isVisitedList, kept in sync with each place's `favorite`
+  // flag instead.
+  isFavoritesList?: boolean;
   createdAt: number;
 }
 

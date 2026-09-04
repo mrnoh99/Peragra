@@ -38,10 +38,17 @@ struct TripDetailView: View {
         _places = Query(filter: #Predicate<Place> { $0.trip?.id == tripID })
     }
 
-    // Visited is a default list — keep it pinned first, ahead of whatever
-    // order the user's own lists were created in.
+    // Default lists are pinned ahead of whatever order the user's own
+    // lists were created in — Favorites right after "All places", then
+    // Visited, matching the sidebar chip bar's fixed reading order.
+    private func defaultListRank(_ collection: PlaceCollection) -> Int {
+        if collection.isFavoritesList { return 0 }
+        if collection.isVisitedList { return 1 }
+        return 2
+    }
+
     private var collections: [PlaceCollection] {
-        trip.collections.sorted { $0.isVisitedList && !$1.isVisitedList }
+        trip.collections.sorted { defaultListRank($0) < defaultListRank($1) }
     }
 
     private var visiblePlaces: [Place] {
@@ -215,10 +222,11 @@ struct TripDetailView: View {
             Button("Cancel", role: .cancel) { newListName = "" }
         }
         .onAppear {
-            // Trips created before the Visited-list feature don't have
-            // one yet — back-fill it lazily so it always shows in the
-            // list chips, not just after the first place gets marked
-            // visited.
+            // Trips created before the Visited/Favorites-list feature
+            // don't have them yet — back-fill lazily so they always show
+            // in the chip bar, not just after the first place gets
+            // marked visited/favorited.
+            _ = PlaceCollection.ensureFavoritesList(for: trip, context: modelContext)
             _ = PlaceCollection.ensureVisitedList(for: trip, context: modelContext)
             refreshExportState()
         }
@@ -249,9 +257,7 @@ struct TripDetailView: View {
                 chip(title: "All places", isSelected: activeCollection == nil) { activeCollection = nil }
                 ForEach(collections) { collection in
                     chip(
-                        title: collection.isVisitedList
-                            ? "✅ \(collection.name) (\(places.filter(\.visited).count))"
-                            : collection.name,
+                        title: chipTitle(for: collection),
                         isSelected: activeCollection?.id == collection.id
                     ) {
                         activeCollection = (activeCollection?.id == collection.id) ? nil : collection
@@ -261,6 +267,16 @@ struct TripDetailView: View {
             .padding(.horizontal)
             .padding(.top, 8)
         }
+    }
+
+    private func chipTitle(for collection: PlaceCollection) -> String {
+        if collection.isFavoritesList {
+            return "⭐ \(collection.name) (\(places.filter(\.favorite).count))"
+        }
+        if collection.isVisitedList {
+            return "✅ \(collection.name) (\(places.filter(\.visited).count))"
+        }
+        return collection.name
     }
 
     private func exportToGoogleMaps() {
