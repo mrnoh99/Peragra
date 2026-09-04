@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Modal } from "./Modal";
 import { InstagramEmbed } from "./InstagramEmbed";
+import { getCurrentLocation } from "../lib/currentLocation";
 import { geocodePlace } from "../lib/geocode";
 import { isInstagramPostUrl, normalizeInstagramUrl } from "../lib/instagram";
 import {
@@ -27,6 +28,17 @@ interface CandidateRow {
   // form's own manual Notes field at save time, not a replacement for it.
   notes: string;
   category: PlaceCategory;
+  // Set when this row came from a "Take Photo Here" on-site capture
+  // rather than AI-extracted address text — geocodeAndStore uses these
+  // directly instead of geocoding, since a live GPS fix is more
+  // trustworthy than any address string.
+  manualLat?: number;
+  manualLng?: number;
+  // The moment the on-site photo was actually taken, if this row came
+  // from that flow — used as the saved place's createdAt instead of
+  // whenever Save happens to be clicked, in case reviewing the row (or
+  // waiting on AI extraction) took a while.
+  capturedAt?: number;
 }
 
 /** Reading more screenshots than this in one AI pass gets slow and costly
@@ -58,6 +70,7 @@ export function AddPlaceModal({
   onClose: () => void;
 }) {
   const addPlace = useStore((s) => s.addPlace);
+  const updatePlace = useStore((s) => s.updatePlace);
   const setPlaceCoords = useStore((s) => s.setPlaceCoords);
   const apiKey = useAISettingsStore(selectActiveApiKey);
 
@@ -73,7 +86,9 @@ export function AddPlaceModal({
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extractResultMessage, setExtractResultMessage] = useState<string | null>(null);
   const [isGuessingAddresses, setIsGuessingAddresses] = useState(false);
+  const [isCapturingOnSite, setIsCapturingOnSite] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const instagramUrl = isInstagramPostUrl(instagramInput)
     ? normalizeInstagramUrl(instagramInput)
@@ -212,6 +227,82 @@ export function AddPlaceModal({
     }
   }
 
+  function handleCameraChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (!file) return;
+    void captureOnSitePlace(file);
+  }
+
+  /**
+   * The "Take Photo Here" flow: record the moment right away, kick off a
+   * GPS fix and AI extraction on the photo in parallel, then replace the
+   * candidate rows with whatever AI found (or one blank row to fill in by
+   * hand if there's no AI key configured) — all tagged with the captured
+   * coordinate/time so geocodeAndStore and handleSubmit use them directly
+   * instead of geocoding an address.
+   */
+  async function captureOnSitePlace(file: File) {
+    setIsCapturingOnSite(true);
+    setExtractError(null);
+    setExtractResultMessage(null);
+
+    const capturedAt = Date.now();
+    const locationPromise = getCurrentLocation();
+
+    let extracted: AIExtractedPlace[] = [];
+    let extractionFailureMessage: string | null = null;
+    if (apiKey) {
+      try {
+        const mediaType = file.type;
+        if (!isSupportedImageMediaType(mediaType)) {
+          throw new AIExtractionError("That image format isn't supported — try a JPEG or PNG.");
+        }
+        const base64 = await fileToBase64(file);
+        extracted = await extractPlacesFromImage(base64, mediaType);
+      } catch (error) {
+        extractionFailureMessage =
+          error instanceof AIExtractionError
+            ? error.message
+            : "AI extraction failed — add the place details manually below.";
+      }
+    }
+
+    const location = await locationPromise;
+
+    const newRows: CandidateRow[] =
+      extracted.length === 0
+        ? [makeRow({ manualLat: location?.lat, manualLng: location?.lng, capturedAt })]
+        : extracted.map((p) =>
+            makeRow({
+              name: p.name ?? "",
+              address: p.address ?? "",
+              phone: p.telephone ?? "",
+              notes: p.notes ?? "",
+              manualLat: location?.lat,
+              manualLng: location?.lng,
+              capturedAt,
+            }),
+          );
+    setRows(newRows);
+
+    if (extractionFailureMessage) {
+      setExtractError(extractionFailureMessage);
+    } else if (!location) {
+      setExtractError(
+        "Couldn't get your current location — allow location access in your browser, or add an address below.",
+      );
+    } else if (extracted.length === 0) {
+      setExtractResultMessage("📍 Captured your current location — fill in the place details below.");
+    } else {
+      setExtractResultMessage(
+        `📍 Captured your current location and found ${extracted.length} place${extracted.length === 1 ? "" : "s"} — review below before saving.`,
+      );
+    }
+
+    setIsCapturingOnSite(false);
+  }
+
   /**
    * Geocodes a row's own address/name; if that fails and an AI API key is
    * configured, falls back to asking AI for its best guess at the nearest
@@ -220,8 +311,17 @@ export function AddPlaceModal({
    * rather than "located" so the UI can flag it as approximate. Only
    * "failed" once both the real geocode and the AI estimate come up
    * empty (or there's no API key to try the estimate with at all).
+   *
+   * A row from "Take Photo Here" already has a real GPS fix, which is
+   * more trustworthy than geocoding any address text, so that's used
+   * directly instead — skipping geocoding entirely.
    */
   async function geocodeAndStore(placeId: string, row: CandidateRow) {
+    if (row.manualLat !== undefined && row.manualLng !== undefined) {
+      setPlaceCoords(placeId, { lat: row.manualLat, lng: row.manualLng }, "located");
+      return;
+    }
+
     const query = row.address.trim() || row.name.trim();
     try {
       const result = await geocodePlace(query, destination);
@@ -274,6 +374,9 @@ export function AddPlaceModal({
         instagramUrl,
         collectionIds: defaultCollectionId ? [defaultCollectionId] : [],
       });
+      if (row.capturedAt !== undefined) {
+        updatePlace(place.id, { createdAt: row.capturedAt });
+      }
 
       await geocodeAndStore(place.id, row);
     }
@@ -287,12 +390,14 @@ export function AddPlaceModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="rounded-lg border border-dashed border-neutral-300 p-3">
           <label className="mb-1 block text-sm font-medium text-neutral-700">
-            Screenshots
+            Photos
           </label>
           <p className="mb-2 text-xs text-neutral-400">
             Attach up to {MAX_SCREENSHOTS} screenshots of a post and let AI read and organize them
-            completely (requires an AI extraction API key in Settings; on-device text recognition
-            struggles with stylized graphics, so this app doesn't try to guess at photo text itself).
+            completely, or take a photo of the place you're at right now — its location and the
+            time are captured automatically (requires an AI extraction API key in Settings;
+            on-device text recognition struggles with stylized graphics, so this app doesn't try to
+            guess at photo text itself).
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input
@@ -312,6 +417,23 @@ export function AddPlaceModal({
                 📷 {screenshotFiles.length === 0 ? "Upload screenshots" : "Add another screenshot"}
               </label>
             )}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleCameraChange}
+              className="hidden"
+              id="on-site-camera-input"
+            />
+            <label
+              htmlFor="on-site-camera-input"
+              className={`cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 ${
+                isCapturingOnSite ? "pointer-events-none opacity-40" : ""
+              }`}
+            >
+              {isCapturingOnSite ? "Reading photo…" : "📍 Take photo here"}
+            </label>
             {screenshotFiles.map((file, i) => (
               <span
                 key={`${file.name}-${i}`}
@@ -452,6 +574,9 @@ export function AddPlaceModal({
                       placeholder="Other details (hours, menu, why recommended, ...)"
                       className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm text-neutral-600 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
+                    {row.manualLat !== undefined && (
+                      <p className="text-xs text-neutral-400">📍 Using your current location</p>
+                    )}
                   </div>
                   <button
                     type="button"

@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import UIKit
+import CoreLocation
 
 private struct CandidateRow: Identifiable {
     let id = UUID()
@@ -14,6 +15,17 @@ private struct CandidateRow: Identifiable {
     // form's own manual notes field at save time, not a replacement for it.
     var notes = ""
     var category: PlaceCategory = .restaurant
+    // Set when this row came from a "Take Photo Here" on-site capture
+    // rather than AI-extracted address text — geocodeAndStore uses these
+    // directly instead of geocoding, since a live GPS fix is more
+    // trustworthy than any address string.
+    var manualLatitude: Double?
+    var manualLongitude: Double?
+    // The moment the on-site photo was actually taken, if this row came
+    // from that flow — used as the saved place's createdAt instead of
+    // whenever Save happens to be tapped, in case reviewing the row
+    // (or waiting on AI extraction) took a while.
+    var capturedAt: Date?
 }
 
 struct AddPlaceSheet: View {
@@ -50,6 +62,9 @@ struct AddPlaceSheet: View {
     @State private var extractResultMessage: String?
     @State private var isGuessingAddresses = false
 
+    @State private var showingCamera = false
+    @State private var isCapturingOnSite = false
+
     // Computed, not stored — a private *stored* property forces Swift's
     // synthesized memberwise init to become private too, which broke
     // AddPlaceSheet(trip:defaultCollection:) calls from other files.
@@ -80,11 +95,24 @@ struct AddPlaceSheet: View {
                             } else {
                                 Label(
                                     screenshotDatas.isEmpty ? "Attach screenshots" : "Add another screenshot",
-                                    systemImage: "camera"
+                                    systemImage: "photo.on.rectangle"
                                 )
                             }
                         }
                         .disabled(isLoadingScreenshot)
+                    }
+
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button {
+                            showingCamera = true
+                        } label: {
+                            if isCapturingOnSite {
+                                ProgressView()
+                            } else {
+                                Label("Take Photo Here", systemImage: "camera.fill")
+                            }
+                        }
+                        .disabled(isCapturingOnSite)
                     }
 
                     ForEach(Array(screenshotDatas.enumerated()), id: \.offset) { index, data in
@@ -136,9 +164,9 @@ struct AddPlaceSheet: View {
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("Screenshots")
+                    Text("Photos")
                 } footer: {
-                    Text("Attach up to \(Self.maxScreenshots) screenshots of a post and let AI read and organize them completely.")
+                    Text("Attach up to \(Self.maxScreenshots) screenshots of a post and let AI read and organize them completely, or take a photo of the place you're at right now — its location and the time are captured automatically.")
                 }
 
                 if extractErrorMessage != nil || extractResultMessage != nil || isGuessingAddresses {
@@ -236,6 +264,10 @@ struct AddPlaceSheet: View {
                     screenshotItems = []
                 }
             }
+            .fullScreenCover(isPresented: $showingCamera) {
+                CameraCaptureView(onCapture: handleCameraCapture)
+                    .ignoresSafeArea()
+            }
         }
     }
 
@@ -268,6 +300,11 @@ struct AddPlaceSheet: View {
                 TextField("Other details (hours, menu, why recommended, ...)", text: row.notes)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                if row.wrappedValue.manualLatitude != nil {
+                    Label("Using your current location", systemImage: "location.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -377,6 +414,65 @@ struct AddPlaceSheet: View {
         }
     }
 
+    private func handleCameraCapture(_ data: Data?) {
+        showingCamera = false
+        guard let data else { return }
+        Task { await captureOnSitePlace(imageData: data) }
+    }
+
+    /// The "Take Photo Here" flow: record the moment right away, kick off
+    /// a GPS fix and AI extraction on the photo in parallel, then replace
+    /// the candidate rows with whatever AI found (or one blank row to
+    /// fill in by hand if there's no AI key configured) — all tagged with
+    /// the captured coordinate/time so geocodeAndStore and save() use
+    /// them directly instead of geocoding an address.
+    private func captureOnSitePlace(imageData: Data) async {
+        isCapturingOnSite = true
+        extractErrorMessage = nil
+        extractResultMessage = nil
+        defer { isCapturingOnSite = false }
+
+        let capturedAt = Date()
+        async let coordinateTask = LocationService.currentLocation()
+
+        var extracted: [AIExtractedPlace] = []
+        var extractionFailureMessage: String?
+        if aiSettings.activeAPIKey != nil {
+            do {
+                extracted = try await AIExtractionService.extractPlaces(imageData: imageData, mediaType: "image/jpeg")
+            } catch {
+                extractionFailureMessage = (error as? LocalizedError)?.errorDescription ?? "AI extraction failed — add the place details manually below."
+            }
+        }
+
+        let coordinate = await coordinateTask
+
+        rows = extracted.isEmpty
+            ? [CandidateRow(manualLatitude: coordinate?.latitude, manualLongitude: coordinate?.longitude, capturedAt: capturedAt)]
+            : extracted.map { place in
+                CandidateRow(
+                    name: place.name,
+                    address: place.address ?? "",
+                    phone: place.telephone ?? "",
+                    notes: place.notes ?? "",
+                    manualLatitude: coordinate?.latitude,
+                    manualLongitude: coordinate?.longitude,
+                    capturedAt: capturedAt
+                )
+            }
+
+        if let extractionFailureMessage {
+            extractErrorMessage = extractionFailureMessage
+        } else if coordinate == nil {
+            extractErrorMessage = "Couldn't get your current location — enable Location Services to tag this place automatically, or add an address below."
+        } else if extracted.isEmpty {
+            extractResultMessage = "📍 Captured your current location — fill in the place details below."
+        } else {
+            let placeWord = extracted.count == 1 ? "place" : "places"
+            extractResultMessage = "📍 Captured your current location and found \(extracted.count) \(placeWord) — review below before saving."
+        }
+    }
+
     private func loadScreenshots(_ items: [PhotosPickerItem]) async {
         isLoadingScreenshot = true
         extractErrorMessage = nil
@@ -420,6 +516,9 @@ struct AddPlaceSheet: View {
                 trip: trip
             )
             modelContext.insert(place)
+            if let capturedAt = row.capturedAt {
+                place.createdAt = capturedAt
+            }
             if let defaultCollection {
                 place.collections.append(defaultCollection)
             }
@@ -445,7 +544,18 @@ struct AddPlaceSheet: View {
     /// `.estimated` rather than `.located` so the UI can flag it as
     /// approximate. Only `.failed` once both the real geocode and the AI
     /// estimate come up empty (or there's no API key to try at all).
+    ///
+    /// A row from "Take Photo Here" already has a real GPS fix, which is
+    /// more trustworthy than geocoding any address text, so that's used
+    /// directly instead — skipping geocoding entirely.
     private func geocodeAndStore(_ place: Place, row: CandidateRow) async {
+        if let latitude = row.manualLatitude, let longitude = row.manualLongitude {
+            place.latitude = latitude
+            place.longitude = longitude
+            place.geocodeStatus = .located
+            return
+        }
+
         let trimmedAddress = row.address.trimmingCharacters(in: .whitespaces)
         let trimmedName = row.name.trimmingCharacters(in: .whitespaces)
         let query = trimmedAddress.isEmpty ? trimmedName : trimmedAddress
