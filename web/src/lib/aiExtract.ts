@@ -144,7 +144,7 @@ function parseJsonContent(content: string | null | undefined): unknown {
 interface ChatContent {
   systemPrompt: string;
   text: string;
-  image?: { mediaType: ImageMediaType; base64: string };
+  images?: { mediaType: ImageMediaType; base64: string }[];
 }
 
 function requireKey(key: string | null, providerLabel: string): string {
@@ -177,13 +177,13 @@ async function callOpenAICompatible(options: {
   serviceLabel: string;
 }): Promise<string | null | undefined> {
   const client = new OpenAI({ apiKey: options.apiKey, baseURL: options.baseURL, dangerouslyAllowBrowser: true });
-  const userContent = options.content.image
+  const userContent = options.content.images?.length
     ? [
         { type: "text" as const, text: options.content.text },
-        {
+        ...options.content.images.map((image) => ({
           type: "image_url" as const,
-          image_url: { url: `data:${options.content.image.mediaType};base64,${options.content.image.base64}` },
-        },
+          image_url: { url: `data:${image.mediaType};base64,${image.base64}` },
+        })),
       ]
     : options.content.text;
   try {
@@ -205,12 +205,12 @@ async function callOpenAICompatible(options: {
 /** Anthropic's own Messages API, called directly from the browser with the user's own key. */
 async function callAnthropic(apiKey: string, model: string, content: ChatContent): Promise<string | null> {
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-  const userContent: Anthropic.MessageParam["content"] = content.image
+  const userContent: Anthropic.MessageParam["content"] = content.images?.length
     ? [
-        {
-          type: "image",
-          source: { type: "base64", media_type: content.image.mediaType, data: content.image.base64 },
-        },
+        ...content.images.map((image) => ({
+          type: "image" as const,
+          source: { type: "base64" as const, media_type: image.mediaType, data: image.base64 },
+        })),
         { type: "text", text: content.text },
       ]
     : content.text;
@@ -242,8 +242,8 @@ async function callAnthropic(apiKey: string, model: string, content: ChatContent
 /** Google's Gemini API, called directly from the browser via its REST endpoint (no bundled SDK here). */
 async function callGemini(apiKey: string, model: string, content: ChatContent): Promise<string | null | undefined> {
   const parts: Record<string, unknown>[] = [{ text: content.text }];
-  if (content.image) {
-    parts.push({ inline_data: { mime_type: content.image.mediaType, data: content.image.base64 } });
+  for (const image of content.images ?? []) {
+    parts.push({ inline_data: { mime_type: image.mediaType, data: image.base64 } });
   }
 
   let response: Response;
@@ -306,7 +306,7 @@ async function callModel(content: ChatContent): Promise<string | null | undefine
     case "gemini":
       return callGemini(requireKey(settings.geminiApiKey, "Gemini"), settings.geminiModel, content);
     case "perplexity":
-      if (content.image) {
+      if (content.images?.length) {
         throw new AIExtractionError(
           "Perplexity doesn't support reading screenshots — switch to a different provider in Settings, or paste the caption text instead.",
         );
@@ -341,11 +341,25 @@ export async function extractPlacesFromImage(
   imageBase64: string,
   mediaType: ImageMediaType,
 ): Promise<AIExtractedPlace[]> {
-  const content = await callModel({
-    systemPrompt: SYSTEM_PROMPT,
-    text: "Extract every place recommended in this screenshot's caption.",
-    image: { mediaType, base64: imageBase64 },
-  });
+  return extractPlacesFromImages([{ mediaType, base64: imageBase64 }]);
+}
+
+/**
+ * Extracts places from one or more photos of the same place in a single AI
+ * request, so the model can cross-reference them (e.g. a storefront sign
+ * for the name, a menu photo for prices/items) into one consolidated
+ * result, rather than merging independent per-photo extractions client-side.
+ */
+export async function extractPlacesFromImages(
+  images: { mediaType: ImageMediaType; base64: string }[],
+): Promise<AIExtractedPlace[]> {
+  const text =
+    images.length > 1
+      ? "These photos all show the same place — extract one consolidated, accurate result for it, " +
+        "cross-referencing all the photos (for example, a storefront sign for the name and a menu " +
+        "photo for prices/items)."
+      : "Extract every place recommended in this screenshot's caption.";
+  const content = await callModel({ systemPrompt: SYSTEM_PROMPT, text, images });
   return parsePlacesResponse(content);
 }
 

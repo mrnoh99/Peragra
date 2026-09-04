@@ -6,6 +6,7 @@ import { geocodePlace } from "../lib/geocode";
 import { isInstagramPostUrl, normalizeInstagramUrl } from "../lib/instagram";
 import {
   extractPlacesFromImage,
+  extractPlacesFromImages,
   fileToBase64,
   guessMissingAddresses,
   guessNearestAddress,
@@ -87,6 +88,7 @@ export function AddPlaceModal({
   const [extractResultMessage, setExtractResultMessage] = useState<string | null>(null);
   const [isGuessingAddresses, setIsGuessingAddresses] = useState(false);
   const [isCapturingOnSite, setIsCapturingOnSite] = useState(false);
+  const [onSitePhotoFiles, setOnSitePhotoFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -231,35 +233,48 @@ export function AddPlaceModal({
     const file = e.target.files?.[0];
     if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (!file) return;
-    void captureOnSitePlace(file);
+    setOnSitePhotoFiles((prev) => [...prev, file]);
+  }
+
+  function removeOnSitePhoto(index: number) {
+    setOnSitePhotoFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   /**
-   * The "Take Photo Here" flow: record the moment right away, kick off a
-   * GPS fix and AI extraction on the photo in parallel, then replace the
-   * candidate rows with whatever AI found (or one blank row to fill in by
-   * hand if there's no AI key configured) — all tagged with the captured
-   * coordinate/time so geocodeAndStore and handleSubmit use them directly
-   * instead of geocoding an address.
+   * The "Log This Place" flow: record the moment right away, kick off a GPS
+   * fix and an AI extraction over all accumulated on-site photos in one
+   * request (so the model can cross-reference them — e.g. a storefront sign
+   * for the name, a menu photo for prices — into one consolidated result),
+   * then replace the candidate rows with whatever AI found (or one blank row
+   * to fill in by hand if there's no AI key configured) — all tagged with
+   * the captured coordinate/time so geocodeAndStore and handleSubmit use
+   * them directly instead of geocoding an address.
    */
-  async function captureOnSitePlace(file: File) {
+  async function captureOnSitePlace() {
+    if (onSitePhotoFiles.length === 0) return;
     setIsCapturingOnSite(true);
     setExtractError(null);
     setExtractResultMessage(null);
 
     const capturedAt = Date.now();
     const locationPromise = getCurrentLocation();
+    const photos = onSitePhotoFiles;
+    setOnSitePhotoFiles([]);
 
     let extracted: AIExtractedPlace[] = [];
     let extractionFailureMessage: string | null = null;
     if (apiKey) {
       try {
-        const mediaType = file.type;
-        if (!isSupportedImageMediaType(mediaType)) {
-          throw new AIExtractionError("That image format isn't supported — try a JPEG or PNG.");
-        }
-        const base64 = await fileToBase64(file);
-        extracted = await extractPlacesFromImage(base64, mediaType);
+        const images = await Promise.all(
+          photos.map(async (file) => {
+            const mediaType = file.type;
+            if (!isSupportedImageMediaType(mediaType)) {
+              throw new AIExtractionError("That image format isn't supported — try a JPEG or PNG.");
+            }
+            return { mediaType, base64: await fileToBase64(file) };
+          }),
+        );
+        extracted = await extractPlacesFromImages(images);
       } catch (error) {
         extractionFailureMessage =
           error instanceof AIExtractionError
@@ -394,10 +409,11 @@ export function AddPlaceModal({
           </label>
           <p className="mb-2 text-xs text-neutral-400">
             Attach up to {MAX_SCREENSHOTS} screenshots of a post and let AI read and organize them
-            completely, or take a photo of the place you're at right now — its location and the
-            time are captured automatically (requires an AI extraction API key in Settings;
-            on-device text recognition struggles with stylized graphics, so this app doesn't try to
-            guess at photo text itself).
+            completely, or take one or more photos of the place you're at right now (a sign, a
+            menu, ...) and tap Log This Place — its location and the time are captured
+            automatically, and AI cross-references all the photos into one result (requires an AI
+            extraction API key in Settings; on-device text recognition struggles with stylized
+            graphics, so this app doesn't try to guess at photo text itself).
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input
@@ -432,8 +448,38 @@ export function AddPlaceModal({
                 isCapturingOnSite ? "pointer-events-none opacity-40" : ""
               }`}
             >
-              {isCapturingOnSite ? "Reading photo…" : "📍 Take photo here"}
+              {isCapturingOnSite
+                ? "Reading photos…"
+                : onSitePhotoFiles.length === 0
+                  ? "📍 Take photo here"
+                  : "📍 Add another photo"}
             </label>
+            {onSitePhotoFiles.map((file, i) => (
+              <span
+                key={`onsite-${file.name}-${i}`}
+                className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-600"
+              >
+                📍 On-site photo {i + 1}
+                <button
+                  type="button"
+                  onClick={() => removeOnSitePhoto(i)}
+                  aria-label={`Remove on-site photo ${i + 1}`}
+                  className="text-neutral-400 hover:text-red-500"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            {onSitePhotoFiles.length > 0 && (
+              <button
+                type="button"
+                onClick={captureOnSitePlace}
+                disabled={isCapturingOnSite}
+                className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isCapturingOnSite ? "Logging…" : "📍 Log This Place"}
+              </button>
+            )}
             {screenshotFiles.map((file, i) => (
               <span
                 key={`${file.name}-${i}`}
