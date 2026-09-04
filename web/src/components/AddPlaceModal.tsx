@@ -522,7 +522,7 @@ export function AddPlaceModal({
                 isCapturingOnSite ? "pointer-events-none opacity-40" : ""
               }`}
             >
-              {onSitePhotos.some((p) => p.source === "upload") ? "📌 Add More Place Photos" : "📌 Upload Place Photos"}
+              {onSitePhotos.some((p) => p.source === "upload") ? "📌 Add More On-Site Photos" : "📌 Upload On-Site Photos"}
             </label>
             {onSitePhotos.map((photo, i) => (
               <span
