@@ -54,6 +54,8 @@ struct SettingsSheet: View {
     @State private var perplexityKeyInput: String = AISettings.shared.perplexityAPIKey ?? ""
     @State private var perplexityModelInput: String = AISettings.shared.perplexityModel
 
+    @State private var extractionLanguage: String = AISettings.shared.extractionLanguage
+
     @State private var mapSettings = MapSettings.shared
     @State private var mapProvider: MapProvider = MapSettings.shared.provider
     @State private var googleMapsKeyInput: String = MapSettings.shared.googleMapsAPIKey ?? ""
@@ -179,6 +181,19 @@ struct SettingsSheet: View {
                     Text(providerFooterText + " Leave the key blank to skip AI — the free pattern-matching extraction still works without one.")
                 }
 
+                Section {
+                    Picker("Info language", selection: $extractionLanguage) {
+                        ForEach(AIExtractionService.extractionLanguages, id: \.code) { language in
+                            Text(language.label).tag(language.code)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                } header: {
+                    Text("AI extracted info language")
+                } footer: {
+                    Text("Language for the notes AI extracts from photos and screenshots. Names, addresses, and phone numbers are always kept exactly as written. This app's own menus and buttons always stay in English.")
+                }
+
                 if currentProviderHasStoredKey {
                     Section {
                         Button("Remove Key", role: .destructive) { removeCurrentProviderKey() }
@@ -293,6 +308,8 @@ struct SettingsSheet: View {
 
                         settings.setPerplexityAPIKey(perplexityKeyInput)
                         settings.setPerplexityModel(perplexityModelInput)
+
+                        settings.setExtractionLanguage(extractionLanguage)
 
                         mapSettings.setProvider(mapProvider)
                         mapSettings.setGoogleMapsAPIKey(googleMapsKeyInput)

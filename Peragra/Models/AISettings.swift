@@ -49,6 +49,7 @@ final class AISettings {
     private static let geminiModelDefaultsKey = "ai-gemini-model"
     private static let perplexityKeychainKey = "ai-perplexity-api-key"
     private static let perplexityModelDefaultsKey = "ai-perplexity-model"
+    private static let extractionLanguageDefaultsKey = "ai-extraction-language"
 
     private(set) var provider: AIProvider
 
@@ -62,6 +63,11 @@ final class AISettings {
     private(set) var geminiModel: String
     private(set) var perplexityAPIKey: String?
     private(set) var perplexityModel: String
+
+    /// Language AI-extracted place info (currently just "notes") should be
+    /// written in — see AIExtractionService.extractionLanguages. Does not
+    /// affect the app's own UI, which is always English.
+    private(set) var extractionLanguage: String
 
     /// The key for whichever provider is currently active, or nil if unset.
     var activeAPIKey: String? {
@@ -96,6 +102,9 @@ final class AISettings {
         perplexityAPIKey = KeychainService.load(for: Self.perplexityKeychainKey)
         perplexityModel = UserDefaults.standard.string(forKey: Self.perplexityModelDefaultsKey)
             ?? AIExtractionService.defaultPerplexityModel
+
+        extractionLanguage = UserDefaults.standard.string(forKey: Self.extractionLanguageDefaultsKey)
+            ?? AIExtractionService.defaultExtractionLanguage
     }
 
     func setProvider(_ value: AIProvider) {
@@ -149,6 +158,12 @@ final class AISettings {
         perplexityModel = Self.saveModel(
             value, default: AIExtractionService.defaultPerplexityModel, defaultsKey: Self.perplexityModelDefaultsKey
         )
+    }
+
+    func setExtractionLanguage(_ value: String) {
+        let isValid = AIExtractionService.extractionLanguages.contains { $0.code == value }
+        extractionLanguage = isValid ? value : AIExtractionService.defaultExtractionLanguage
+        UserDefaults.standard.set(extractionLanguage, forKey: Self.extractionLanguageDefaultsKey)
     }
 
     private static func save(_ value: String?, keychainKey: String) -> String? {

@@ -9,6 +9,30 @@ export const DEFAULT_OPENAI_MODEL = "gpt-4o";
 export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
 export const DEFAULT_PERPLEXITY_MODEL = "sonar";
 
+/**
+ * Language the AI should write extracted place info in (currently just the
+ * "notes" field — names/addresses/phone numbers are always kept exactly as
+ * given in the source, since they're real-world identifiers, not prose).
+ * "auto" leaves it up to the model, which normally mirrors the source
+ * text's own language. This has no effect on the app's own UI, which is
+ * always English.
+ */
+export const AI_EXTRACTION_LANGUAGES: { code: string; label: string }[] = [
+  { code: "auto", label: "Auto (match source)" },
+  { code: "en", label: "English" },
+  { code: "ko", label: "Korean" },
+  { code: "ja", label: "Japanese" },
+  { code: "zh", label: "Chinese" },
+  { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },
+  { code: "de", label: "German" },
+  { code: "it", label: "Italian" },
+  { code: "pt", label: "Portuguese" },
+  { code: "vi", label: "Vietnamese" },
+  { code: "th", label: "Thai" },
+];
+const DEFAULT_EXTRACTION_LANGUAGE = "auto";
+
 interface AISettingsState {
   provider: AIProvider;
   setProvider: (provider: AIProvider) => void;
@@ -41,6 +65,11 @@ interface AISettingsState {
   perplexityModel: string;
   setPerplexityApiKey: (key: string | null) => void;
   setPerplexityModel: (model: string) => void;
+
+  // Language for AI-extracted place info (the "notes" field) — see
+  // AI_EXTRACTION_LANGUAGES above. Does not affect the app's own UI.
+  extractionLanguage: string;
+  setExtractionLanguage: (code: string) => void;
 }
 
 function trimmedOrNull(value: string | null): string | null {
@@ -88,6 +117,14 @@ export const useAISettingsStore = create<AISettingsState>()(
       perplexityModel: DEFAULT_PERPLEXITY_MODEL,
       setPerplexityApiKey: (key) => set({ perplexityApiKey: trimmedOrNull(key) }),
       setPerplexityModel: (model) => set({ perplexityModel: model.trim() || DEFAULT_PERPLEXITY_MODEL }),
+
+      extractionLanguage: DEFAULT_EXTRACTION_LANGUAGE,
+      setExtractionLanguage: (code) =>
+        set({
+          extractionLanguage: AI_EXTRACTION_LANGUAGES.some((l) => l.code === code)
+            ? code
+            : DEFAULT_EXTRACTION_LANGUAGE,
+        }),
     }),
     { name: "peragra-ai-settings" },
   ),

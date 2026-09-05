@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { z } from "zod";
-import { useAISettingsStore } from "../store/useAISettingsStore";
+import { AI_EXTRACTION_LANGUAGES, useAISettingsStore } from "../store/useAISettingsStore";
 
 // The default provider: a third-party OpenAI-compatible gateway
 // (factchat-cloud.mindlogic.ai) rather than calling Anthropic's own API —
@@ -89,6 +89,26 @@ const SYSTEM_PROMPT =
   "Respond with ONLY a single JSON object, no other text, no markdown code fence, matching " +
   'exactly this shape: {"places": [{"name": string, "address": string | null, ' +
   '"telephone": string | null, "notes": string | null}]}';
+
+/**
+ * Appends a language instruction for the "notes" field to the extraction
+ * prompt, per the Settings > AI extraction language preference — name,
+ * address, and telephone are always left exactly as given in the source
+ * (they're real-world identifiers, not prose, and translating them would
+ * break geocoding/lookup), only "notes" is free text worth localizing.
+ * Leaving the setting on "auto" changes nothing — the model already
+ * defaults to mirroring the source text's language.
+ */
+function systemPromptForLanguage(basePrompt: string, languageCode: string): string {
+  if (languageCode === "auto") return basePrompt;
+  const language = AI_EXTRACTION_LANGUAGES.find((l) => l.code === languageCode);
+  if (!language) return basePrompt;
+  return (
+    basePrompt +
+    `\n\nWrite the "notes" field in ${language.label}, translating if the source text is in a ` +
+    'different language. Leave "name", "address", and "telephone" exactly as given in the source — never translate those.'
+  );
+}
 
 const ADDRESS_GUESS_SYSTEM_PROMPT =
   "You are given a travel destination and a numbered list of place names " +
@@ -371,7 +391,9 @@ export async function extractPlacesFromImages(
         "interior) — extract one accurate result for it from whatever is written or shown, such as " +
         "its name and any menu items, prices, or hours visible."
     : "Extract every place recommended in this screenshot's caption.";
-  const content = await callModel({ systemPrompt: SYSTEM_PROMPT, text, images });
+  const { extractionLanguage } = useAISettingsStore.getState();
+  const systemPrompt = systemPromptForLanguage(SYSTEM_PROMPT, extractionLanguage);
+  const content = await callModel({ systemPrompt, text, images });
   return parsePlacesResponse(content);
 }
 

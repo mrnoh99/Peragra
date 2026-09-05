@@ -68,6 +68,27 @@ enum AIExtractionService {
     static let defaultGeminiModel = "gemini-2.0-flash"
     static let defaultPerplexityModel = "sonar"
 
+    /// Language the AI should write extracted place info in (currently
+    /// just the "notes" field) — see AISettings.extractionLanguage.
+    /// "auto" leaves it up to the model, which normally mirrors the
+    /// source text's own language. Has no effect on the app's own UI,
+    /// which is always English.
+    static let defaultExtractionLanguage = "auto"
+    static let extractionLanguages: [(code: String, label: String)] = [
+        ("auto", "Auto (match source)"),
+        ("en", "English"),
+        ("ko", "Korean"),
+        ("ja", "Japanese"),
+        ("zh", "Chinese"),
+        ("es", "Spanish"),
+        ("fr", "French"),
+        ("de", "German"),
+        ("it", "Italian"),
+        ("pt", "Portuguese"),
+        ("vi", "Vietnamese"),
+        ("th", "Thai"),
+    ]
+
     // Trailing slash matters — the gateway's documented endpoint is
     // "/v1/gateway/chat/completions/" and a request without one risks a
     // 404 or a broken POST-to-GET redirect on a Django-style backend that
@@ -130,6 +151,25 @@ enum AIExtractionService {
     matching exactly this shape: {"address": string | null}
     """
 
+    /// Appends a language instruction for the "notes" field to the
+    /// extraction prompt, per the Settings AI extraction language
+    /// preference — name, address, and telephone are always left exactly
+    /// as given in the source (they're real-world identifiers, not prose,
+    /// and translating them would break geocoding/lookup), only "notes"
+    /// is free text worth localizing.
+    private static func systemPrompt(forLanguage languageCode: String) -> String {
+        guard languageCode != "auto", let language = extractionLanguages.first(where: { $0.code == languageCode }) else {
+            return systemPrompt
+        }
+        return systemPrompt + """
+
+
+        Write the "notes" field in \(language.label), translating if the source text is in a \
+        different language. Leave "name", "address", and "telephone" exactly as given in the \
+        source — never translate those.
+        """
+    }
+
     static func extractPlaces(imageData: Data, mediaType: String) async throws -> [AIExtractedPlace] {
         try await extractPlaces(images: [(data: imageData, mediaType: mediaType)])
     }
@@ -159,7 +199,7 @@ enum AIExtractionService {
             textPrompt = "Extract every place recommended in this screenshot's caption."
         }
         let text = try await performChatRequest(
-            systemPrompt: systemPrompt,
+            systemPrompt: systemPrompt(forLanguage: AISettings.shared.extractionLanguage),
             textPrompt: textPrompt,
             images: encoded
         )

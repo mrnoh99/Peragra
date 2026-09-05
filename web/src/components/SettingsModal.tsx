@@ -4,6 +4,7 @@ import { buildBackup, parseBackup, saveBackupFile } from "../lib/backup";
 import { GATEWAY_MODELS } from "../lib/gatewayModels";
 import { useStore } from "../store/useStore";
 import {
+  AI_EXTRACTION_LANGUAGES,
   DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_OPENAI_MODEL,
@@ -169,6 +170,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const perplexityModel = useAISettingsStore((s) => s.perplexityModel);
   const setPerplexityModel = useAISettingsStore((s) => s.setPerplexityModel);
 
+  const extractionLanguage = useAISettingsStore((s) => s.extractionLanguage);
+  const setExtractionLanguage = useAISettingsStore((s) => s.setExtractionLanguage);
+
   const mapProvider = useMapSettingsStore((s) => s.mapProvider);
   const setMapProvider = useMapSettingsStore((s) => s.setMapProvider);
   const googleMapsApiKey = useMapSettingsStore((s) => s.googleMapsApiKey);
@@ -316,6 +320,27 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               helpText="Calls Perplexity's own API directly from your browser with your own Perplexity API key. Perplexity has no vision support, so screenshot extraction is unavailable while it's selected — caption-text extraction still works."
             />
           )}
+
+          <label className="mb-1 mt-4 block text-sm font-medium text-neutral-700">
+            AI extracted info language
+          </label>
+          <p className="mb-2 text-xs text-neutral-400">
+            Language for the notes AI extracts from photos and screenshots. Names, addresses, and
+            phone numbers are always kept exactly as written. This app's own menus and buttons
+            always stay in English.
+          </p>
+          <select
+            value={extractionLanguage}
+            onChange={(e) => setExtractionLanguage(e.target.value)}
+            aria-label="AI extracted info language"
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          >
+            {AI_EXTRACTION_LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="border-t border-neutral-100 pt-4">
@@ -443,7 +468,9 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         <Section title="AI place extraction">
           Optional. Add an API key below (Gateway, Anthropic, OpenAI, Gemini, or Perplexity) to
           let AI read screenshots and photos and fill in details. Without one, pasted captions
-          are still parsed with free pattern-matching.
+          are still parsed with free pattern-matching. The AI extracted info language setting
+          controls what language AI writes extracted notes in — names, addresses, and phone
+          numbers are always kept exactly as written.
         </Section>
         <Section title="Map provider">
           Free (OpenStreetMap) needs no key. Switch to Google Maps for a nicer map if you add
