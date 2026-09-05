@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CFBBE95AF25C0407B609AE87 /* KoreaRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = A46B7AEF579F0764C332223A /* KoreaRegion.swift */; };
+		5D2B1A19029BF80C0F6476E5 /* NaverMapOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = 842EC9BF9A1E00C1E6EA1A99 /* NaverMapOpener.swift */; };
 		A9033BC47A48DEBA9EFF95A8 /* KakaoMapOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F07AD3AC900A5E9DEEC9127 /* KakaoMapOpener.swift */; };
 		B12C5E090088E25DEB914B9A /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDEC7178DEDD1F939938DFB8 /* LocationService.swift */; };
 		C052B83134DFD7A8D22AA57A /* CameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50787C07D48AF72434E63513 /* CameraCaptureView.swift */; };
@@ -44,6 +46,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A46B7AEF579F0764C332223A /* KoreaRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KoreaRegion.swift; path = Peragra/Services/KoreaRegion.swift; sourceTree = "<group>"; };
+		842EC9BF9A1E00C1E6EA1A99 /* NaverMapOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NaverMapOpener.swift; path = Peragra/Services/NaverMapOpener.swift; sourceTree = "<group>"; };
 		5F07AD3AC900A5E9DEEC9127 /* KakaoMapOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KakaoMapOpener.swift; path = Peragra/Services/KakaoMapOpener.swift; sourceTree = "<group>"; };
 		DDEC7178DEDD1F939938DFB8 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LocationService.swift; path = Peragra/Services/LocationService.swift; sourceTree = "<group>"; };
 		50787C07D48AF72434E63513 /* CameraCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraCaptureView.swift; path = Peragra/Views/Places/CameraCaptureView.swift; sourceTree = "<group>"; };
@@ -105,6 +109,8 @@
 				B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */,
 				DDEC7178DEDD1F939938DFB8 /* LocationService.swift */,
 				5F07AD3AC900A5E9DEEC9127 /* KakaoMapOpener.swift */,
+				A46B7AEF579F0764C332223A /* KoreaRegion.swift */,
+				842EC9BF9A1E00C1E6EA1A99 /* NaverMapOpener.swift */,
 			);
 			name = Services;
 			sourceTree = "<group>";
@@ -287,6 +293,8 @@
 				B12C5E090088E25DEB914B9A /* LocationService.swift in Sources */,
 				C052B83134DFD7A8D22AA57A /* CameraCaptureView.swift in Sources */,
 				A9033BC47A48DEBA9EFF95A8 /* KakaoMapOpener.swift in Sources */,
+				CFBBE95AF25C0407B609AE87 /* KoreaRegion.swift in Sources */,
+				5D2B1A19029BF80C0F6476E5 /* NaverMapOpener.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

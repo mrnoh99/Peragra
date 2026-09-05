@@ -112,6 +112,17 @@ struct PlaceRowView: View {
                     .buttonStyle(.plain)
                 }
 
+                if let naverURL = NaverMapOpener.url(for: place) {
+                    Button {
+                        openURL(naverURL)
+                    } label: {
+                        Label("Naver Map", systemImage: "map")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.green)
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 if let url = place.instagramURL {
                     Button {
                         openURL(url)

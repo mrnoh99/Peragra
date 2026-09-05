@@ -6,10 +6,16 @@ import Foundation
 /// where it's installed, or map.kakao.com otherwise; from inside the app,
 /// "길찾기" hands off to Kakao Navi. Unlike GoogleMapsOpener's name/address
 /// text search, this format takes a real numeric coordinate, so it's only
-/// available once this app's own geocoding has actually located the place.
+/// available once this app's own geocoding has actually located the place —
+/// and, since Kakao Map has essentially no useful data outside Korea, only
+/// once that coordinate is actually there.
 enum KakaoMapOpener {
     static func url(for place: Place) -> URL? {
-        guard let coordinate = place.coordinate2D, !place.name.isEmpty else { return nil }
+        guard
+            let coordinate = place.coordinate2D,
+            !place.name.isEmpty,
+            KoreaRegion.contains(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        else { return nil }
 
         var components = URLComponents(string: "https://map.kakao.com")
         components?.path = "/link/to/\(place.name),\(coordinate.latitude),\(coordinate.longitude)"
@@ -28,8 +34,14 @@ enum KakaoMapOpener {
     /// out to be wrong, the single-place "Kakao Map" button on each place
     /// is the verified fallback.
     static func directionsURL(for places: [Place], from origin: CLLocationCoordinate2D) -> URL? {
+        // Places outside Korea are dropped rather than failing the whole
+        // route — this also naturally hides the button for a trip that
+        // isn't in Korea at all, since `coordinates` ends up empty.
         let coordinates = places.compactMap { place -> String? in
-            guard let coordinate = place.coordinate2D else { return nil }
+            guard
+                let coordinate = place.coordinate2D,
+                KoreaRegion.contains(latitude: coordinate.latitude, longitude: coordinate.longitude)
+            else { return nil }
             return "\(coordinate.latitude),\(coordinate.longitude)"
         }
         guard let destination = coordinates.last else { return nil }

@@ -4,6 +4,7 @@ import { useStore } from "../store/useStore";
 import { EditPlaceModal } from "./EditPlaceModal";
 import { googleMapsUrl } from "../lib/googleMapsUrl";
 import { kakaoMapUrl } from "../lib/kakaoMapUrl";
+import { naverMapUrl } from "../lib/naverMapUrl";
 
 function formatVisitedDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString(undefined, {
@@ -53,6 +54,7 @@ export function PlaceCard({
   const categoryLabel =
     PLACE_CATEGORIES.find((c) => c.value === place.category)?.label ?? "Other";
   const kakaoUrl = kakaoMapUrl(place);
+  const naverUrl = naverMapUrl(place);
 
   function copyForMaps() {
     const text = place.address ? `${place.name}, ${place.address}` : place.name;
@@ -164,6 +166,17 @@ export function PlaceCard({
                   className="inline-flex items-center gap-1 text-amber-600 hover:underline"
                 >
                   🗺️ Kakao Map
+                </a>
+              )}
+              {naverUrl && (
+                // No target="_blank" — nmap:// is a custom scheme with no
+                // web fallback, so opening it in a new tab would just leave
+                // a blank tab behind when the Naver Map app isn't installed.
+                <a
+                  href={naverUrl}
+                  className="inline-flex items-center gap-1 text-green-600 hover:underline"
+                >
+                  🗺️ Naver Map
                 </a>
               )}
               {place.instagramUrl && (

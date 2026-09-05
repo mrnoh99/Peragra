@@ -1,5 +1,6 @@
 import type { Place } from "../types";
 import { getCurrentLocation } from "./currentLocation";
+import { isInKorea } from "./koreaRegion";
 
 /**
  * Kakao Map's own public "share a route" link — no API key needed, unlike
@@ -7,10 +8,13 @@ import { getCurrentLocation } from "./currentLocation";
  * installed) or map.kakao.com otherwise; from inside the app, "길찾기" hands
  * off to Kakao Navi. Unlike googleMapsUrl's name/address text search, this
  * format takes a real numeric coordinate, so it's only available once this
- * app's own geocoding has actually located the place.
+ * app's own geocoding has actually located the place — and, since Kakao
+ * Map has essentially no useful data outside Korea, only once that
+ * coordinate is actually there.
  */
 export function kakaoMapUrl(place: Place): string | null {
   if (place.lat === null || place.lng === null || !place.name) return null;
+  if (!isInKorea(place.lat, place.lng)) return null;
   const name = encodeURIComponent(place.name);
   return `https://map.kakao.com/link/to/${name},${place.lat},${place.lng}`;
 }
@@ -31,9 +35,15 @@ export function kakaoMapUrl(place: Place): string | null {
  */
 export async function kakaoMapDirectionsUrl(places: Place[]): Promise<string | null> {
   // Keep the given order (not reordered by distance) so the route reads
-  // the same top-to-bottom order as the list it came from.
+  // the same top-to-bottom order as the list it came from. Places outside
+  // Korea are dropped rather than failing the whole route — this also
+  // naturally hides the button for a trip that isn't in Korea at all,
+  // since `coordinates` ends up empty.
   const coordinates = places
-    .filter((p): p is Place & { lat: number; lng: number } => p.lat !== null && p.lng !== null)
+    .filter(
+      (p): p is Place & { lat: number; lng: number } =>
+        p.lat !== null && p.lng !== null && isInKorea(p.lat, p.lng),
+    )
     .map((p) => `${p.lat},${p.lng}`);
   if (coordinates.length === 0) return null;
 
