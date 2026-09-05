@@ -17,7 +17,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </Link>
           <div className="flex items-center gap-3">
             <p className="hidden text-sm text-neutral-500 sm:block">
-              Save what you find, visit it later
+              Save what you find, visit it later — great for trip planning too
             </p>
             <button
               onClick={() => setShowSettings(true)}
@@ -32,7 +32,7 @@ export function Layout({ children }: { children: ReactNode }) {
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">{children}</main>
       <footer className="border-t border-black/5 py-4 text-center text-neutral-400">
-        <p className="text-xs">Peragra — save what you find, visit it later</p>
+        <p className="text-xs">Peragra — save what you find, visit it later. More than a trip planner.</p>
         <p className="mt-1 text-[10px]">developed by JaiSung Noh, MD. · Version 1.0 · Build 3 · 2026</p>
       </footer>
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}

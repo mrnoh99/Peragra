@@ -5,7 +5,8 @@ map — so you actually visit them later, instead of losing them in your camera
 roll or saved posts. For each board, save a place — optionally alongside the
 Instagram post link that inspired it — and Peragra keeps a searchable
 listing, plots it on a map, and lets you sort saved places into custom lists
-(e.g. "Must eat", "If we have time").
+(e.g. "Must eat", "If we have time"). It's more than a trip planner — but it's
+a great one too, once your saved spots for a destination are all in one board.
 
 This repo has two clients sharing the same product:
 

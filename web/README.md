@@ -5,7 +5,8 @@ Instagram, in a photo, or on a map) so you actually visit them later. For
 each board, save a place — optionally alongside the Instagram post link
 that inspired it — and Peragra keeps a searchable listing, plots it on a
 map, and lets you sort saved places into custom lists (e.g. "Must eat", "If
-we have time").
+we have time"). It's more than a trip planner — but it's a great one too,
+once your saved spots for a destination are all in one board.
 
 Same product as the native iOS app in `../Peragra`, built for the browser.
 
