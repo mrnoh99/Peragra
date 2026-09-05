@@ -65,6 +65,7 @@ declare global {
       constructor(options?: InfoWindowOptions);
       setContent(content: string | HTMLElement): void;
       open(map: Map, anchor: Marker): void;
+      close(): void;
     }
 
     namespace Event {

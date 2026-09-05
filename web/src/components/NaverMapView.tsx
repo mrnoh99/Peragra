@@ -76,7 +76,28 @@ export function NaverMapView({
               // a place name/address containing markup (pasted from an
               // Instagram caption, say) can't inject into the page.
               const content = document.createElement("div");
-              content.style.padding = "4px 2px";
+              content.style.position = "relative";
+              content.style.padding = "4px 22px 4px 2px";
+              // Unlike Google's InfoWindow, Naver's has no built-in close
+              // (×) chrome at all when given custom content — it has to be
+              // added by hand, or there's no way to dismiss it besides
+              // tapping another marker.
+              const closeEl = document.createElement("button");
+              closeEl.type = "button";
+              closeEl.textContent = "×";
+              closeEl.setAttribute("aria-label", "Close");
+              closeEl.style.position = "absolute";
+              closeEl.style.top = "0";
+              closeEl.style.right = "0";
+              closeEl.style.border = "none";
+              closeEl.style.background = "none";
+              closeEl.style.padding = "2px 6px";
+              closeEl.style.fontSize = "16px";
+              closeEl.style.lineHeight = "1";
+              closeEl.style.color = "#a3a3a3";
+              closeEl.style.cursor = "pointer";
+              closeEl.onclick = () => infoWindow.close();
+              content.appendChild(closeEl);
               const nameEl = document.createElement("div");
               nameEl.style.fontWeight = "600";
               nameEl.textContent = place.name;
