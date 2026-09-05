@@ -4,6 +4,7 @@ import { useStore } from "../store/useStore";
 import { PlaceCard } from "./PlaceCard";
 import { googleMapsDirectionsUrl } from "../lib/googleMapsUrl";
 import { kakaoMapDirectionsUrl } from "../lib/kakaoMapUrl";
+import { naverMapDirectionsUrl, openNaverMap } from "../lib/naverMapUrl";
 
 export function ListingView({
   places,
@@ -20,8 +21,8 @@ export function ListingView({
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showListPicker, setShowListPicker] = useState(false);
-  const [isSendingToKakao, setIsSendingToKakao] = useState(false);
-  const [kakaoError, setKakaoError] = useState<string | null>(null);
+  const [isSendingToMap, setIsSendingToMap] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   const [showMapMenu, setShowMapMenu] = useState(false);
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
   const addPlacesToCollection = useStore((s) => s.addPlacesToCollection);
@@ -70,18 +71,35 @@ export function ListingView({
 
   async function sendSelectedToKakaoMap() {
     setShowMapMenu(false);
-    setKakaoError(null);
-    setIsSendingToKakao(true);
+    setMapError(null);
+    setIsSendingToMap(true);
     try {
       const selectedPlaces = places.filter((p) => selectedIds.has(p.id));
       const url = await kakaoMapDirectionsUrl(selectedPlaces);
       if (!url) {
-        setKakaoError("Couldn't get your current location — allow location access for this site and try again.");
+        setMapError("Couldn't get your current location — allow location access for this site and try again.");
         return;
       }
       window.open(url, "_blank", "noreferrer");
     } finally {
-      setIsSendingToKakao(false);
+      setIsSendingToMap(false);
+    }
+  }
+
+  async function sendSelectedToNaverMap() {
+    setShowMapMenu(false);
+    setMapError(null);
+    setIsSendingToMap(true);
+    try {
+      const selectedPlaces = places.filter((p) => selectedIds.has(p.id));
+      const url = await naverMapDirectionsUrl(selectedPlaces);
+      if (!url) {
+        setMapError("Couldn't get your current location — allow location access for this site and try again.");
+        return;
+      }
+      openNaverMap(url);
+    } finally {
+      setIsSendingToMap(false);
     }
   }
 
@@ -158,10 +176,10 @@ export function ListingView({
             <button
               type="button"
               onClick={() => setShowMapMenu((v) => !v)}
-              disabled={selectedIds.size === 0 || isSendingToKakao}
+              disabled={selectedIds.size === 0 || isSendingToMap}
               className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
             >
-              {isSendingToKakao ? "Locating…" : `🗺️ Send to Map ${showMapMenu ? "▲" : "▼"}`}
+              {isSendingToMap ? "Locating…" : `🗺️ Send to Map ${showMapMenu ? "▲" : "▼"}`}
             </button>
             {showMapMenu && (
               <div className="absolute left-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
@@ -171,6 +189,13 @@ export function ListingView({
                   className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
                 >
                   Google Maps
+                </button>
+                <button
+                  type="button"
+                  onClick={sendSelectedToNaverMap}
+                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                >
+                  Naver Map
                 </button>
                 <button
                   type="button"
@@ -184,8 +209,8 @@ export function ListingView({
           </div>
         </div>
       )}
-      {kakaoError && (
-        <p className="-mt-2 mb-4 text-xs text-amber-600">{kakaoError}</p>
+      {mapError && (
+        <p className="-mt-2 mb-4 text-xs text-amber-600">{mapError}</p>
       )}
 
       {places.length === 0 ? (

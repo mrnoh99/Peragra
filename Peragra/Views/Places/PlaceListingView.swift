@@ -13,8 +13,8 @@ struct PlaceListingView: View {
     @Environment(\.openURL) private var openURL
     @State private var isSelecting = false
     @State private var selectedIDs: Set<UUID> = []
-    @State private var isSendingToKakao = false
-    @State private var kakaoErrorMessage: String?
+    @State private var isSendingToMap = false
+    @State private var mapErrorMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -67,8 +67,8 @@ struct PlaceListingView: View {
 
     private var bulkActionBar: some View {
         VStack(alignment: .leading, spacing: 4) {
-            if let kakaoErrorMessage {
-                Text(kakaoErrorMessage)
+            if let mapErrorMessage {
+                Text(mapErrorMessage)
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
@@ -127,19 +127,24 @@ struct PlaceListingView: View {
                     Label("Google Maps", systemImage: "map")
                 }
                 Button {
+                    Task { await sendSelectedToNaverMap() }
+                } label: {
+                    Label("Naver Map", systemImage: "map")
+                }
+                Button {
                     Task { await sendSelectedToKakaoMap() }
                 } label: {
                     Label("Kakao Map", systemImage: "map")
                 }
             } label: {
-                if isSendingToKakao {
+                if isSendingToMap {
                     ProgressView()
                 } else {
                     Label("Send to Map", systemImage: "map")
                         .font(.subheadline.weight(.medium))
                 }
             }
-            .disabled(selectedIDs.isEmpty || isSendingToKakao)
+            .disabled(selectedIDs.isEmpty || isSendingToMap)
         }
     }
 
@@ -202,21 +207,42 @@ struct PlaceListingView: View {
     }
 
     private func sendSelectedToKakaoMap() async {
-        kakaoErrorMessage = nil
-        isSendingToKakao = true
-        defer { isSendingToKakao = false }
+        mapErrorMessage = nil
+        isSendingToMap = true
+        defer { isSendingToMap = false }
 
         // Kakao's route scheme, unlike Google's, requires an explicit
         // starting coordinate rather than defaulting to wherever the user
         // currently is.
         guard let origin = await LocationService.currentLocation() else {
-            kakaoErrorMessage = "Couldn't get your current location — check Location permission for Peragra in Settings."
+            mapErrorMessage = "Couldn't get your current location — check Location permission for Peragra in Settings."
             return
         }
 
         let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
         guard let url = KakaoMapOpener.directionsURL(for: selectedPlaces, from: origin) else {
-            kakaoErrorMessage = "None of the selected places have a located position yet."
+            mapErrorMessage = "None of the selected places have a located position yet."
+            return
+        }
+        openURL(url)
+    }
+
+    private func sendSelectedToNaverMap() async {
+        mapErrorMessage = nil
+        isSendingToMap = true
+        defer { isSendingToMap = false }
+
+        // Naver's route scheme, like Kakao's, requires an explicit
+        // starting coordinate rather than defaulting to wherever the user
+        // currently is.
+        guard let origin = await LocationService.currentLocation() else {
+            mapErrorMessage = "Couldn't get your current location — check Location permission for Peragra in Settings."
+            return
+        }
+
+        let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
+        guard let url = NaverMapOpener.directionsURL(for: selectedPlaces, from: origin) else {
+            mapErrorMessage = "None of the selected places have a located position yet."
             return
         }
         openURL(url)
