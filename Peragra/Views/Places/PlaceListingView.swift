@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 struct PlaceListingView: View {
     /// Already filtered and sorted by the parent (shared with the Map tab).
@@ -12,6 +13,8 @@ struct PlaceListingView: View {
     @Environment(\.openURL) private var openURL
     @State private var isSelecting = false
     @State private var selectedIDs: Set<UUID> = []
+    @State private var isSendingToKakao = false
+    @State private var kakaoErrorMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -63,6 +66,20 @@ struct PlaceListingView: View {
     }
 
     private var bulkActionBar: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let kakaoErrorMessage {
+                Text(kakaoErrorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            bulkActionBarControls
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(.bar)
+    }
+
+    private var bulkActionBarControls: some View {
         HStack {
             Text(selectedIDs.isEmpty ? "Select places to edit" : "\(selectedIDs.count) selected")
                 .font(.subheadline.weight(.medium))
@@ -110,10 +127,19 @@ struct PlaceListingView: View {
                     .font(.subheadline.weight(.medium))
             }
             .disabled(selectedIDs.isEmpty)
+
+            Button {
+                Task { await sendSelectedToKakaoMap() }
+            } label: {
+                if isSendingToKakao {
+                    ProgressView()
+                } else {
+                    Label("Send to Kakao Map", systemImage: "map")
+                        .font(.subheadline.weight(.medium))
+                }
+            }
+            .disabled(selectedIDs.isEmpty || isSendingToKakao)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 10)
-        .background(.bar)
     }
 
     private func toggleSelection(_ place: Place) {
@@ -171,6 +197,27 @@ struct PlaceListingView: View {
         // resulting route reads top-to-bottom the way the list does.
         let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
         guard let url = GoogleMapsOpener.directionsURL(for: selectedPlaces, tripDestination: destination) else { return }
+        openURL(url)
+    }
+
+    private func sendSelectedToKakaoMap() async {
+        kakaoErrorMessage = nil
+        isSendingToKakao = true
+        defer { isSendingToKakao = false }
+
+        // Kakao's route scheme, unlike Google's, requires an explicit
+        // starting coordinate rather than defaulting to wherever the user
+        // currently is.
+        guard let origin = await LocationService.currentLocation() else {
+            kakaoErrorMessage = "Couldn't get your current location — check Location permission for Peragra in Settings."
+            return
+        }
+
+        let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
+        guard let url = KakaoMapOpener.directionsURL(for: selectedPlaces, from: origin) else {
+            kakaoErrorMessage = "None of the selected places have a located position yet."
+            return
+        }
         openURL(url)
     }
 

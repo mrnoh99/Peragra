@@ -3,6 +3,7 @@ import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory } fro
 import { useStore } from "../store/useStore";
 import { PlaceCard } from "./PlaceCard";
 import { googleMapsDirectionsUrl } from "../lib/googleMapsUrl";
+import { kakaoMapDirectionsUrl } from "../lib/kakaoMapUrl";
 
 export function ListingView({
   places,
@@ -19,6 +20,8 @@ export function ListingView({
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showListPicker, setShowListPicker] = useState(false);
+  const [isSendingToKakao, setIsSendingToKakao] = useState(false);
+  const [kakaoError, setKakaoError] = useState<string | null>(null);
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
   const addPlacesToCollection = useStore((s) => s.addPlacesToCollection);
 
@@ -61,6 +64,22 @@ export function ListingView({
     // resulting route reads top-to-bottom the way the list does.
     const selectedPlaces = places.filter((p) => selectedIds.has(p.id));
     window.open(googleMapsDirectionsUrl(selectedPlaces, destination), "_blank", "noreferrer");
+  }
+
+  async function sendSelectedToKakaoMap() {
+    setKakaoError(null);
+    setIsSendingToKakao(true);
+    try {
+      const selectedPlaces = places.filter((p) => selectedIds.has(p.id));
+      const url = await kakaoMapDirectionsUrl(selectedPlaces);
+      if (!url) {
+        setKakaoError("Couldn't get your current location — allow location access for this site and try again.");
+        return;
+      }
+      window.open(url, "_blank", "noreferrer");
+    } finally {
+      setIsSendingToKakao(false);
+    }
   }
 
   return (
@@ -139,7 +158,17 @@ export function ListingView({
           >
             🗺️ Send to Google Maps
           </button>
+          <button
+            onClick={sendSelectedToKakaoMap}
+            disabled={selectedIds.size === 0 || isSendingToKakao}
+            className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+          >
+            {isSendingToKakao ? "Locating…" : "🗺️ Send to Kakao Map"}
+          </button>
         </div>
+      )}
+      {kakaoError && (
+        <p className="-mt-2 mb-4 text-xs text-amber-600">{kakaoError}</p>
       )}
 
       {places.length === 0 ? (
