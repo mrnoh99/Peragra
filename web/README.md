@@ -1,10 +1,11 @@
 # Peragra (Web)
 
-Browser version of Peragra — turns the places you've saved on Instagram into
-an organized travel plan. For each trip, save a place — optionally alongside
-the Instagram post link that inspired it — and Peragra keeps a searchable
-listing, plots it on a map, and lets you sort saved places into custom lists
-(e.g. "Must eat", "If we have time").
+Browser version of Peragra — helps you save the places you find (on
+Instagram, in a photo, or on a map) so you actually visit them later. For
+each board, save a place — optionally alongside the Instagram post link
+that inspired it — and Peragra keeps a searchable listing, plots it on a
+map, and lets you sort saved places into custom lists (e.g. "Must eat", "If
+we have time").
 
 Same product as the native iOS app in `../Peragra`, built for the browser.
 
