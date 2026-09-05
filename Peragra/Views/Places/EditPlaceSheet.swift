@@ -77,6 +77,14 @@ struct EditPlaceSheet: View {
     @State private var mapScreenshotErrorMessage: String?
     @State private var mapScreenshotResult: AIExtractedPlace?
 
+    // The inline Notes field is deliberately compact (it sits in an
+    // already-long form) — this opens the same text in a full-size sheet
+    // for anyone writing more than a couple lines, seeded from (and only
+    // ever committed back to) `notes` on explicit Save, so Cancel there
+    // discards the draft same as everywhere else in this form.
+    @State private var editingNotesFullscreen = false
+    @State private var notesDraft = ""
+
     private var aiSettings: AISettings { AISettings.shared }
 
     init(place: Place) {
@@ -115,9 +123,20 @@ struct EditPlaceSheet: View {
                         .keyboardType(.phonePad)
                 }
 
-                Section("Notes") {
+                Section {
                     TextField("What made you save this?", text: $notes, axis: .vertical)
                         .lineLimit(2...4)
+                } header: {
+                    HStack {
+                        Text("Notes")
+                        Spacer()
+                        Button("Expand") {
+                            notesDraft = notes
+                            editingNotesFullscreen = true
+                        }
+                        .font(.caption)
+                        .textCase(nil)
+                    }
                 }
 
                 Section {
@@ -362,6 +381,12 @@ struct EditPlaceSheet: View {
                 }
             }
             .disabled(isSaving)
+            .sheet(isPresented: $editingNotesFullscreen) {
+                NotesFullscreenEditor(text: $notesDraft) {
+                    notes = notesDraft
+                    editingNotesFullscreen = false
+                }
+            }
         }
     }
 
@@ -715,6 +740,33 @@ struct EditPlaceSheet: View {
             photoResultMessage = "Add an AI extraction API key in Settings to read details from your photos."
         } else {
             photoResultMessage = "Didn't find any new details in those photos."
+        }
+    }
+}
+
+/// Full-size notes editor, opened from the compact inline Notes field for
+/// anyone writing more than a couple lines — a plain `TextEditor` fills
+/// the whole sheet, unlike the form's own space-constrained `TextField`.
+private struct NotesFullscreenEditor: View {
+    @Binding var text: String
+    let onSave: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            TextEditor(text: $text)
+                .padding(8)
+                .navigationTitle("Edit Notes")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save", action: onSave)
+                    }
+                }
         }
     }
 }

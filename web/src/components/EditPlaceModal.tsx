@@ -47,6 +47,13 @@ export function EditPlaceModal({
   const [phone, setPhone] = useState(place.phone ?? "");
   const [notes, setNotes] = useState(place.notes);
   const [saving, setSaving] = useState(false);
+  // The inline Notes textarea is deliberately small (it sits in an
+  // already-tall form) — this opens the same text in a full-size modal
+  // for anyone writing more than a line or two, seeded from (and only
+  // ever committed back to) `notes` on explicit Save, so Cancel there
+  // discards the draft same as everywhere else in this form.
+  const [editingNotesFullscreen, setEditingNotesFullscreen] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
 
   const [onSitePhotos, setOnSitePhotos] = useState<OnSitePhoto[]>([]);
   const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
@@ -698,7 +705,19 @@ export function EditPlaceModal({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-neutral-700">Notes</label>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="block text-sm font-medium text-neutral-700">Notes</label>
+            <button
+              type="button"
+              onClick={() => {
+                setNotesDraft(notes);
+                setEditingNotesFullscreen(true);
+              }}
+              className="text-xs text-neutral-400 hover:text-brand-600"
+            >
+              ⤢ Expand
+            </button>
+          </div>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -707,6 +726,30 @@ export function EditPlaceModal({
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
         </div>
+
+        {editingNotesFullscreen && (
+          <Modal title="Edit notes" onClose={() => setEditingNotesFullscreen(false)} closeLabel="Cancel">
+            <div className="space-y-3">
+              <textarea
+                autoFocus
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                placeholder="What made you save this?"
+                className="h-[60vh] w-full resize-none rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setNotes(notesDraft);
+                  setEditingNotesFullscreen(false);
+                }}
+                className="w-full rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
+              >
+                Save
+              </button>
+            </div>
+          </Modal>
+        )}
 
         <button
           type="submit"
