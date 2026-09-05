@@ -386,6 +386,12 @@ export function EditPlaceModal({
               {photoError ?? photoMessage}
             </p>
           )}
+          {!photoError && !photoMessage && onSitePhotos.length > 0 && !apiKey && (
+            <p className="mt-2 text-xs text-neutral-400">
+              Add an AI extraction API key in Settings to read these photos — AI reads photos
+              completely, since on-device text recognition struggles with stylized graphics.
+            </p>
+          )}
           {nearbyCandidates.length > 0 && (
             <div className="mt-2 rounded-lg border border-dashed border-brand-300 bg-brand-50/40 p-2">
               <div className="mb-1.5 flex items-center justify-between gap-2">

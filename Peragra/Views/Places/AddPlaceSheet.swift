@@ -264,8 +264,8 @@ struct AddPlaceSheet: View {
                         ProgressView(value: Double(aiProgress.current), total: Double(aiProgress.total))
                     }
 
-                    if !screenshotDatas.isEmpty, aiSettings.activeAPIKey == nil {
-                        Text("Add an AI extraction API key in Settings to read these screenshots — AI reads photos completely, since on-device text recognition struggles with stylized graphics.")
+                    if (!screenshotDatas.isEmpty || !onSitePhotos.isEmpty), aiSettings.activeAPIKey == nil {
+                        Text("Add an AI extraction API key in Settings to read these photos — AI reads photos completely, since on-device text recognition struggles with stylized graphics.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

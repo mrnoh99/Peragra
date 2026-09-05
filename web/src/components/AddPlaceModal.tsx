@@ -648,9 +648,9 @@ export function AddPlaceModal({
           {screenshotFiles.length > 0 && screenshotFiles.length < MAX_SCREENSHOTS && (
             <p className="mt-2 text-xs text-neutral-400">Up to {MAX_SCREENSHOTS} screenshots.</p>
           )}
-          {screenshotFiles.length > 0 && !apiKey && (
+          {(screenshotFiles.length > 0 || onSitePhotos.length > 0) && !apiKey && (
             <p className="mt-2 text-xs text-neutral-400">
-              Add an AI extraction API key in Settings to read these screenshots — AI reads photos
+              Add an AI extraction API key in Settings to read these photos — AI reads photos
               completely, since on-device text recognition struggles with stylized graphics.
             </p>
           )}

@@ -171,6 +171,10 @@ struct EditPlaceSheet: View {
                         Text(photoResultMessage)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    } else if !onSitePhotos.isEmpty, aiSettings.activeAPIKey == nil {
+                        Text("Add an AI extraction API key in Settings to read these photos — AI reads photos completely, since on-device text recognition struggles with stylized graphics.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 } header: {
                     Text("Add Info From a Photo")
