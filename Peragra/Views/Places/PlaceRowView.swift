@@ -101,6 +101,17 @@ struct PlaceRowView: View {
                     .buttonStyle(.plain)
                 }
 
+                if let kakaoURL = KakaoMapOpener.url(for: place) {
+                    Button {
+                        openURL(kakaoURL)
+                    } label: {
+                        Label("Kakao Map", systemImage: "map")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.yellow)
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 if let url = place.instagramURL {
                     Button {
                         openURL(url)

@@ -3,6 +3,7 @@ import { PLACE_CATEGORIES, type Collection, type Place } from "../types";
 import { useStore } from "../store/useStore";
 import { EditPlaceModal } from "./EditPlaceModal";
 import { googleMapsUrl } from "../lib/googleMapsUrl";
+import { kakaoMapUrl } from "../lib/kakaoMapUrl";
 
 function formatVisitedDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString(undefined, {
@@ -51,6 +52,7 @@ export function PlaceCard({
 
   const categoryLabel =
     PLACE_CATEGORIES.find((c) => c.value === place.category)?.label ?? "Other";
+  const kakaoUrl = kakaoMapUrl(place);
 
   function copyForMaps() {
     const text = place.address ? `${place.name}, ${place.address}` : place.name;
@@ -154,6 +156,16 @@ export function PlaceCard({
               >
                 🗺️ Google Maps
               </a>
+              {kakaoUrl && (
+                <a
+                  href={kakaoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-amber-600 hover:underline"
+                >
+                  🗺️ Kakao Map
+                </a>
+              )}
               {place.instagramUrl && (
                 <a
                   href={place.instagramUrl}
