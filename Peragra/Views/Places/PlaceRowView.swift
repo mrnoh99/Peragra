@@ -90,37 +90,32 @@ struct PlaceRowView: View {
             }
 
             HStack(spacing: 14) {
-                if let mapsURL = GoogleMapsOpener.url(for: place, tripDestination: destination) {
-                    Button {
-                        openURL(mapsURL)
-                    } label: {
-                        Label("Google Maps", systemImage: "map")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(Color.accentColor)
+                Menu {
+                    if let mapsURL = GoogleMapsOpener.url(for: place, tripDestination: destination) {
+                        Button {
+                            openURL(mapsURL)
+                        } label: {
+                            Label("Google Maps", systemImage: "map")
+                        }
                     }
-                    .buttonStyle(.plain)
-                }
-
-                if let kakaoURL = KakaoMapOpener.url(for: place) {
-                    Button {
-                        openURL(kakaoURL)
-                    } label: {
-                        Label("Kakao Map", systemImage: "map")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.yellow)
+                    if let naverURL = NaverMapOpener.url(for: place) {
+                        Button {
+                            openURL(naverURL)
+                        } label: {
+                            Label("Naver Map", systemImage: "map")
+                        }
                     }
-                    .buttonStyle(.plain)
-                }
-
-                if let naverURL = NaverMapOpener.url(for: place) {
-                    Button {
-                        openURL(naverURL)
-                    } label: {
-                        Label("Naver Map", systemImage: "map")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.green)
+                    if let kakaoURL = KakaoMapOpener.url(for: place) {
+                        Button {
+                            openURL(kakaoURL)
+                        } label: {
+                            Label("Kakao Map", systemImage: "map")
+                        }
                     }
-                    .buttonStyle(.plain)
+                } label: {
+                    Label("Send to Map", systemImage: "map")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.accentColor)
                 }
 
                 if let url = place.instagramURL {

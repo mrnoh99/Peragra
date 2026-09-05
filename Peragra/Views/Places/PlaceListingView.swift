@@ -120,21 +120,22 @@ struct PlaceListingView: View {
                 .disabled(selectedIDs.isEmpty)
             }
 
-            Button {
-                sendSelectedToGoogleMaps()
-            } label: {
-                Label("Send to Maps", systemImage: "map")
-                    .font(.subheadline.weight(.medium))
-            }
-            .disabled(selectedIDs.isEmpty)
-
-            Button {
-                Task { await sendSelectedToKakaoMap() }
+            Menu {
+                Button {
+                    sendSelectedToGoogleMaps()
+                } label: {
+                    Label("Google Maps", systemImage: "map")
+                }
+                Button {
+                    Task { await sendSelectedToKakaoMap() }
+                } label: {
+                    Label("Kakao Map", systemImage: "map")
+                }
             } label: {
                 if isSendingToKakao {
                     ProgressView()
                 } else {
-                    Label("Send to Kakao Map", systemImage: "map")
+                    Label("Send to Map", systemImage: "map")
                         .font(.subheadline.weight(.medium))
                 }
             }

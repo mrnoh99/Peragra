@@ -22,6 +22,7 @@ export function ListingView({
   const [showListPicker, setShowListPicker] = useState(false);
   const [isSendingToKakao, setIsSendingToKakao] = useState(false);
   const [kakaoError, setKakaoError] = useState<string | null>(null);
+  const [showMapMenu, setShowMapMenu] = useState(false);
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
   const addPlacesToCollection = useStore((s) => s.addPlacesToCollection);
 
@@ -60,6 +61,7 @@ export function ListingView({
   }
 
   function sendSelectedToGoogleMaps() {
+    setShowMapMenu(false);
     // Keep the current list order (not selection-click order) so the
     // resulting route reads top-to-bottom the way the list does.
     const selectedPlaces = places.filter((p) => selectedIds.has(p.id));
@@ -67,6 +69,7 @@ export function ListingView({
   }
 
   async function sendSelectedToKakaoMap() {
+    setShowMapMenu(false);
     setKakaoError(null);
     setIsSendingToKakao(true);
     try {
@@ -151,20 +154,34 @@ export function ListingView({
               )}
             </div>
           )}
-          <button
-            onClick={sendSelectedToGoogleMaps}
-            disabled={selectedIds.size === 0}
-            className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
-          >
-            🗺️ Send to Google Maps
-          </button>
-          <button
-            onClick={sendSelectedToKakaoMap}
-            disabled={selectedIds.size === 0 || isSendingToKakao}
-            className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
-          >
-            {isSendingToKakao ? "Locating…" : "🗺️ Send to Kakao Map"}
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowMapMenu((v) => !v)}
+              disabled={selectedIds.size === 0 || isSendingToKakao}
+              className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+            >
+              {isSendingToKakao ? "Locating…" : `🗺️ Send to Map ${showMapMenu ? "▲" : "▼"}`}
+            </button>
+            {showMapMenu && (
+              <div className="absolute left-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
+                <button
+                  type="button"
+                  onClick={sendSelectedToGoogleMaps}
+                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                >
+                  Google Maps
+                </button>
+                <button
+                  type="button"
+                  onClick={sendSelectedToKakaoMap}
+                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                >
+                  Kakao Map
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
       {kakaoError && (

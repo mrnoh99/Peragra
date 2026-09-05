@@ -47,6 +47,7 @@ export function PlaceCard({
   const deletePlace = useStore((s) => s.deletePlace);
   const togglePlaceCollection = useStore((s) => s.togglePlaceCollection);
   const [showCollections, setShowCollections] = useState(false);
+  const [showMapMenu, setShowMapMenu] = useState(false);
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
   const longPressTimer = useRef<number | null>(null);
@@ -150,35 +151,52 @@ export function PlaceCard({
               </p>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium">
-              <a
-                href={googleMapsUrl(place, destination)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-brand-600 hover:underline"
-              >
-                🗺️ Google Maps
-              </a>
-              {kakaoUrl && (
-                <a
-                  href={kakaoUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-amber-600 hover:underline"
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowMapMenu((v) => !v)}
+                  className="inline-flex items-center gap-1 text-brand-600 hover:underline"
                 >
-                  🗺️ Kakao Map
-                </a>
-              )}
-              {naverUrl && (
-                // No target="_blank" — nmap:// is a custom scheme with no
-                // web fallback, so opening it in a new tab would just leave
-                // a blank tab behind when the Naver Map app isn't installed.
-                <a
-                  href={naverUrl}
-                  className="inline-flex items-center gap-1 text-green-600 hover:underline"
-                >
-                  🗺️ Naver Map
-                </a>
-              )}
+                  🗺️ Send to Map {showMapMenu ? "▲" : "▼"}
+                </button>
+                {showMapMenu && (
+                  <div className="absolute left-0 top-full z-10 mt-1 flex min-w-[9rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
+                    <a
+                      href={googleMapsUrl(place, destination)}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => setShowMapMenu(false)}
+                      className="whitespace-nowrap rounded px-2 py-1 text-left text-neutral-600 hover:bg-neutral-50"
+                    >
+                      Google Maps
+                    </a>
+                    {naverUrl && (
+                      // No target="_blank" — nmap:// is a custom scheme with
+                      // no web fallback, so opening it in a new tab would
+                      // just leave a blank tab behind when the Naver Map app
+                      // isn't installed.
+                      <a
+                        href={naverUrl}
+                        onClick={() => setShowMapMenu(false)}
+                        className="whitespace-nowrap rounded px-2 py-1 text-left text-neutral-600 hover:bg-neutral-50"
+                      >
+                        Naver Map
+                      </a>
+                    )}
+                    {kakaoUrl && (
+                      <a
+                        href={kakaoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => setShowMapMenu(false)}
+                        className="whitespace-nowrap rounded px-2 py-1 text-left text-neutral-600 hover:bg-neutral-50"
+                      >
+                        Kakao Map
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
               {place.instagramUrl && (
                 <a
                   href={place.instagramUrl}
