@@ -56,61 +56,72 @@ export function NaverMapView({
         const infoWindow = new maps.InfoWindow();
 
         for (const place of located) {
-          const position = new maps.LatLng(place.lat, place.lng);
-          const marker = new maps.Marker({
-            position,
-            map,
-            icon: {
-              content: `<div style="opacity:${place.visited ? 0.5 : 1};font-size:18px;line-height:1;transform:translate(-50%,-100%);">${CATEGORY_ICON[place.category] ?? "📍"}</div>`,
-              anchor: { x: 0, y: 0 },
-            },
-          });
-          maps.Event.addListener(marker, "click", () => {
-            // Built as DOM nodes with textContent, not an HTML string, so
-            // a place name/address containing markup (pasted from an
-            // Instagram caption, say) can't inject into the page.
-            const content = document.createElement("div");
-            content.style.padding = "4px 2px";
-            const nameEl = document.createElement("div");
-            nameEl.style.fontWeight = "600";
-            nameEl.textContent = place.name;
-            content.appendChild(nameEl);
-            if (place.address) {
-              const addressEl = document.createElement("div");
-              addressEl.style.color = "#737373";
-              addressEl.style.fontSize = "12px";
-              addressEl.textContent = place.address;
-              content.appendChild(addressEl);
-            }
-            // No target="_blank" for Naver Map/Tmap — they're app-only
-            // custom schemes (nmap://, tmap://) with no web fallback, so a
-            // new tab would just sit blank behind when the app isn't
-            // installed.
-            const makeMapLink = (href: string, label: string, color: string, newTab: boolean) => {
-              const linkEl = document.createElement("a");
-              linkEl.href = href;
-              if (newTab) {
-                linkEl.target = "_blank";
-                linkEl.rel = "noreferrer";
+          try {
+            const position = new maps.LatLng(place.lat, place.lng);
+            const marker = new maps.Marker({
+              position,
+              map,
+              icon: {
+                content: `<div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;opacity:${place.visited ? 0.5 : 1};">${CATEGORY_ICON[place.category] ?? "📍"}</div>`,
+                // Documented NAVER HTML-icon pattern pairs a real Size
+                // with a real Point (not plain {x, y} objects) —
+                // anchor(12, 24) centers the 24x24 box horizontally and
+                // aligns its bottom edge with the marker's coordinate.
+                size: new maps.Size(24, 24),
+                anchor: new maps.Point(12, 24),
+              },
+            });
+            maps.Event.addListener(marker, "click", () => {
+              // Built as DOM nodes with textContent, not an HTML string, so
+              // a place name/address containing markup (pasted from an
+              // Instagram caption, say) can't inject into the page.
+              const content = document.createElement("div");
+              content.style.padding = "4px 2px";
+              const nameEl = document.createElement("div");
+              nameEl.style.fontWeight = "600";
+              nameEl.textContent = place.name;
+              content.appendChild(nameEl);
+              if (place.address) {
+                const addressEl = document.createElement("div");
+                addressEl.style.color = "#737373";
+                addressEl.style.fontSize = "12px";
+                addressEl.textContent = place.address;
+                content.appendChild(addressEl);
               }
-              linkEl.textContent = label;
-              linkEl.style.display = "block";
-              linkEl.style.marginTop = "4px";
-              linkEl.style.fontSize = "12px";
-              linkEl.style.color = color;
-              return linkEl;
-            };
-            content.appendChild(makeMapLink(googleMapsUrl(place, destination), "Open in Google Maps", "#2563eb", true));
-            const naverUrl = naverMapUrl(place);
-            if (naverUrl) content.appendChild(makeMapLink(naverUrl, "Open in Naver Map", "#16a34a", false));
-            const kakaoUrl = kakaoMapUrl(place);
-            if (kakaoUrl) content.appendChild(makeMapLink(kakaoUrl, "Open in Kakao Map", "#d97706", true));
-            const tmapDestinationUrl = tmapUrl(place);
-            if (tmapDestinationUrl) content.appendChild(makeMapLink(tmapDestinationUrl, "Open in Tmap", "#0284c7", false));
-            infoWindow.setContent(content);
-            infoWindow.open(map, marker);
-          });
-          bounds.extend(position);
+              // No target="_blank" for Naver Map/Tmap — they're app-only
+              // custom schemes (nmap://, tmap://) with no web fallback, so a
+              // new tab would just sit blank behind when the app isn't
+              // installed.
+              const makeMapLink = (href: string, label: string, color: string, newTab: boolean) => {
+                const linkEl = document.createElement("a");
+                linkEl.href = href;
+                if (newTab) {
+                  linkEl.target = "_blank";
+                  linkEl.rel = "noreferrer";
+                }
+                linkEl.textContent = label;
+                linkEl.style.display = "block";
+                linkEl.style.marginTop = "4px";
+                linkEl.style.fontSize = "12px";
+                linkEl.style.color = color;
+                return linkEl;
+              };
+              content.appendChild(makeMapLink(googleMapsUrl(place, destination), "Open in Google Maps", "#2563eb", true));
+              const naverUrl = naverMapUrl(place);
+              if (naverUrl) content.appendChild(makeMapLink(naverUrl, "Open in Naver Map", "#16a34a", false));
+              const kakaoUrl = kakaoMapUrl(place);
+              if (kakaoUrl) content.appendChild(makeMapLink(kakaoUrl, "Open in Kakao Map", "#d97706", true));
+              const tmapDestinationUrl = tmapUrl(place);
+              if (tmapDestinationUrl) content.appendChild(makeMapLink(tmapDestinationUrl, "Open in Tmap", "#0284c7", false));
+              infoWindow.setContent(content);
+              infoWindow.open(map, marker);
+            });
+            bounds.extend(position);
+          } catch (error) {
+            // One place's marker failing to construct shouldn't blank out
+            // the rest — log it and keep placing the others.
+            console.error(`Failed to place marker for "${place.name}":`, error);
+          }
         }
 
         if (located.length > 1) map.fitBounds(bounds);

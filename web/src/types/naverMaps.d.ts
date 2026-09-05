@@ -16,6 +16,18 @@ declare global {
       extend(latlng: LatLng): LatLngBounds;
     }
 
+    class Point {
+      constructor(x: number, y: number);
+      x: number;
+      y: number;
+    }
+
+    class Size {
+      constructor(width: number, height: number);
+      width: number;
+      height: number;
+    }
+
     interface MapOptions {
       center?: LatLng;
       zoom?: number;
@@ -29,7 +41,8 @@ declare global {
 
     interface MarkerIcon {
       content: string;
-      anchor?: { x: number; y: number };
+      size?: Size;
+      anchor?: Point;
     }
 
     interface MarkerOptions {
