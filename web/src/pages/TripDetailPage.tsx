@@ -26,6 +26,7 @@ export function TripDetailPage() {
   const ensureFavoritesCollection = useStore((s) => s.ensureFavoritesCollection);
 
   const trip = useMemo(() => trips.find((t) => t.id === tripId), [trips, tripId]);
+  const otherBoards = useMemo(() => trips.filter((t) => t.id !== tripId), [trips, tripId]);
   const places = useMemo(
     () => allPlaces.filter((p) => p.tripId === tripId),
     [allPlaces, tripId],
@@ -396,7 +397,13 @@ export function TripDetailPage() {
                 locatablePlaces={locatablePlaces}
               />
               {tab === "listing" ? (
-                <ListingView places={sorted} collections={collections} destination={trip.destination} distancesById={distancesById} />
+                <ListingView
+                  places={sorted}
+                  collections={collections}
+                  destination={trip.destination}
+                  distancesById={distancesById}
+                  otherBoards={otherBoards}
+                />
               ) : (
                 <MapView places={sorted} destination={trip.destination} />
               )}

@@ -8,6 +8,8 @@ struct PlaceListingView: View {
     let allCollections: [PlaceCollection]
     let distancesByID: [UUID: Double]
     let destination: String
+    /// Every board except this one, for the bulk "Move to Board" menu.
+    let otherBoards: [Trip]
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
@@ -124,6 +126,22 @@ struct PlaceListingView: View {
             }
             .disabled(selectedIDs.isEmpty)
 
+            if !otherBoards.isEmpty {
+                Menu {
+                    ForEach(otherBoards) { board in
+                        Button {
+                            moveSelected(to: board)
+                        } label: {
+                            Text("\(board.coverEmoji) \(board.name)")
+                        }
+                    }
+                } label: {
+                    Label("Move to Board", systemImage: "arrow.right.square")
+                        .font(.subheadline.weight(.medium))
+                }
+                .disabled(selectedIDs.isEmpty)
+            }
+
             if !allCollections.isEmpty {
                 Menu {
                     ForEach(allCollections) { collection in
@@ -189,6 +207,28 @@ struct PlaceListingView: View {
     private func applyCategory(_ category: PlaceCategory) {
         for place in places where selectedIDs.contains(place.id) {
             place.category = category
+        }
+        selectedIDs.removeAll()
+        isSelecting = false
+    }
+
+    /// Same as EditPlaceSheet's single-place board move, applied to the
+    /// whole selection: custom-list membership doesn't carry over (those
+    /// lists belong to the old board), but visited/favorite status is
+    /// preserved and re-synced against the new board's own
+    /// Visited/Favorites lists.
+    private func moveSelected(to newTrip: Trip) {
+        let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
+        for place in selectedPlaces where place.trip?.id != newTrip.id {
+            place.trip = newTrip
+            var newCollections: [PlaceCollection] = []
+            if place.visited {
+                newCollections.append(PlaceCollection.ensureVisitedList(for: newTrip, context: modelContext))
+            }
+            if place.favorite {
+                newCollections.append(PlaceCollection.ensureFavoritesList(for: newTrip, context: modelContext))
+            }
+            place.collections = newCollections
         }
         selectedIDs.removeAll()
         isSelecting = false

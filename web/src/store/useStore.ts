@@ -41,6 +41,8 @@ interface AppState {
    *  favorite status is preserved and re-synced against the new board's
    *  own Visited/Favorites lists. */
   movePlaceToBoard: (placeId: string, newTripId: string) => void;
+  /** Same as movePlaceToBoard, for a bulk selection at once. */
+  movePlacesToBoard: (placeIds: string[], newTripId: string) => void;
   setPlaceCoords: (
     placeId: string,
     coords: { lat: number; lng: number } | null,
@@ -167,6 +169,28 @@ export const useStore = create<AppState>()(
           places: state.places.map((p) =>
             p.id === placeId ? { ...p, tripId: newTripId, collectionIds: newCollectionIds } : p,
           ),
+        }));
+      },
+
+      movePlacesToBoard: (placeIds, newTripId) => {
+        const idSet = new Set(placeIds);
+        const selected = get().places.filter((p) => idSet.has(p.id));
+        // Ensured once up front (each is idempotent) rather than per place,
+        // since every place in the selection lands on the same new board.
+        const visitedCollectionId = selected.some((p) => p.visited)
+          ? get().ensureVisitedCollection(newTripId).id
+          : null;
+        const favoritesCollectionId = selected.some((p) => p.favorite)
+          ? get().ensureFavoritesCollection(newTripId).id
+          : null;
+        set((state) => ({
+          places: state.places.map((p) => {
+            if (!idSet.has(p.id) || p.tripId === newTripId) return p;
+            const newCollectionIds: string[] = [];
+            if (p.visited && visitedCollectionId) newCollectionIds.push(visitedCollectionId);
+            if (p.favorite && favoritesCollectionId) newCollectionIds.push(favoritesCollectionId);
+            return { ...p, tripId: newTripId, collectionIds: newCollectionIds };
+          }),
         }));
       },
 

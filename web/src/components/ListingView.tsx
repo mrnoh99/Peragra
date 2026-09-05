@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory } from "../types";
+import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory, type Trip } from "../types";
 import { useStore } from "../store/useStore";
 import { PlaceCard } from "./PlaceCard";
 import { googleMapsDirectionsUrl } from "../lib/googleMapsUrl";
@@ -13,12 +13,15 @@ export function ListingView({
   collections,
   destination,
   distancesById,
+  otherBoards,
 }: {
   /** Already filtered and sorted by the parent (shared with the Map tab). */
   places: Place[];
   collections: Collection[];
   destination: string;
   distancesById: Map<string, number>;
+  /** Every board except this one, for the bulk "Move to board" picker. */
+  otherBoards: Trip[];
 }) {
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -28,6 +31,7 @@ export function ListingView({
   const [showMapMenu, setShowMapMenu] = useState(false);
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
   const addPlacesToCollection = useStore((s) => s.addPlacesToCollection);
+  const movePlacesToBoard = useStore((s) => s.movePlacesToBoard);
 
   function toggleSelecting() {
     setIsSelecting((v) => !v);
@@ -46,6 +50,12 @@ export function ListingView({
 
   function applyBulkCategory(category: PlaceCategory) {
     updatePlacesCategory([...selectedIds], category);
+    setSelectedIds(new Set());
+    setIsSelecting(false);
+  }
+
+  function applyBulkMoveToBoard(newTripId: string) {
+    movePlacesToBoard([...selectedIds], newTripId);
     setSelectedIds(new Set());
     setIsSelecting(false);
   }
@@ -156,6 +166,25 @@ export function ListingView({
               </option>
             ))}
           </select>
+          {otherBoards.length > 0 && (
+            <select
+              disabled={selectedIds.size === 0}
+              value=""
+              onChange={(e) => {
+                if (e.target.value) applyBulkMoveToBoard(e.target.value);
+              }}
+              className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm disabled:opacity-50"
+            >
+              <option value="" disabled>
+                Move to board…
+              </option>
+              {otherBoards.map((board) => (
+                <option key={board.id} value={board.id}>
+                  {board.coverEmoji} {board.name}
+                </option>
+              ))}
+            </select>
+          )}
           {collections.length > 0 && (
             <div className="relative">
               <button

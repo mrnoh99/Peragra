@@ -10,6 +10,7 @@ private enum DetailTab: String, CaseIterable {
 struct TripDetailView: View {
     @Bindable var trip: Trip
     @Query private var places: [Place]
+    @Query(sort: \Trip.createdAt, order: .reverse) private var allTrips: [Trip]
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -49,6 +50,10 @@ struct TripDetailView: View {
 
     private var collections: [PlaceCollection] {
         trip.collections.sorted { defaultListRank($0) < defaultListRank($1) }
+    }
+
+    private var otherBoards: [Trip] {
+        allTrips.filter { $0.id != trip.id }
     }
 
     /// Where the user's own lists start, so the chip bar can draw a
@@ -190,7 +195,7 @@ struct TripDetailView: View {
                     locatablePlaces: locatablePlaces
                 )
                 if tab == .listing {
-                    PlaceListingView(places: sortedPlaces, allCollections: collections, distancesByID: distancesByID, destination: trip.destination)
+                    PlaceListingView(places: sortedPlaces, allCollections: collections, distancesByID: distancesByID, destination: trip.destination, otherBoards: otherBoards)
                 } else {
                     PlaceMapView(places: sortedPlaces, destination: trip.destination)
                 }
