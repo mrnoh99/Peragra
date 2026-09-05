@@ -6,7 +6,26 @@ import Foundation
 /// opt-in is active — see NearbyPlacesService.search, the entry point
 /// every call site actually uses.
 enum GoogleNearbyPlacesService {
-    static func search(latitude: Double, longitude: Double, apiKey: String) async -> [NearbyPlacesService.Candidate] {
+    // This app's categories, mapped to Google Places API (New) primary
+    // types — used to narrow a search via includedPrimaryTypes when the
+    // person supplies a category hint.
+    private static let primaryTypesByCategory: [PlaceCategory: [String]] = [
+        .restaurant: ["restaurant", "meal_takeaway", "meal_delivery", "bakery", "food_court"],
+        .cafe: ["cafe", "coffee_shop"],
+        .attraction: [
+            "tourist_attraction", "museum", "art_gallery", "park", "landmark", "place_of_worship",
+            "church", "temple", "zoo", "amusement_park", "aquarium",
+        ],
+        .shopping: [
+            "store", "shopping_mall", "clothing_store", "supermarket", "convenience_store",
+            "book_store", "department_store", "electronics_store", "gift_shop",
+        ],
+        .hotel: ["lodging", "hotel"],
+        .nightlife: ["bar", "night_club", "pub", "casino"],
+        .other: [],
+    ]
+
+    static func search(latitude: Double, longitude: Double, apiKey: String, categoryHint: PlaceCategory? = nil) async -> [NearbyPlacesService.Candidate] {
         guard let url = URL(string: "https://places.googleapis.com/v1/places:searchNearby") else { return [] }
 
         var request = URLRequest(url: url)
@@ -23,7 +42,7 @@ enum GoogleNearbyPlacesService {
             request.setValue(bundleID, forHTTPHeaderField: "X-Ios-Bundle-Identifier")
         }
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "maxResultCount": 8,
             "rankPreference": "DISTANCE",
             "locationRestriction": [
@@ -33,6 +52,9 @@ enum GoogleNearbyPlacesService {
                 ],
             ],
         ]
+        if let categoryHint, let includedPrimaryTypes = primaryTypesByCategory[categoryHint], !includedPrimaryTypes.isEmpty {
+            body["includedPrimaryTypes"] = includedPrimaryTypes
+        }
         guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else { return [] }
         request.httpBody = bodyData
 

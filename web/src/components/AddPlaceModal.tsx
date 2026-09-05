@@ -4,7 +4,7 @@ import { InstagramEmbed } from "./InstagramEmbed";
 import { readPhotoExif } from "../lib/photoExif";
 import { getCurrentLocation } from "../lib/currentLocation";
 import { geocodePlace, reverseGeocode } from "../lib/geocode";
-import { searchNearbyPlaces, type NearbyPlaceCandidate } from "../lib/googleNearbyPlaces";
+import { searchNearbyPlaces, type NearbyPlaceCandidate } from "../lib/nearbyPlaces";
 import { isInstagramPostUrl, normalizeInstagramUrl } from "../lib/instagram";
 import {
   extractPlacesFromImage,
@@ -17,7 +17,6 @@ import {
   type AIExtractedPlace,
 } from "../lib/aiExtract";
 import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
-import { useMapSettingsStore } from "../store/useMapSettingsStore";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type PlaceCategory } from "../types";
 
@@ -102,13 +101,16 @@ export function AddPlaceModal({
   const [isGuessingAddresses, setIsGuessingAddresses] = useState(false);
   const [isCapturingOnSite, setIsCapturingOnSite] = useState(false);
   const [onSitePhotos, setOnSitePhotos] = useState<OnSitePhoto[]>([]);
-  // Real nearby places (from Google's Places API) offered as pickable
-  // candidates for the blank row a photo's GPS fix alone produced — set
-  // only when that search actually found something, and only relevant to
-  // that one row (it's the only case where the row has no AI-found name
-  // to already trust).
+  // Real nearby places offered as pickable candidates for the blank row a
+  // photo's GPS fix alone produced — set only when that search actually
+  // found something, and only relevant to that one row (it's the only
+  // case where the row has no AI-found name to already trust).
   const [nearbyCandidates, setNearbyCandidates] = useState<NearbyPlaceCandidate[]>([]);
   const [nearbyCandidateRowId, setNearbyCandidateRowId] = useState<string | null>(null);
+  // The coordinate that produced nearbyCandidates — kept so picking a
+  // category hint can re-run the same search narrowed to that category.
+  const [nearbySearchLocation, setNearbySearchLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isRefiningNearbySearch, setIsRefiningNearbySearch] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadPhotosInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -144,11 +146,29 @@ export function AddPlaceModal({
     });
     setNearbyCandidates([]);
     setNearbyCandidateRowId(null);
+    setNearbySearchLocation(null);
   }
 
   function dismissNearbyCandidates() {
     setNearbyCandidates([]);
     setNearbyCandidateRowId(null);
+    setNearbySearchLocation(null);
+  }
+
+  /**
+   * When the plain nearby list is too ambiguous to tell which result is
+   * the right one, narrowing by a category (restaurant, cafe, ...) the
+   * person supplies re-runs the same search scoped to it.
+   */
+  async function refineNearbySearch(category: PlaceCategory) {
+    if (!nearbySearchLocation) return;
+    setIsRefiningNearbySearch(true);
+    try {
+      const candidates = await searchNearbyPlaces(nearbySearchLocation.lat, nearbySearchLocation.lng, category);
+      setNearbyCandidates(candidates);
+    } finally {
+      setIsRefiningNearbySearch(false);
+    }
   }
 
   /**
@@ -390,18 +410,16 @@ export function AddPlaceModal({
 
     // Offer real nearby places to pick from, as a step up from the bare
     // reverse-geocode above — only worth asking when AI found nothing on
-    // its own (there's exactly one blank row) and Google Places access is
-    // actually configured.
+    // its own (there's exactly one blank row).
     setNearbyCandidates([]);
     setNearbyCandidateRowId(null);
+    setNearbySearchLocation(null);
     if (extracted.length === 0 && location) {
-      const { mapProvider, googleMapsApiKey } = useMapSettingsStore.getState();
-      if (mapProvider === "google" && googleMapsApiKey) {
-        const candidates = await searchNearbyPlaces(location.lat, location.lng, googleMapsApiKey);
-        if (candidates.length > 0) {
-          setNearbyCandidates(candidates);
-          setNearbyCandidateRowId(newRows[0].id);
-        }
+      setNearbySearchLocation(location);
+      const candidates = await searchNearbyPlaces(location.lat, location.lng);
+      if (candidates.length > 0) {
+        setNearbyCandidates(candidates);
+        setNearbyCandidateRowId(newRows[0].id);
       }
     }
 
@@ -665,7 +683,7 @@ export function AddPlaceModal({
           </p>
         )}
 
-        {nearbyCandidates.length > 0 && (
+        {nearbySearchLocation && (
           <div className="rounded-lg border border-dashed border-brand-300 bg-brand-50/40 p-3">
             <div className="mb-1.5 flex items-center justify-between gap-2">
               <p className="text-xs font-medium text-neutral-700">📍 Is it one of these nearby places?</p>
@@ -677,16 +695,34 @@ export function AddPlaceModal({
                 Dismiss
               </button>
             </div>
-            <div className="space-y-1">
-              {nearbyCandidates.map((candidate) => (
+            {nearbyCandidates.length > 0 && (
+              <div className="space-y-1">
+                {nearbyCandidates.map((candidate) => (
+                  <button
+                    key={candidate.placeId}
+                    type="button"
+                    onClick={() => applyNearbyCandidate(candidate)}
+                    className="block w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-left text-xs hover:border-brand-400 hover:bg-brand-50"
+                  >
+                    <span className="font-medium text-neutral-700">{candidate.name}</span>
+                    {candidate.address && <span className="block text-neutral-400">{candidate.address}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="mt-2 flex flex-wrap items-center gap-1">
+              <span className="text-xs text-neutral-400">
+                {nearbyCandidates.length === 0 ? "No matches — not sure what it is? Narrow by type:" : "Not the right one? Narrow by type:"}
+              </span>
+              {PLACE_CATEGORIES.map((c) => (
                 <button
-                  key={candidate.placeId}
+                  key={c.value}
                   type="button"
-                  onClick={() => applyNearbyCandidate(candidate)}
-                  className="block w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-left text-xs hover:border-brand-400 hover:bg-brand-50"
+                  onClick={() => refineNearbySearch(c.value)}
+                  disabled={isRefiningNearbySearch}
+                  className="rounded-full border border-neutral-300 bg-white px-2 py-0.5 text-xs text-neutral-600 hover:border-brand-400 hover:bg-brand-50 disabled:opacity-40"
                 >
-                  <span className="font-medium text-neutral-700">{candidate.name}</span>
-                  {candidate.address && <span className="block text-neutral-400">{candidate.address}</span>}
+                  {c.label}
                 </button>
               ))}
             </div>

@@ -60,6 +60,10 @@ struct EditPlaceSheet: View {
     // the AI/reverse-geocode fallbacks above it does overwrite
     // name/address/phone/category with the selection.
     @State private var nearbyCandidates: [NearbyPlacesService.Candidate] = []
+    // The coordinate that produced nearbyCandidates — kept so picking a
+    // category hint can re-run the same search narrowed to that category.
+    @State private var nearbySearchCoordinate: CLLocationCoordinate2D?
+    @State private var isRefiningNearbySearch = false
 
     private var aiSettings: AISettings { AISettings.shared }
 
@@ -192,7 +196,7 @@ struct EditPlaceSheet: View {
                     Text("Take a photo here or upload one of this place (a sign, a menu, ...) and AI reads it to fill in whatever's still blank above — it never overwrites what you've already entered. A location read from the photo (or your current location) is queued to apply when you save.")
                 }
 
-                if !nearbyCandidates.isEmpty {
+                if nearbySearchCoordinate != nil {
                     Section {
                         ForEach(nearbyCandidates) { candidate in
                             Button {
@@ -209,7 +213,26 @@ struct EditPlaceSheet: View {
                                 }
                             }
                         }
-                        Button("Dismiss", role: .cancel) { nearbyCandidates = [] }
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(nearbyCandidates.isEmpty ? "No matches — not sure what it is? Narrow by type:" : "Not the right one? Narrow by type:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 6) {
+                                    ForEach(PlaceCategory.allCases) { hintCategory in
+                                        FilterChip(title: hintCategory.label, isSelected: false) {
+                                            Task { await refineNearbySearch(hintCategory) }
+                                        }
+                                        .disabled(isRefiningNearbySearch)
+                                    }
+                                }
+                            }
+                        }
+                        .listRowSeparator(.hidden)
+                        Button("Dismiss", role: .cancel) {
+                            nearbyCandidates = []
+                            nearbySearchCoordinate = nil
+                        }
                     } header: {
                         Text("📍 Is it one of these nearby places?")
                     }
@@ -260,6 +283,21 @@ struct EditPlaceSheet: View {
         category = candidate.category
         pendingCoordinate = CLLocationCoordinate2D(latitude: candidate.latitude, longitude: candidate.longitude)
         nearbyCandidates = []
+        nearbySearchCoordinate = nil
+    }
+
+    /// When the plain nearby list is too ambiguous to tell which result
+    /// is the right one, narrowing by a category the person supplies
+    /// re-runs the same search scoped to it.
+    private func refineNearbySearch(_ hintCategory: PlaceCategory) async {
+        guard let coordinate = nearbySearchCoordinate else { return }
+        isRefiningNearbySearch = true
+        defer { isRefiningNearbySearch = false }
+        nearbyCandidates = await NearbyPlacesService.search(
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            categoryHint: hintCategory
+        )
     }
 
     private func save() async {
@@ -420,6 +458,7 @@ struct EditPlaceSheet: View {
         let photos = onSitePhotos
         onSitePhotos = []
         nearbyCandidates = []
+        nearbySearchCoordinate = nil
 
         // A photo captured live through the camera isn't itself tagged
         // with a location — it was taken right now, right here, so a live
@@ -484,8 +523,8 @@ struct EditPlaceSheet: View {
 
             // Offer real nearby places to pick from, as a step up from
             // the bare reverse-geocode above.
-            let candidates = await NearbyPlacesService.search(latitude: coordinate.latitude, longitude: coordinate.longitude)
-            if !candidates.isEmpty { nearbyCandidates = candidates }
+            nearbySearchCoordinate = coordinate
+            nearbyCandidates = await NearbyPlacesService.search(latitude: coordinate.latitude, longitude: coordinate.longitude)
         }
 
         let locationSourceLabel = hasCameraPhoto ? "your current location" : "your photos"

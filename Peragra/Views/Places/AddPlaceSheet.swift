@@ -111,6 +111,10 @@ struct AddPlaceSheet: View {
     // the only case where the row has no AI-found name to already trust).
     @State private var nearbyCandidates: [NearbyPlacesService.Candidate] = []
     @State private var nearbyCandidateRowID: UUID?
+    // The coordinate that produced nearbyCandidates — kept so picking a
+    // category hint can re-run the same search narrowed to that category.
+    @State private var nearbySearchCoordinate: CLLocationCoordinate2D?
+    @State private var isRefiningNearbySearch = false
 
     // Computed, not stored — a private *stored* property forces Swift's
     // synthesized memberwise init to become private too, which broke
@@ -293,7 +297,7 @@ struct AddPlaceSheet: View {
                     }
                 }
 
-                if !nearbyCandidates.isEmpty {
+                if nearbySearchCoordinate != nil {
                     Section {
                         ForEach(nearbyCandidates) { candidate in
                             Button {
@@ -310,6 +314,22 @@ struct AddPlaceSheet: View {
                                 }
                             }
                         }
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(nearbyCandidates.isEmpty ? "No matches — not sure what it is? Narrow by type:" : "Not the right one? Narrow by type:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 6) {
+                                    ForEach(PlaceCategory.allCases) { category in
+                                        FilterChip(title: category.label, isSelected: false) {
+                                            Task { await refineNearbySearch(category) }
+                                        }
+                                        .disabled(isRefiningNearbySearch)
+                                    }
+                                }
+                            }
+                        }
+                        .listRowSeparator(.hidden)
                         Button("Dismiss", role: .cancel) { dismissNearbyCandidates() }
                     } header: {
                         Text("📍 Is it one of these nearby places?")
@@ -470,11 +490,27 @@ struct AddPlaceSheet: View {
         rows[index].manualLongitude = candidate.longitude
         nearbyCandidates = []
         nearbyCandidateRowID = nil
+        nearbySearchCoordinate = nil
     }
 
     private func dismissNearbyCandidates() {
         nearbyCandidates = []
         nearbyCandidateRowID = nil
+        nearbySearchCoordinate = nil
+    }
+
+    /// When the plain nearby list is too ambiguous to tell which result
+    /// is the right one, narrowing by a category the person supplies
+    /// re-runs the same search scoped to it.
+    private func refineNearbySearch(_ category: PlaceCategory) async {
+        guard let coordinate = nearbySearchCoordinate else { return }
+        isRefiningNearbySearch = true
+        defer { isRefiningNearbySearch = false }
+        nearbyCandidates = await NearbyPlacesService.search(
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            categoryHint: category
+        )
     }
 
     private func replaceRows(
@@ -720,9 +756,11 @@ struct AddPlaceSheet: View {
         // nothing on its own (there's exactly one blank row).
         nearbyCandidates = []
         nearbyCandidateRowID = nil
+        nearbySearchCoordinate = nil
         if extracted.isEmpty, let coordinate {
+            nearbySearchCoordinate = coordinate
             let candidates = await NearbyPlacesService.search(latitude: coordinate.latitude, longitude: coordinate.longitude)
-            if !candidates.isEmpty, let firstRowID = newRows.first?.id {
+            if let firstRowID = newRows.first?.id {
                 nearbyCandidates = candidates
                 nearbyCandidateRowID = firstRowID
             }

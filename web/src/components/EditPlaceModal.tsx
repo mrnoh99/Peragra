@@ -11,9 +11,8 @@ import {
 import { readPhotoExif } from "../lib/photoExif";
 import { getCurrentLocation } from "../lib/currentLocation";
 import { geocodePlace, reverseGeocode } from "../lib/geocode";
-import { searchNearbyPlaces, type NearbyPlaceCandidate } from "../lib/googleNearbyPlaces";
+import { searchNearbyPlaces, type NearbyPlaceCandidate } from "../lib/nearbyPlaces";
 import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
-import { useMapSettingsStore } from "../store/useMapSettingsStore";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type Place, type PlaceCategory } from "../types";
 
@@ -57,11 +56,13 @@ export function EditPlaceModal({
   // applied on Save instead of immediately, so Cancel still discards it
   // like every other field here.
   const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null);
-  // Real nearby places (from Google's Places API), offered as pickable
-  // candidates once a photo's location is known — picking one is an
-  // explicit choice, so unlike the AI/reverse-geocode fallbacks above it
-  // does overwrite name/address/phone/category with the selection.
+  // Real nearby places, offered as pickable candidates once a photo's
+  // location is known — picking one is an explicit choice, so unlike the
+  // AI/reverse-geocode fallbacks above it does overwrite
+  // name/address/phone/category with the selection.
   const [nearbyCandidates, setNearbyCandidates] = useState<NearbyPlaceCandidate[]>([]);
+  const [hasSearchedNearby, setHasSearchedNearby] = useState(false);
+  const [isRefiningNearbySearch, setIsRefiningNearbySearch] = useState(false);
   const uploadPhotosInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -181,13 +182,10 @@ export function EditPlaceModal({
       }
 
       // Offer real nearby places to pick from, as a step up from the bare
-      // reverse-geocode above — only worth asking when Google Places
-      // access is actually configured.
-      const { mapProvider, googleMapsApiKey } = useMapSettingsStore.getState();
-      if (mapProvider === "google" && googleMapsApiKey) {
-        const candidates = await searchNearbyPlaces(location.lat, location.lng, googleMapsApiKey);
-        if (candidates.length > 0) setNearbyCandidates(candidates);
-      }
+      // reverse-geocode above.
+      setHasSearchedNearby(true);
+      const candidates = await searchNearbyPlaces(location.lat, location.lng);
+      setNearbyCandidates(candidates);
     }
 
     // `filledSomething` can be true even without an API key (the address
@@ -227,10 +225,28 @@ export function EditPlaceModal({
     setCategory(candidate.category);
     setPendingCoords({ lat: candidate.lat, lng: candidate.lng });
     setNearbyCandidates([]);
+    setHasSearchedNearby(false);
   }
 
   function dismissNearbyCandidates() {
     setNearbyCandidates([]);
+    setHasSearchedNearby(false);
+  }
+
+  /**
+   * When the plain nearby list is too ambiguous to tell which result is
+   * the right one, narrowing by a category (restaurant, cafe, ...) the
+   * person supplies re-runs the same search scoped to it.
+   */
+  async function refineNearbySearch(hintCategory: PlaceCategory) {
+    if (!pendingCoords) return;
+    setIsRefiningNearbySearch(true);
+    try {
+      const candidates = await searchNearbyPlaces(pendingCoords.lat, pendingCoords.lng, hintCategory);
+      setNearbyCandidates(candidates);
+    } finally {
+      setIsRefiningNearbySearch(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -419,7 +435,7 @@ export function EditPlaceModal({
               completely, since on-device text recognition struggles with stylized graphics.
             </p>
           )}
-          {nearbyCandidates.length > 0 && (
+          {hasSearchedNearby && (
             <div className="mt-2 rounded-lg border border-dashed border-brand-300 bg-brand-50/40 p-2">
               <div className="mb-1.5 flex items-center justify-between gap-2">
                 <p className="text-xs font-medium text-neutral-700">📍 Is it one of these nearby places?</p>
@@ -431,16 +447,34 @@ export function EditPlaceModal({
                   Dismiss
                 </button>
               </div>
-              <div className="space-y-1">
-                {nearbyCandidates.map((candidate) => (
+              {nearbyCandidates.length > 0 && (
+                <div className="space-y-1">
+                  {nearbyCandidates.map((candidate) => (
+                    <button
+                      key={candidate.placeId}
+                      type="button"
+                      onClick={() => applyNearbyCandidate(candidate)}
+                      className="block w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-left text-xs hover:border-brand-400 hover:bg-brand-50"
+                    >
+                      <span className="font-medium text-neutral-700">{candidate.name}</span>
+                      {candidate.address && <span className="block text-neutral-400">{candidate.address}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="mt-2 flex flex-wrap items-center gap-1">
+                <span className="text-xs text-neutral-400">
+                  {nearbyCandidates.length === 0 ? "No matches — not sure what it is? Narrow by type:" : "Not the right one? Narrow by type:"}
+                </span>
+                {PLACE_CATEGORIES.map((c) => (
                   <button
-                    key={candidate.placeId}
+                    key={c.value}
                     type="button"
-                    onClick={() => applyNearbyCandidate(candidate)}
-                    className="block w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-left text-xs hover:border-brand-400 hover:bg-brand-50"
+                    onClick={() => refineNearbySearch(c.value)}
+                    disabled={isRefiningNearbySearch}
+                    className="rounded-full border border-neutral-300 bg-white px-2 py-0.5 text-xs text-neutral-600 hover:border-brand-400 hover:bg-brand-50 disabled:opacity-40"
                   >
-                    <span className="font-medium text-neutral-700">{candidate.name}</span>
-                    {candidate.address && <span className="block text-neutral-400">{candidate.address}</span>}
+                    {c.label}
                   </button>
                 ))}
               </div>

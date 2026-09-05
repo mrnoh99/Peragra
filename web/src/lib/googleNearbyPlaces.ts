@@ -1,15 +1,44 @@
 import { loadGoogleMapsScript } from "./googleMapsLoader";
+import type { NearbyPlaceCandidate } from "./nearbyPlaceCandidate";
 import type { PlaceCategory } from "../types";
 
-export interface NearbyPlaceCandidate {
-  placeId: string;
-  name: string;
-  address: string | null;
-  phone: string | null;
-  lat: number;
-  lng: number;
-  category: PlaceCategory;
-}
+export type { NearbyPlaceCandidate };
+
+// This app's categories, mapped to Google Places API (New) primary
+// types — used to narrow a search via includedPrimaryTypes when the
+// person supplies a category hint (e.g. the plain nearby list was too
+// ambiguous to tell which result is right).
+const PRIMARY_TYPES_BY_CATEGORY: Record<PlaceCategory, string[]> = {
+  restaurant: ["restaurant", "meal_takeaway", "meal_delivery", "bakery", "food_court"],
+  cafe: ["cafe", "coffee_shop"],
+  attraction: [
+    "tourist_attraction",
+    "museum",
+    "art_gallery",
+    "park",
+    "landmark",
+    "place_of_worship",
+    "church",
+    "temple",
+    "zoo",
+    "amusement_park",
+    "aquarium",
+  ],
+  shopping: [
+    "store",
+    "shopping_mall",
+    "clothing_store",
+    "supermarket",
+    "convenience_store",
+    "book_store",
+    "department_store",
+    "electronics_store",
+    "gift_shop",
+  ],
+  hotel: ["lodging", "hotel"],
+  nightlife: ["bar", "night_club", "pub", "casino"],
+  other: [],
+};
 
 // Google Places (New) primary-type strings, mapped to this app's own
 // category set. Not exhaustive — anything unmapped falls back to "other"
@@ -60,15 +89,18 @@ function categoryForPrimaryType(primaryType: string | null | undefined): PlaceCa
  * Search, for presenting as pickable candidates when a GPS fix (from an
  * on-site photo) is the only information available — letting the person
  * confirm which actual place it was rather than trusting a bare reverse
- * geocode. Requires the user's own Google Maps API key with the Places
- * API enabled; returns an empty list on any failure (no key, API not
- * enabled, network error) so callers just fall back to their existing
- * reverse-geocode behavior.
+ * geocode. An optional category hint narrows the search (via
+ * includedPrimaryTypes) for when the plain nearby list is too ambiguous
+ * to tell which result is right. Requires the user's own Google Maps API
+ * key with the Places API enabled; returns an empty list on any failure
+ * (no key, API not enabled, network error) so callers just fall back to
+ * their existing reverse-geocode behavior.
  */
-export async function searchNearbyPlaces(
+export async function searchNearbyPlacesGoogle(
   lat: number,
   lng: number,
   apiKey: string,
+  categoryHint?: PlaceCategory,
 ): Promise<NearbyPlaceCandidate[]> {
   await loadGoogleMapsScript(apiKey);
   if (!window.google?.maps?.places) return [];
@@ -77,11 +109,13 @@ export async function searchNearbyPlaces(
     const { Place, SearchNearbyRankPreference } = (await window.google.maps.importLibrary(
       "places",
     )) as google.maps.PlacesLibrary;
+    const includedPrimaryTypes = categoryHint ? PRIMARY_TYPES_BY_CATEGORY[categoryHint] : undefined;
     const { places } = await Place.searchNearby({
       fields: ["displayName", "formattedAddress", "location", "id", "primaryType", "nationalPhoneNumber"],
       locationRestriction: { center: { lat, lng }, radius: 100 },
       maxResultCount: 8,
       rankPreference: SearchNearbyRankPreference.DISTANCE,
+      ...(includedPrimaryTypes && includedPrimaryTypes.length > 0 ? { includedPrimaryTypes } : {}),
     });
 
     return places
