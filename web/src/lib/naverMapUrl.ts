@@ -1,6 +1,7 @@
 import type { Place } from "../types";
 import { getCurrentLocation } from "./currentLocation";
 import { isInKorea } from "./koreaRegion";
+import { buildCustomSchemeQuery } from "./customSchemeUrl";
 
 // A required identifier for the calling app/site, not a registered API key.
 const APP_NAME = "com.peragra.web";
@@ -15,13 +16,13 @@ const APP_NAME = "com.peragra.web";
 export function naverMapUrl(place: Place): string | null {
   if (place.lat === null || place.lng === null || !place.name) return null;
   if (!isInKorea(place.lat, place.lng)) return null;
-  const params = new URLSearchParams({
+  const query = buildCustomSchemeQuery({
     lat: `${place.lat}`,
     lng: `${place.lng}`,
     name: place.name,
     appname: APP_NAME,
   });
-  return `nmap://place?${params.toString()}`;
+  return `nmap://place?${query}`;
 }
 
 /**
@@ -47,7 +48,7 @@ export async function naverMapDirectionsUrl(places: Place[]): Promise<string | n
   const destination = inKorea[inKorea.length - 1];
   const waypoints = inKorea.slice(0, -1).slice(0, 5);
 
-  const params = new URLSearchParams({
+  const query: Record<string, string> = {
     slat: `${origin.lat}`,
     slng: `${origin.lng}`,
     sname: "현재 위치",
@@ -55,12 +56,12 @@ export async function naverMapDirectionsUrl(places: Place[]): Promise<string | n
     dlng: `${destination.lng}`,
     dname: destination.name || "목적지",
     appname: APP_NAME,
-  });
+  };
   waypoints.forEach((waypoint, index) => {
     const n = index + 1;
-    params.set(`v${n}lat`, `${waypoint.lat}`);
-    params.set(`v${n}lng`, `${waypoint.lng}`);
-    params.set(`v${n}name`, waypoint.name || `경유지 ${n}`);
+    query[`v${n}lat`] = `${waypoint.lat}`;
+    query[`v${n}lng`] = `${waypoint.lng}`;
+    query[`v${n}name`] = waypoint.name || `경유지 ${n}`;
   });
-  return `nmap://route/car?${params.toString()}`;
+  return `nmap://route/car?${buildCustomSchemeQuery(query)}`;
 }

@@ -18,3 +18,24 @@
 export function openCustomSchemeUrl(url: string): void {
   window.location.href = url;
 }
+
+/**
+ * Builds a query string for a custom-scheme URL (nmap://, tmap://, ...)
+ * using plain percent-encoding (spaces as %20) instead of
+ * `URLSearchParams`/`application/x-www-form-urlencoded` encoding (spaces
+ * as +). Tmap (with a real place name, which almost always has a space)
+ * failed to launch at all with the `URLSearchParams`-built URL on a real
+ * iPhone with the app installed — every working Tmap/Naver Map
+ * integration example found elsewhere encodes with the equivalent of
+ * `encodeURIComponent`, never `+`-for-space form encoding, which points
+ * at these app-only schemes expecting the former and choking on (or
+ * simply not decoding) the latter. Not independently confirmed by
+ * isolating just this change, since the previous attempt changed the
+ * launch mechanism at the same time — worth re-testing this specific
+ * fix on device.
+ */
+export function buildCustomSchemeQuery(params: Record<string, string>): string {
+  return Object.entries(params)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join("&");
+}

@@ -1,5 +1,6 @@
 import type { Place } from "../types";
 import { isInKorea } from "./koreaRegion";
+import { buildCustomSchemeQuery } from "./customSchemeUrl";
 
 /**
  * Tmap's own app URL scheme. Like Naver Map's nmap://, there's no
@@ -13,12 +14,12 @@ import { isInKorea } from "./koreaRegion";
 export function tmapUrl(place: Place): string | null {
   if (place.lat === null || place.lng === null || !place.name) return null;
   if (!isInKorea(place.lat, place.lng)) return null;
-  const params = new URLSearchParams({
+  const query = buildCustomSchemeQuery({
     rGoName: place.name,
     rGoX: `${place.lng}`,
     rGoY: `${place.lat}`,
   });
-  return `tmap://route?${params.toString()}`;
+  return `tmap://route?${query}`;
 }
 
 /**
@@ -40,16 +41,16 @@ export function tmapDirectionsUrl(places: Place[]): string | null {
   const destination = inKorea[inKorea.length - 1];
   const waypoints = inKorea.slice(0, -1).slice(0, 2);
 
-  const params = new URLSearchParams({
+  const query: Record<string, string> = {
     rGoName: destination.name || "목적지",
     rGoX: `${destination.lng}`,
     rGoY: `${destination.lat}`,
-  });
+  };
   waypoints.forEach((waypoint, index) => {
     const n = index + 1;
-    params.set(`rV${n}Name`, waypoint.name || `경유지 ${n}`);
-    params.set(`rV${n}X`, `${waypoint.lng}`);
-    params.set(`rV${n}Y`, `${waypoint.lat}`);
+    query[`rV${n}Name`] = waypoint.name || `경유지 ${n}`;
+    query[`rV${n}X`] = `${waypoint.lng}`;
+    query[`rV${n}Y`] = `${waypoint.lat}`;
   });
-  return `tmap://route?${params.toString()}`;
+  return `tmap://route?${buildCustomSchemeQuery(query)}`;
 }
