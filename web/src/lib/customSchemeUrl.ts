@@ -1,23 +1,20 @@
 /**
- * Launches a custom-scheme URL (nmap://, tmap://, ...) through a hidden
- * iframe rather than a direct top-level navigation (`<a href>` or
- * `location.href =`) — the standard workaround Korean sites use for a
- * specific problem: confirmed on a real iPhone that a direct link tap to
- * an app-only scheme with no installed handler pops Safari's own "Safari
- * cannot open the page because the address is invalid" alert. A failed
- * iframe navigation to the same unhandled scheme doesn't trigger that
- * alert. Not guaranteed on every iOS/Safari version (Apple has tightened
- * custom scheme handling over time) — if the app is installed this still
- * opens it normally, but if the alert still appears on some devices, this
- * is the ceiling of what's fixable purely from the web side; these
- * schemes have no documented web fallback of their own.
+ * Launches a custom-scheme URL (nmap://, tmap://, ...) via a direct
+ * top-level navigation.
+ *
+ * This used to go through a hidden iframe instead, to avoid Safari's own
+ * "Safari cannot open the page because the address is invalid" alert that
+ * a direct link tap pops when no app is installed to handle the scheme.
+ * That traded away the one thing that actually matters: confirmed on a
+ * real iPhone with Naver Map installed that the iframe approach no longer
+ * switches to the app at all — modern iOS Safari appears to block
+ * cross-origin iframe navigation to non-http(s) schemes outright,
+ * regardless of whether a handler exists. Direct navigation is the one
+ * mechanism confirmed to actually launch an installed app, so this is
+ * back to that, accepting the alert as the cost when the app isn't
+ * installed — these schemes have no documented web fallback of their own
+ * either way.
  */
 export function openCustomSchemeUrl(url: string): void {
-  const iframe = document.createElement("iframe");
-  iframe.style.display = "none";
-  document.body.appendChild(iframe);
-  iframe.src = url;
-  window.setTimeout(() => {
-    iframe.remove();
-  }, 2000);
+  window.location.href = url;
 }
