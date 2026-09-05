@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { EditBoardModal } from "../components/EditBoardModal";
 import { Modal } from "../components/Modal";
 import { EMOJI_CHOICES } from "../lib/emojiChoices";
 import { useStore } from "../store/useStore";
+import type { Trip } from "../types";
 
 export function TripsPage() {
   const trips = useStore((s) => s.trips);
@@ -10,6 +12,7 @@ export function TripsPage() {
   const addTrip = useStore((s) => s.addTrip);
   const deleteTrip = useStore((s) => s.deleteTrip);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
 
   const placeCountByTrip = useMemo(() => {
     const counts = new Map<string, number>();
@@ -48,33 +51,53 @@ export function TripsPage() {
         <EmptyState onCreate={() => setShowCreate(true)} />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {trips.map((trip) => (
-            <div
-              key={trip.id}
-              className="group relative overflow-hidden rounded-2xl border border-black/5 bg-white p-5 shadow-sm transition hover:shadow-md"
-            >
-              <Link to={`/trips/${trip.id}`} className="block">
-                <div className="mb-3 text-3xl">{trip.coverEmoji}</div>
-                <h3 className="font-semibold text-neutral-900">{trip.name}</h3>
-                <p className="text-sm text-neutral-500">{trip.destination}</p>
-                <p className="mt-3 text-xs font-medium text-brand-600">
-                  {placeCountByTrip.get(trip.id) ?? 0} saved places
-                </p>
-              </Link>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (confirm(`Delete "${trip.name}" and all its saved places?`)) {
-                    deleteTrip(trip.id);
-                  }
-                }}
-                className="absolute right-3 top-3 hidden h-7 w-7 place-items-center rounded-full bg-white text-neutral-400 hover:text-red-500 group-hover:grid"
-                aria-label="Delete board"
+          {trips.map((trip) => {
+            const placeCount = placeCountByTrip.get(trip.id) ?? 0;
+            const canDelete = placeCount === 0;
+            return (
+              <div
+                key={trip.id}
+                className="group relative overflow-hidden rounded-2xl border border-black/5 bg-white p-5 shadow-sm transition hover:shadow-md"
               >
-                🗑
-              </button>
-            </div>
-          ))}
+                <Link to={`/trips/${trip.id}`} className="block">
+                  <div className="mb-3 text-3xl">{trip.coverEmoji}</div>
+                  <h3 className="font-semibold text-neutral-900">{trip.name}</h3>
+                  <p className="text-sm text-neutral-500">{trip.destination}</p>
+                  <p className="mt-3 text-xs font-medium text-brand-600">
+                    {placeCount} saved place{placeCount === 1 ? "" : "s"}
+                  </p>
+                </Link>
+                <div className="absolute right-3 top-3 hidden gap-1 group-hover:flex">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setEditingTrip(trip);
+                    }}
+                    className="grid h-7 w-7 place-items-center rounded-full bg-white text-neutral-400 hover:text-brand-600"
+                    aria-label="Edit board"
+                    title="Edit board"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (!canDelete) return;
+                      if (confirm(`Delete the empty board "${trip.name}"?`)) {
+                        deleteTrip(trip.id);
+                      }
+                    }}
+                    disabled={!canDelete}
+                    className="grid h-7 w-7 place-items-center rounded-full bg-white text-neutral-400 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-neutral-400"
+                    aria-label="Delete board"
+                    title={canDelete ? "Delete board" : "Remove its saved places first to delete this board"}
+                  >
+                    🗑
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -87,6 +110,8 @@ export function TripsPage() {
           }}
         />
       )}
+
+      {editingTrip && <EditBoardModal trip={editingTrip} onClose={() => setEditingTrip(null)} />}
     </div>
   );
 }

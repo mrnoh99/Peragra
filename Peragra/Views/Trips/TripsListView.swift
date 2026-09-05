@@ -9,6 +9,7 @@ struct TripsListView: View {
     @State private var showingAddTrip = false
     @State private var showingSettings = false
     @State private var tripPendingDelete: Trip?
+    @State private var tripPendingEdit: Trip?
 
     var body: some View {
         NavigationStack {
@@ -27,11 +28,25 @@ struct TripsListView: View {
                                 TripRow(trip: trip)
                             }
                             .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    tripPendingDelete = trip
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+                                // Deleting is only offered once the board
+                                // has no saved places, same as the "Delete
+                                // This Board" option inside a board's own
+                                // detail view.
+                                if trip.places.isEmpty {
+                                    Button(role: .destructive) {
+                                        tripPendingDelete = trip
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
+                            }
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    tripPendingEdit = trip
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .tint(.blue)
                             }
                         }
                     }
@@ -63,6 +78,9 @@ struct TripsListView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsSheet()
             }
+            .sheet(item: $tripPendingEdit) { trip in
+                EditTripSheet(trip: trip)
+            }
             .safeAreaInset(edge: .bottom) {
                 Text("developed by JaiSung Noh, MD. · Version 1.0 · Build 3 · 2026")
                     .font(.system(size: 9))
@@ -72,7 +90,7 @@ struct TripsListView: View {
                     .background(.bar)
             }
             .confirmationDialog(
-                "Delete this board and all its saved places?",
+                "Delete the empty board \"\(tripPendingDelete?.name ?? "")\"?",
                 isPresented: Binding(
                     get: { tripPendingDelete != nil },
                     set: { if !$0 { tripPendingDelete = nil } }
