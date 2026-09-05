@@ -144,7 +144,7 @@ export function AllPlacesPage() {
                       </p>
                       {place.address && <p className="text-sm text-neutral-500">{place.address}</p>}
                     </div>
-                    <div className="flex shrink-0 items-center gap-3">
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
                       <button
                         onClick={() => toggleFavorite(place.id)}
                         aria-label="Toggle favorite"
@@ -152,20 +152,22 @@ export function AllPlacesPage() {
                       >
                         ★
                       </button>
-                      <button
-                        onClick={() => setEditingPlace(place)}
-                        className="text-xs font-medium text-neutral-500 hover:text-neutral-700"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`Delete "${place.name}"?`)) deletePlace(place.id);
-                        }}
-                        className="text-xs font-medium text-neutral-400 hover:text-red-500"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => setEditingPlace(place)}
+                          className="rounded-lg border border-neutral-300 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete "${place.name}"?`)) deletePlace(place.id);
+                          }}
+                          className="rounded-lg border border-neutral-300 px-2.5 py-1 text-xs font-medium text-neutral-400 hover:border-red-300 hover:text-red-500"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

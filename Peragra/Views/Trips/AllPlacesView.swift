@@ -148,8 +148,9 @@ private struct AllPlacesRow: View {
                 }
                 Button("Edit", action: onEdit)
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 1)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .padding(.top, 2)
             }
             Spacer()
             Button {
