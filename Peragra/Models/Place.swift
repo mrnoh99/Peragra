@@ -98,6 +98,21 @@ final class Place {
         }
     }
 
+    /// Marks this place visited at a specific moment, rather than
+    /// toggleVisited's always-`.now` — for a place whose visit
+    /// demonstrably already happened, like one logged from an on-site
+    /// photo taken at a known time. Keeps the trip's default "Visited"
+    /// list in sync the same way toggleVisited does.
+    func markVisited(at date: Date, context: ModelContext) {
+        visited = true
+        visitedAt = date
+        guard let trip else { return }
+        let visitedList = PlaceCollection.ensureVisitedList(for: trip, context: context)
+        if !collections.contains(where: { $0.id == visitedList.id }) {
+            collections.append(visitedList)
+        }
+    }
+
     /// Same as toggleVisited, for `favorite` and the default "Favorites" list.
     func toggleFavorite(context: ModelContext) {
         let willBeFavorite = !favorite

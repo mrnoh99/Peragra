@@ -42,6 +42,11 @@ interface AppState {
   ) => void;
   toggleVisited: (placeId: string) => void;
   toggleFavorite: (placeId: string) => void;
+  /** Marks a place visited at a specific moment (rather than toggleVisited's
+   *  always-now) — for a place whose visit demonstrably already happened,
+   *  like one logged from an on-site photo taken at a known time. Keeps the
+   *  trip's default "Visited" list in sync the same way toggleVisited does. */
+  markVisitedAt: (placeId: string, timestamp: number) => void;
 
   addCollection: (tripId: string, name: string) => Collection;
   deleteCollection: (collectionId: string) => void;
@@ -162,6 +167,21 @@ export const useStore = create<AppState>()(
                 : [...p.collectionIds, visitedCollection.id]
               : p.collectionIds.filter((id) => id !== visitedCollection.id);
             return { ...p, visited: willBeVisited, visitedAt: willBeVisited ? Date.now() : null, collectionIds };
+          }),
+        }));
+      },
+
+      markVisitedAt: (placeId, timestamp) => {
+        const place = get().places.find((p) => p.id === placeId);
+        if (!place) return;
+        const visitedCollection = get().ensureVisitedCollection(place.tripId);
+        set((state) => ({
+          places: state.places.map((p) => {
+            if (p.id !== placeId) return p;
+            const collectionIds = p.collectionIds.includes(visitedCollection.id)
+              ? p.collectionIds
+              : [...p.collectionIds, visitedCollection.id];
+            return { ...p, visited: true, visitedAt: timestamp, collectionIds };
           }),
         }));
       },

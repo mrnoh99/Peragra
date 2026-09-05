@@ -84,6 +84,7 @@ export function AddPlaceModal({
 }) {
   const addPlace = useStore((s) => s.addPlace);
   const updatePlace = useStore((s) => s.updatePlace);
+  const markVisitedAt = useStore((s) => s.markVisitedAt);
   const setPlaceCoords = useStore((s) => s.setPlaceCoords);
   const apiKey = useAISettingsStore(selectActiveApiKey);
 
@@ -501,6 +502,10 @@ export function AddPlaceModal({
       });
       if (row.capturedAt !== undefined) {
         updatePlace(place.id, { createdAt: row.capturedAt });
+        // A place logged from an on-site photo/live capture was, by
+        // definition, already visited — at the moment the photo was
+        // taken, not whenever this form happens to get submitted.
+        markVisitedAt(place.id, row.capturedAt);
       }
 
       await geocodeAndStore(place.id, row);

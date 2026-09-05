@@ -790,6 +790,10 @@ struct AddPlaceSheet: View {
             modelContext.insert(place)
             if let capturedAt = row.capturedAt {
                 place.createdAt = capturedAt
+                // A place logged from an on-site photo/live capture was,
+                // by definition, already visited — at the moment the
+                // photo was taken, not whenever Save happens to be tapped.
+                place.markVisited(at: capturedAt, context: modelContext)
             }
             if let defaultCollection {
                 place.collections.append(defaultCollection)
