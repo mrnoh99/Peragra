@@ -174,11 +174,11 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [googleKeyInput, setGoogleKeyInput] = useState(googleMapsApiKey ?? "");
 
   return (
-    <Modal title="Settings" onClose={onClose}>
+    <Modal title="Settings" onClose={onClose} closeLabel="Close">
       <div className="space-y-6">
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-700">
-            AI place extraction <span className="font-normal text-neutral-400">(optional)</span>
+            AI place extraction
           </label>
           <p className="mb-2 text-xs text-neutral-400">
             This app has no server — AI extraction calls the chosen provider directly from your

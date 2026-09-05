@@ -16,6 +16,11 @@ struct TripsListView: View {
                     emptyState
                 } else {
                     List {
+                        NavigationLink {
+                            AllPlacesView()
+                        } label: {
+                            Label("All Places", systemImage: "list.bullet")
+                        }
                         ForEach(trips) { trip in
                             NavigationLink(value: trip) {
                                 TripRow(trip: trip)

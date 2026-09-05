@@ -265,14 +265,14 @@ struct AddPlaceSheet: View {
                     }
 
                     if (!screenshotDatas.isEmpty || !onSitePhotos.isEmpty), aiSettings.activeAPIKey == nil {
-                        Text("Add an AI extraction API key in Settings to read these photos — AI reads photos completely, since on-device text recognition struggles with stylized graphics.")
+                        Text("Add an AI extraction API key in Settings to read these photos.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 } header: {
                     Text("Photos")
                 } footer: {
-                    Text("Attach up to \(Self.maxScreenshots) screenshots of a post and let AI read and organize them completely. Or, for a place you want to log with its own location: take a photo here or upload one or more photos of it (a sign, a menu, ...) and tap Log This Place — AI cross-references them all into one result, using your current location or the photos' own data.")
+                    Text("Upload screenshots to find places with AI, or log a place on-site from its own photos and location.")
                 }
 
                 if extractErrorMessage != nil || extractResultMessage != nil || isGuessingAddresses {
@@ -362,7 +362,7 @@ struct AddPlaceSheet: View {
                 } header: {
                     Text("Instagram post link (optional, just a reference)")
                 } footer: {
-                    Text("Instagram doesn't let apps read a post's info from its link, so this doesn't fill in anything above — attach a screenshot for that. Paste it only if you want the original post embedded here for reference.")
+                    Text("Optional — just embeds the post here for reference; it won't fill in fields above.")
                 }
 
                 Section("Notes") {
@@ -370,7 +370,7 @@ struct AddPlaceSheet: View {
                         .lineLimit(2...4)
                 }
             }
-            .navigationTitle("Save Places")
+            .navigationTitle("Add Places")
             .navigationBarTitleDisplayMode(.inline)
             .task {
                 // Requested once, up front, rather than gating the Upload
@@ -389,7 +389,7 @@ struct AddPlaceSheet: View {
                     if isSaving {
                         ProgressView()
                     } else {
-                        Button("Save \(selectedCount)") { Task { await save() } }
+                        Button("Add \(selectedCount)") { Task { await save() } }
                             .disabled(!canSubmit)
                     }
                 }

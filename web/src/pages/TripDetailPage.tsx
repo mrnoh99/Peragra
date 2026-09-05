@@ -5,7 +5,6 @@ import { ListingView } from "../components/ListingView";
 import { MapView } from "../components/MapView";
 import { PlaceFilterBar, type SortMode } from "../components/PlaceFilterBar";
 import { distanceKm } from "../lib/distance";
-import { generateKML } from "../lib/kml";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory } from "../types";
 
@@ -16,6 +15,7 @@ const CATEGORY_ORDER = new Map(PLACE_CATEGORIES.map((c, i) => [c.value, i]));
 export function TripDetailPage() {
   const { tripId } = useParams<{ tripId: string }>();
   const trips = useStore((s) => s.trips);
+  const updateTrip = useStore((s) => s.updateTrip);
   const allPlaces = useStore((s) => s.places);
   const allCollections = useStore((s) => s.collections);
   const addCollection = useStore((s) => s.addCollection);
@@ -53,6 +53,8 @@ export function TripDetailPage() {
   const [showAddPlace, setShowAddPlace] = useState(false);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState("");
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
 
   // Search/category/visited/favorites/sort — shared by the Listing and Map
   // tabs (via PlaceFilterBar below) so switching tabs doesn't reset what
@@ -64,13 +66,8 @@ export function TripDetailPage() {
   const [sortMode, setSortMode] = useState<SortMode>("default");
   const [distanceFromId, setDistanceFromId] = useState<string>("");
 
-  const activeCollection = useMemo(
-    () => collections.find((c) => c.id === activeCollectionId) ?? null,
-    [collections, activeCollectionId],
-  );
   // What's actually on screen right now — respects the selected list, same
-  // as the Map tab already did. Export should match what's visible rather
-  // than always exporting the whole trip regardless of which list is open.
+  // as the Map tab already did.
   const visiblePlaces = useMemo(
     () =>
       activeCollectionId
@@ -162,28 +159,6 @@ export function TripDetailPage() {
 
   const visitedCount = useMemo(() => places.filter((p) => p.visited).length, [places]);
   const favoritesCount = useMemo(() => places.filter((p) => p.favorite).length, [places]);
-  const locatedCount = useMemo(() => sorted.filter((p) => p.lat !== null).length, [sorted]);
-
-  function exportToGoogleMaps() {
-    if (!trip) return;
-    const title = activeCollection
-      ? `Peragra - ${trip.name} - ${activeCollection.name}`
-      : `Peragra - ${trip.name}`;
-    const kml = generateKML(title, sorted);
-    const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${title.replace(/[^\w\- ]+/g, "")}.kml`;
-    // Safari (notably iOS Safari) only honors a click on an <a download>
-    // that's actually in the document — clicking one that was never
-    // appended silently does nothing there, even though Chrome/Firefox
-    // don't require it.
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  }
 
   if (!tripId) return <Navigate to="/" replace />;
   if (!trip) {
@@ -194,6 +169,17 @@ export function TripDetailPage() {
     );
   }
 
+  function startEditingName() {
+    setNameInput(trip!.name);
+    setIsEditingName(true);
+  }
+
+  function saveName() {
+    const trimmed = nameInput.trim();
+    if (trimmed) updateTrip(tripId!, { name: trimmed });
+    setIsEditingName(false);
+  }
+
   return (
     <div>
       <Link to="/" className="text-sm text-neutral-500 hover:text-neutral-700">
@@ -202,10 +188,36 @@ export function TripDetailPage() {
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-neutral-900">
-            <span>{trip.coverEmoji}</span>
-            {trip.name}
-          </h1>
+          {isEditingName ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                saveName();
+              }}
+              className="flex items-center gap-2"
+            >
+              <span className="text-2xl">{trip.coverEmoji}</span>
+              <input
+                autoFocus
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onBlur={saveName}
+                className="rounded-lg border border-brand-400 px-2 py-1 text-2xl font-bold text-neutral-900 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </form>
+          ) : (
+            <h1 className="flex items-center gap-2 text-2xl font-bold text-neutral-900">
+              <span>{trip.coverEmoji}</span>
+              {trip.name}
+              <button
+                onClick={startEditingName}
+                aria-label="Rename trip"
+                className="text-base text-neutral-300 hover:text-neutral-500"
+              >
+                ✎
+              </button>
+            </h1>
+          )}
           <p className="text-sm text-neutral-500">
             {trip.destination}
             {trip.startDate && (
@@ -222,24 +234,10 @@ export function TripDetailPage() {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
-            onClick={exportToGoogleMaps}
-            disabled={locatedCount === 0}
-            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-            title={
-              locatedCount === 0
-                ? "No places have a map location yet — add an address, or wait for one to be located, first"
-                : activeCollection
-                  ? `Download a KML of "${activeCollection.name}" to import as a new map in Google My Maps`
-                  : "Download a KML file to import as a new map in Google My Maps"
-            }
-          >
-            📤 Export {activeCollection ? `"${activeCollection.name}"` : "to Google Maps"}
-          </button>
-          <button
             onClick={() => setShowAddPlace(true)}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
           >
-            + Save a place
+            + Add places
           </button>
         </div>
       </div>
@@ -358,7 +356,7 @@ export function TripDetailPage() {
                 onClick={() => setShowAddPlace(true)}
                 className="mt-5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
               >
-                Save your first place
+                Add your first place
               </button>
             </div>
           ) : (

@@ -29,6 +29,7 @@ interface AppState {
     startDate: string | null;
     endDate: string | null;
   }) => Trip;
+  updateTrip: (tripId: string, patch: Partial<Pick<Trip, "name" | "destination" | "coverEmoji" | "startDate" | "endDate">>) => void;
   deleteTrip: (tripId: string) => void;
 
   addPlace: (input: NewPlaceInput) => Place;
@@ -95,6 +96,12 @@ export const useStore = create<AppState>()(
           collections: [...state.collections, favoritesCollection, visitedCollection],
         }));
         return trip;
+      },
+
+      updateTrip: (tripId, patch) => {
+        set((state) => ({
+          trips: state.trips.map((t) => (t.id === tripId ? { ...t, ...patch } : t)),
+        }));
       },
 
       deleteTrip: (tripId) => {

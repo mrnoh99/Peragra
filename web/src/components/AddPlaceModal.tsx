@@ -516,20 +516,15 @@ export function AddPlaceModal({
   }
 
   return (
-    <Modal title="Save places" onClose={onClose}>
+    <Modal title="Add places" onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="rounded-lg border border-dashed border-neutral-300 p-3">
           <label className="mb-1 block text-sm font-medium text-neutral-700">
             Photos
           </label>
           <p className="mb-2 text-xs text-neutral-400">
-            Attach up to {MAX_SCREENSHOTS} screenshots of a post and let AI read and organize them
-            completely. Or, for a place you want to log with its own location: take a photo here
-            or upload one or more photos of it (a sign, a menu, ...) and tap Log This Place — AI
-            cross-references them all into one result, using your current location or the photos'
-            own data (requires an AI extraction API key in Settings; on-device text recognition
-            struggles with stylized graphics, so this app doesn't try to guess at photo text
-            itself).
+            Upload screenshots to find places with AI, or log a place on-site from its own photos
+            and location.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input
@@ -650,8 +645,7 @@ export function AddPlaceModal({
           )}
           {(screenshotFiles.length > 0 || onSitePhotos.length > 0) && !apiKey && (
             <p className="mt-2 text-xs text-neutral-400">
-              Add an AI extraction API key in Settings to read these photos — AI reads photos
-              completely, since on-device text recognition struggles with stylized graphics.
+              Add an AI extraction API key in Settings to read these photos.
             </p>
           )}
         </div>
@@ -816,9 +810,7 @@ export function AddPlaceModal({
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
           <p className="mt-1 text-xs text-neutral-400">
-            Instagram doesn't let apps read a post's info from its link, so this doesn't fill in
-            anything above — attach a screenshot for that. Paste it only if you want the original
-            post embedded here for reference.
+            Optional — just embeds the post here for reference; it won't fill in fields above.
           </p>
           {instagramInput && !instagramUrl && (
             <p className="mt-1 text-xs text-amber-600">
@@ -851,8 +843,8 @@ export function AddPlaceModal({
           className="w-full rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {saving
-            ? "Saving & locating…"
-            : `Save ${selectedCount} place${selectedCount === 1 ? "" : "s"}`}
+            ? "Adding & locating…"
+            : `Add ${selectedCount} place${selectedCount === 1 ? "" : "s"}`}
         </button>
       </form>
     </Modal>

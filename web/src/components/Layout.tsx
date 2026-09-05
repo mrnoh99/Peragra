@@ -10,9 +10,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="border-b border-black/5 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <Link to="/" className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-              P
-            </span>
+            <img src={`${import.meta.env.BASE_URL}apple-touch-icon.png`} alt="" className="h-8 w-8 rounded-lg" />
             <span className="text-lg font-semibold tracking-tight text-neutral-900">
               Peragra
             </span>

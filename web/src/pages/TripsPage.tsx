@@ -29,12 +29,20 @@ export function TripsPage() {
             Collect the places you've saved on Instagram, then plan around them.
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
-        >
-          + New trip
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            to="/all-places"
+            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
+          >
+            All places
+          </Link>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
+          >
+            + New trip
+          </button>
+        </div>
       </div>
 
       {trips.length === 0 ? (

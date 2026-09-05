@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 import CoreLocation
-import UIKit
 
 private enum DetailTab: String, CaseIterable {
     case listing = "Listing"
@@ -18,9 +17,8 @@ struct TripDetailView: View {
     @State private var showingAddList = false
     @State private var newListName = ""
     @State private var activeCollection: PlaceCollection?
-    @State private var kmlShareURL: URL?
-    @State private var showingShareSheet = false
-    @State private var hasExportablePlaces = false
+    @State private var isRenamingTrip = false
+    @State private var tripNameInput = ""
 
     // Filter/sort state shared by the Listing and Map tabs, so switching
     // tabs doesn't reset what you were looking at and the map can be
@@ -171,7 +169,7 @@ struct TripDetailView: View {
                 } description: {
                     Text("Paste a link from a post you saved on Instagram, or add a place by hand, to start building your \(trip.destination) itinerary.")
                 } actions: {
-                    Button("Save Your First Place") { showingAddPlace = true }
+                    Button("Add Places") { showingAddPlace = true }
                         .buttonStyle(.borderedProminent)
                 }
                 .frame(maxHeight: .infinity)
@@ -198,24 +196,19 @@ struct TripDetailView: View {
         .searchable(text: $search, prompt: "Search saved places")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showingAddPlace = true } label: { Label("Save a Place", systemImage: "plus") }
+                Button { showingAddPlace = true } label: { Label("Add Places", systemImage: "plus") }
             }
             ToolbarItem(placement: .secondaryAction) {
                 Button { showingAddList = true } label: { Label("New List", systemImage: "folder.badge.plus") }
             }
             ToolbarItem(placement: .secondaryAction) {
-                Button { exportToGoogleMaps() } label: {
-                    if let activeCollection {
-                        Label("Export \"\(activeCollection.name)\"", systemImage: "square.and.arrow.up")
-                    } else {
-                        Label("Export to Google Maps", systemImage: "square.and.arrow.up")
-                    }
-                }
-                .disabled(!hasExportablePlaces)
+                Button {
+                    tripNameInput = trip.name
+                    isRenamingTrip = true
+                } label: { Label("Rename Trip", systemImage: "pencil") }
             }
         }
         .sheet(isPresented: $showingAddPlace) { AddPlaceSheet(trip: trip, defaultCollection: activeCollection) }
-        .sheet(isPresented: $showingShareSheet) { if let kmlShareURL { ShareSheet(activityItems: [kmlShareURL]) } }
         .alert("New List", isPresented: $showingAddList) {
             TextField("List name", text: $newListName)
             Button("Add") {
@@ -227,6 +220,14 @@ struct TripDetailView: View {
             }
             Button("Cancel", role: .cancel) { newListName = "" }
         }
+        .alert("Rename Trip", isPresented: $isRenamingTrip) {
+            TextField("Trip name", text: $tripNameInput)
+            Button("Save") {
+                let trimmed = tripNameInput.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty { trip.name = trimmed }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
         .onAppear {
             // Trips created before the Visited/Favorites-list feature
             // don't have them yet — back-fill lazily so they always show
@@ -234,16 +235,7 @@ struct TripDetailView: View {
             // marked visited/favorited.
             _ = PlaceCollection.ensureFavoritesList(for: trip, context: modelContext)
             _ = PlaceCollection.ensureVisitedList(for: trip, context: modelContext)
-            refreshExportState()
         }
-        .onChange(of: sortedPlaces) { _, _ in refreshExportState() }
-        .onChange(of: showingAddPlace) { _, isShowing in
-            if !isShowing { refreshExportState() }
-        }
-    }
-
-    private func refreshExportState() {
-        hasExportablePlaces = sortedPlaces.contains { $0.latitude != nil }
     }
 
     private var header: some View {
@@ -309,18 +301,6 @@ struct TripDetailView: View {
         return collection.name
     }
 
-    private func exportToGoogleMaps() {
-        let title = activeCollection.map { "Peragra - \(trip.name) - \($0.name)" } ?? "Peragra - \(trip.name)"
-        let kml = KMLService.generateKML(title: title, places: sortedPlaces)
-        let safeName = title.replacingOccurrences(of: "[^\\w\\- ]+", with: "", options: .regularExpression)
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(safeName).kml")
-        do {
-            try kml.write(to: url, atomically: true, encoding: .utf8)
-            kmlShareURL = url
-            showingShareSheet = true
-        } catch { }
-    }
-
     private func chip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title).font(.caption.weight(.medium)).padding(.horizontal, 12).padding(.vertical, 6)
@@ -330,12 +310,4 @@ struct TripDetailView: View {
         }
         .buttonStyle(.plain)
     }
-}
-
-private struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
