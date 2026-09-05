@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AddPlaceModal } from "../components/AddPlaceModal";
-import { EditBoardModal } from "../components/EditBoardModal";
 import { ListingView } from "../components/ListingView";
 import { MapView } from "../components/MapView";
 import { PlaceFilterBar, type SortMode } from "../components/PlaceFilterBar";
@@ -56,7 +55,6 @@ export function TripDetailPage() {
   const [showAddPlace, setShowAddPlace] = useState(false);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState("");
-  const [showEditBoard, setShowEditBoard] = useState(false);
 
   // Search/category/visited/favorites/sort — shared by the Listing and Map
   // tabs (via PlaceFilterBar below) so switching tabs doesn't reset what
@@ -182,14 +180,6 @@ export function TripDetailPage() {
           <h1 className="flex items-center gap-2 text-2xl font-bold text-neutral-900">
             <span>{trip.coverEmoji}</span>
             {trip.name}
-            <button
-              onClick={() => setShowEditBoard(true)}
-              aria-label="Edit board"
-              title="Edit board"
-              className="grid h-7 w-7 place-items-center rounded-full border border-neutral-300 text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700"
-            >
-              ✎
-            </button>
           </h1>
           <p className="text-sm text-neutral-500">
             {trip.destination}
@@ -391,7 +381,6 @@ export function TripDetailPage() {
         />
       )}
 
-      {showEditBoard && <EditBoardModal trip={trip} onClose={() => setShowEditBoard(false)} />}
     </div>
   );
 }

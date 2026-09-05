@@ -20,7 +20,6 @@ struct TripDetailView: View {
     @State private var showingAddList = false
     @State private var newListName = ""
     @State private var activeCollection: PlaceCollection?
-    @State private var isEditingBoard = false
 
     // Filter/sort state shared by the Listing and Map tabs, so switching
     // tabs doesn't reset what you were looking at and the map can be
@@ -210,14 +209,8 @@ struct TripDetailView: View {
             ToolbarItem(placement: .secondaryAction) {
                 Button { showingAddList = true } label: { Label("New List", systemImage: "folder.badge.plus") }
             }
-            ToolbarItem(placement: .secondaryAction) {
-                Button {
-                    isEditingBoard = true
-                } label: { Label("Edit Board", systemImage: "pencil") }
-            }
         }
         .sheet(isPresented: $showingAddPlace) { AddPlaceSheet(trip: trip, defaultCollection: activeCollection) }
-        .sheet(isPresented: $isEditingBoard) { EditTripSheet(trip: trip) }
         .alert("New List", isPresented: $showingAddList) {
             TextField("List name", text: $newListName)
             Button("Add") {
