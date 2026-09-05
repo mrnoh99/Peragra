@@ -256,11 +256,11 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Data")
                 } footer: {
-                    Text("Back up every destination and place to a file you choose, or restore from one — restoring replaces everything currently in the app.")
+                    Text("Back up every board and place to a file you choose, or restore from one — restoring replaces everything currently in the app.")
                 }
             }
             .confirmationDialog(
-                "Replace all destinations and places with this backup?",
+                "Replace all boards and places with this backup?",
                 isPresented: $showingRestoreConfirm,
                 titleVisibility: .visible
             ) {

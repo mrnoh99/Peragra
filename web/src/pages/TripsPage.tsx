@@ -24,7 +24,7 @@ export function TripsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Your places</h1>
+          <h1 className="text-2xl font-bold text-neutral-900">Your boards</h1>
           <p className="mt-1 text-sm text-neutral-500">
             Collect the places you've saved on Instagram, then plan around them.
           </p>
@@ -40,7 +40,7 @@ export function TripsPage() {
             onClick={() => setShowCreate(true)}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
           >
-            + New place
+            + New board
           </button>
         </div>
       </div>
@@ -70,7 +70,7 @@ export function TripsPage() {
                   }
                 }}
                 className="absolute right-3 top-3 hidden h-7 w-7 place-items-center rounded-full bg-white text-neutral-400 hover:text-red-500 group-hover:grid"
-                aria-label="Delete place"
+                aria-label="Delete board"
               >
                 🗑
               </button>
@@ -96,16 +96,16 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="rounded-2xl border border-dashed border-neutral-300 bg-white/60 px-6 py-16 text-center">
       <div className="text-4xl">🧭</div>
-      <h2 className="mt-3 text-lg font-semibold text-neutral-800">No places yet</h2>
+      <h2 className="mt-3 text-lg font-semibold text-neutral-800">No boards yet</h2>
       <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-500">
-        Create a place for a destination, then start importing the restaurants, cafes and
+        Create a board for a destination, then start importing the restaurants, cafes and
         attractions you've saved on Instagram.
       </p>
       <button
         onClick={onCreate}
         className="mt-5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
       >
-        Create your first place
+        Create your first board
       </button>
     </div>
   );
@@ -131,7 +131,7 @@ function CreateTripModal({
   const canSubmit = name.trim().length > 0 && destination.trim().length > 0;
 
   return (
-    <Modal title="New place" onClose={onClose}>
+    <Modal title="New board" onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -147,7 +147,7 @@ function CreateTripModal({
         className="space-y-4"
       >
         <div>
-          <label className="mb-1 block text-sm font-medium text-neutral-700">Place name</label>
+          <label className="mb-1 block text-sm font-medium text-neutral-700">Board name</label>
           <input
             autoFocus
             value={name}
@@ -189,7 +189,7 @@ function CreateTripModal({
           disabled={!canSubmit}
           className="w-full rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Create place
+          Create board
         </button>
       </form>
     </Modal>

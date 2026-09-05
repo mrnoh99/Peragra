@@ -1,10 +1,10 @@
 import SwiftUI
 import SwiftData
 
-/// A single list combining every place across every trip — "Your Trips"
-/// otherwise only lets you view/edit one trip at a time. Each row carries
-/// its own trip as a badge, since places here don't share one destination
-/// or one set of lists the way they do inside a single trip.
+/// A single list combining every place across every board — "Your
+/// Boards" otherwise only lets you view/edit one board at a time. Each row
+/// carries its own board as a badge, since places here don't share one
+/// destination or one set of lists the way they do inside a single board.
 struct AllPlacesView: View {
     @Query(sort: \Place.createdAt, order: .reverse) private var allPlaces: [Place]
     @Environment(\.modelContext) private var modelContext
@@ -39,14 +39,14 @@ struct AllPlacesView: View {
                 ContentUnavailableView(
                     "No Places Saved Yet",
                     systemImage: "mappin.slash",
-                    description: Text("Add some from within a trip.")
+                    description: Text("Add some from within a board.")
                 )
             } else {
                 List {
                     if !trips.isEmpty {
                         Section {
-                            Picker("Destination", selection: $tripFilter) {
-                                Text("All Destinations").tag(Trip?.none)
+                            Picker("Board", selection: $tripFilter) {
+                                Text("All Boards").tag(Trip?.none)
                                 ForEach(trips) { trip in
                                     Text("\(trip.coverEmoji) \(trip.name)").tag(Trip?.some(trip))
                                 }

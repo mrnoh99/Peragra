@@ -36,7 +36,7 @@ struct TripsListView: View {
                     }
                 }
             }
-            .navigationTitle("Your Places")
+            .navigationTitle("Your Boards")
             .navigationDestination(for: Trip.self) { trip in
                 TripDetailView(trip: trip)
             }
@@ -45,7 +45,7 @@ struct TripsListView: View {
                     Button {
                         showingAddTrip = true
                     } label: {
-                        Label("New Place", systemImage: "plus")
+                        Label("New Board", systemImage: "plus")
                     }
                 }
                 ToolbarItem(placement: .secondaryAction) {
@@ -71,14 +71,14 @@ struct TripsListView: View {
                     .background(.bar)
             }
             .confirmationDialog(
-                "Delete this place and all its saved places?",
+                "Delete this board and all its saved places?",
                 isPresented: Binding(
                     get: { tripPendingDelete != nil },
                     set: { if !$0 { tripPendingDelete = nil } }
                 ),
                 titleVisibility: .visible
             ) {
-                Button("Delete Place", role: .destructive) {
+                Button("Delete Board", role: .destructive) {
                     if let trip = tripPendingDelete {
                         modelContext.delete(trip)
                     }
@@ -91,11 +91,11 @@ struct TripsListView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("No Places Yet", systemImage: "airplane.departure")
+            Label("No Boards Yet", systemImage: "airplane.departure")
         } description: {
-            Text("Create a place for a destination, then start saving the restaurants, cafes and attractions you've saved on Instagram.")
+            Text("Create a board for a destination, then start saving the restaurants, cafes and attractions you've saved on Instagram.")
         } actions: {
-            Button("Create Your First Place") { showingAddTrip = true }
+            Button("Create Your First Board") { showingAddTrip = true }
                 .buttonStyle(.borderedProminent)
         }
     }

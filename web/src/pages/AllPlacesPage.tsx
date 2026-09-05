@@ -5,12 +5,12 @@ import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type Place, type PlaceCategory } from "../types";
 
 /**
- * A single list combining every place across every trip — the "Your
- * Trips" screen only lets you view/edit one trip at a time otherwise, so
+ * A single list combining every place across every board — "Your
+ * Boards" only lets you view/edit one board at a time otherwise, so
  * this is the one place to see and fix up everything at once. Each row
- * carries its own trip as a badge (linking back to that trip) since
+ * carries its own board as a badge (linking back to that board) since
  * places here don't share one destination or one set of lists the way
- * they do inside a single trip.
+ * they do inside a single board.
  */
 export function AllPlacesPage() {
   const trips = useStore((s) => s.trips);
@@ -49,18 +49,18 @@ export function AllPlacesPage() {
   return (
     <div>
       <Link to="/" className="text-sm text-neutral-500 hover:text-neutral-700">
-        ← Your places
+        ← Your boards
       </Link>
       <div className="mb-6 mt-2">
         <h1 className="text-2xl font-bold text-neutral-900">All places</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Every place saved across all your trips, in one list.
+          Every place saved across all your boards, in one list.
         </p>
       </div>
 
       {places.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-neutral-300 bg-white/60 px-6 py-16 text-center text-sm text-neutral-500">
-          No places saved yet — add some from within a trip.
+          No places saved yet — add some from within a board.
         </div>
       ) : (
         <>
@@ -76,7 +76,7 @@ export function AllPlacesPage() {
               onChange={(e) => setTripFilter(e.target.value)}
               className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm"
             >
-              <option value="all">All destinations</option>
+              <option value="all">All boards</option>
               {trips.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.coverEmoji} {t.name}

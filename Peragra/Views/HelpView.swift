@@ -5,11 +5,11 @@ import SwiftUI
 struct HelpView: View {
     var body: some View {
         Form {
-            section("Destinations") {
-                Text("Your Places lists each destination you're organizing (what used to be called a \"trip\"). Tap New Place to create one, and the pencil next to its name to rename it.")
+            section("Boards") {
+                Text("Your Boards lists each board you're organizing (what used to be called a \"trip\") — a board is a destination, and the places you save inside it. Tap New Board to create one, and the pencil next to its name to rename it.")
             }
             section("Adding saved places") {
-                Text("Inside a destination, tap Add Places. Paste an Instagram caption to auto-fill a name and address, upload a screenshot for AI to read, or use Upload On-Site Photos / Take Photo Here to log a place you're standing at right now — that marks it Visited automatically, timestamped to the photo.")
+                Text("Inside a board, tap Add Places. Paste an Instagram caption to auto-fill a name and address, upload a screenshot for AI to read, or use Upload On-Site Photos / Take Photo Here to log a place you're standing at right now — that marks it Visited automatically, timestamped to the photo.")
             }
             section("Organizing") {
                 Text("Star a place to favorite it, tap the checkmark to mark it visited, or make your own custom list. Search, filter by category, and sort by name or by distance from a place you pick.")
@@ -18,7 +18,7 @@ struct HelpView: View {
                 Text("Every place has an Open in Map menu: Google Maps always, plus Naver Map, Kakao Map and Tmap when that place is in Korea.")
             }
             section("All Places") {
-                Text("See and edit every saved place across every destination in one combined list, from All Places on Your Places.")
+                Text("See and edit every saved place across every board in one combined list, from All Places on Your Boards.")
             }
             section("AI place extraction") {
                 Text("Optional. Add an API key below (Gateway, Anthropic, OpenAI, Gemini, or Perplexity) to let AI read screenshots and photos and fill in details. Without one, pasted captions are still parsed with free pattern-matching.")
@@ -27,7 +27,7 @@ struct HelpView: View {
                 Text("Free (Apple Maps) needs no key. Switch to Google Maps for a nicer map if you add your own key.")
             }
             section("Backup & Restore") {
-                Text("Back up every destination and place to a file you choose, and restore from one later.")
+                Text("Back up every board and place to a file you choose, and restore from one later.")
             }
             Section {
                 Text("Peragra — developed by JaiSung Noh, MD. · Version 1.0 · Build 2 · 2026")

@@ -199,7 +199,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         const data = parseBackup(String(reader.result));
         const current = useStore.getState();
         const confirmed = confirm(
-          `Replace all ${current.trips.length} current destination${current.trips.length === 1 ? "" : "s"} and ${current.places.length} saved place${current.places.length === 1 ? "" : "s"} with the ${data.trips.length} destination${data.trips.length === 1 ? "" : "s"} and ${data.places.length} saved place${data.places.length === 1 ? "" : "s"} in this backup? This can't be undone.`,
+          `Replace all ${current.trips.length} current board${current.trips.length === 1 ? "" : "s"} and ${current.places.length} saved place${current.places.length === 1 ? "" : "s"} with the ${data.trips.length} board${data.trips.length === 1 ? "" : "s"} and ${data.places.length} saved place${data.places.length === 1 ? "" : "s"} in this backup? This can't be undone.`,
         );
         if (!confirmed) return;
         useStore.setState({ trips: data.trips, places: data.places, collections: data.collections });
@@ -380,7 +380,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         <div className="border-t border-neutral-100 pt-4">
           <label className="mb-1 block text-sm font-medium text-neutral-700">Data</label>
           <p className="mb-2 text-xs text-neutral-400">
-            Back up every destination and place to a file you choose, or restore from one —
+            Back up every board and place to a file you choose, or restore from one —
             restoring replaces everything currently in the app.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -416,15 +416,16 @@ function HelpModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="User Guide" onClose={onClose} closeLabel="Back">
       <div className="space-y-4 text-sm text-neutral-700">
-        <Section title="Destinations">
-          Your Places lists each destination you're organizing (what used to be called a "trip").
-          Tap + New place to create one, and the pencil next to its name to rename it.
+        <Section title="Boards">
+          Your Boards lists each board you're organizing (what used to be called a "trip") — a
+          board is a destination, and the places you save inside it. Tap + New board to create
+          one, and the pencil next to its name to rename it.
         </Section>
         <Section title="Adding saved places">
-          Inside a destination, tap + Add Places. Paste an Instagram caption to auto-fill a name
-          and address, upload a screenshot for AI to read, or use Upload On-Site Photos / Take
-          Photo Here to log a place you're standing at right now — that marks it Visited
-          automatically, timestamped to the photo.
+          Inside a board, tap + Add Places. Paste an Instagram caption to auto-fill a name and
+          address, upload a screenshot for AI to read, or use Upload On-Site Photos / Take Photo
+          Here to log a place you're standing at right now — that marks it Visited automatically,
+          timestamped to the photo.
         </Section>
         <Section title="Organizing">
           Star a place to favorite it, tap the checkmark to mark it visited, or make your own
@@ -436,8 +437,8 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           Tmap when that place is in Korea.
         </Section>
         <Section title="All Places">
-          See and edit every saved place across every destination in one combined list, from the
-          All Places link on Your Places.
+          See and edit every saved place across every board in one combined list, from the All
+          Places link on Your Boards.
         </Section>
         <Section title="AI place extraction">
           Optional. Add an API key below (Gateway, Anthropic, OpenAI, Gemini, or Perplexity) to
@@ -449,7 +450,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           your own key.
         </Section>
         <Section title="Backup & Restore">
-          Back up every destination and place to a file you choose, and restore from one later.
+          Back up every board and place to a file you choose, and restore from one later.
         </Section>
         <div className="border-t border-neutral-100 pt-3 text-xs text-neutral-400">
           Peragra — developed by JaiSung Noh, MD. · Version 1.0 · Build 2 · 2026

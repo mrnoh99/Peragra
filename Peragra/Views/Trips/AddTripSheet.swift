@@ -19,8 +19,8 @@ struct AddTripSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Place") {
-                    TextField("Place name (e.g. Tokyo Spring Trip)", text: $name)
+                Section("Board") {
+                    TextField("Board name (e.g. Tokyo Spring Trip)", text: $name)
                     TextField("Destination (e.g. Tokyo, Japan)", text: $destination)
                 }
 
@@ -48,7 +48,7 @@ struct AddTripSheet: View {
                     .padding(.vertical, 4)
                 }
             }
-            .navigationTitle("New Place")
+            .navigationTitle("New Board")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
