@@ -182,9 +182,13 @@ export function EditPlaceModal({
       }
 
       // Offer real nearby places to pick from, as a step up from the bare
-      // reverse-geocode above.
+      // reverse-geocode above — seeded with the category above only if
+      // it's been changed from the place's original one, since that's
+      // the signal the person actually set it as a hint rather than it
+      // just sitting at whatever the place already was.
       setHasSearchedNearby(true);
-      const candidates = await searchNearbyPlaces(location.lat, location.lng);
+      const categoryHint = category !== place.category ? category : undefined;
+      const candidates = await searchNearbyPlaces(location.lat, location.lng, categoryHint);
       setNearbyCandidates(candidates);
     }
 

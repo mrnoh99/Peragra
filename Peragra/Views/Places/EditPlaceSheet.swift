@@ -522,9 +522,17 @@ struct EditPlaceSheet: View {
             }
 
             // Offer real nearby places to pick from, as a step up from
-            // the bare reverse-geocode above.
+            // the bare reverse-geocode above — seeded with the category
+            // above only if it's been changed from the place's original
+            // one, since that's the signal the person actually set it as
+            // a hint rather than it just sitting at whatever the place
+            // already was.
             nearbySearchCoordinate = coordinate
-            nearbyCandidates = await NearbyPlacesService.search(latitude: coordinate.latitude, longitude: coordinate.longitude)
+            nearbyCandidates = await NearbyPlacesService.search(
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude,
+                categoryHint: category != place.category ? category : nil
+            )
         }
 
         let locationSourceLabel = hasCameraPhoto ? "your current location" : "your photos"

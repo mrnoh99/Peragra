@@ -101,6 +101,11 @@ export function AddPlaceModal({
   const [isGuessingAddresses, setIsGuessingAddresses] = useState(false);
   const [isCapturingOnSite, setIsCapturingOnSite] = useState(false);
   const [onSitePhotos, setOnSitePhotos] = useState<OnSitePhoto[]>([]);
+  // Optional, set before "Log This Place" runs — when the person already
+  // knows what kind of place it is, this seeds the nearby-places search
+  // and the resulting row's category from the start, instead of only
+  // being offerable after an ambiguous search comes back.
+  const [onSiteCategoryHint, setOnSiteCategoryHint] = useState<PlaceCategory | "">("");
   // Real nearby places offered as pickable candidates for the blank row a
   // photo's GPS fix alone produced — set only when that search actually
   // found something, and only relevant to that one row (it's the only
@@ -377,7 +382,14 @@ export function AddPlaceModal({
 
     const newRows: CandidateRow[] =
       extracted.length === 0
-        ? [makeRow({ manualLat: location?.lat, manualLng: location?.lng, capturedAt: capturedAt ?? undefined })]
+        ? [
+            makeRow({
+              category: onSiteCategoryHint || "restaurant",
+              manualLat: location?.lat,
+              manualLng: location?.lng,
+              capturedAt: capturedAt ?? undefined,
+            }),
+          ]
         : extracted.map((p) =>
             makeRow({
               name: p.name ?? "",
@@ -416,12 +428,13 @@ export function AddPlaceModal({
     setNearbySearchLocation(null);
     if (extracted.length === 0 && location) {
       setNearbySearchLocation(location);
-      const candidates = await searchNearbyPlaces(location.lat, location.lng);
+      const candidates = await searchNearbyPlaces(location.lat, location.lng, onSiteCategoryHint || undefined);
       if (candidates.length > 0) {
         setNearbyCandidates(candidates);
         setNearbyCandidateRowId(newRows[0].id);
       }
     }
+    setOnSiteCategoryHint("");
 
     const locationSourceLabel = hasCameraPhoto ? "your current location" : "your photos' location";
     if (extractionFailureMessage) {
@@ -617,14 +630,30 @@ export function AddPlaceModal({
               </span>
             ))}
             {onSitePhotos.length > 0 && (
-              <button
-                type="button"
-                onClick={captureOnSitePlace}
-                disabled={isCapturingOnSite}
-                className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {isCapturingOnSite ? "Logging…" : "📍 Log This Place"}
-              </button>
+              <>
+                <select
+                  value={onSiteCategoryHint}
+                  onChange={(e) => setOnSiteCategoryHint(e.target.value as PlaceCategory | "")}
+                  disabled={isCapturingOnSite}
+                  aria-label="What kind of place is it?"
+                  className="rounded-lg border border-neutral-300 px-2 py-1.5 text-xs text-neutral-600 disabled:opacity-40"
+                >
+                  <option value="">What is it? (optional)</option>
+                  {PLACE_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={captureOnSitePlace}
+                  disabled={isCapturingOnSite}
+                  className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {isCapturingOnSite ? "Logging…" : "📍 Log This Place"}
+                </button>
+              </>
             )}
             {screenshotFiles.map((file, i) => (
               <span

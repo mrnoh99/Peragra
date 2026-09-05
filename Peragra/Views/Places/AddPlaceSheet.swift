@@ -105,6 +105,12 @@ struct AddPlaceSheet: View {
     /// from the uploaded photos' own data (Photos library, falling back to
     /// EXIF).
     @State private var onSitePhotos: [OnSitePhoto] = []
+    // Optional, set before "Log This Place" runs — when the person
+    // already knows what kind of place it is, this seeds the
+    // nearby-places search and the resulting row's category from the
+    // start, instead of only being offerable after an ambiguous search
+    // comes back.
+    @State private var onSiteCategoryHint: PlaceCategory?
     // Real nearby places offered as pickable candidates for the blank row
     // a photo's GPS fix alone produced — set only when that search
     // actually found something, and only relevant to that one row (it's
@@ -212,6 +218,14 @@ struct AddPlaceSheet: View {
                     }
 
                     if !onSitePhotos.isEmpty {
+                        Picker("What is it? (optional)", selection: $onSiteCategoryHint) {
+                            Text("What is it? (optional)").tag(PlaceCategory?.none)
+                            ForEach(PlaceCategory.allCases) { category in
+                                Text(category.label).tag(PlaceCategory?.some(category))
+                            }
+                        }
+                        .disabled(isCapturingOnSite)
+
                         Button {
                             Task { await captureOnSitePlace() }
                         } label: {
@@ -720,7 +734,12 @@ struct AddPlaceSheet: View {
         }
 
         var newRows = extracted.isEmpty
-            ? [CandidateRow(manualLatitude: coordinate?.latitude, manualLongitude: coordinate?.longitude, capturedAt: capturedAt)]
+            ? [CandidateRow(
+                category: onSiteCategoryHint ?? .restaurant,
+                manualLatitude: coordinate?.latitude,
+                manualLongitude: coordinate?.longitude,
+                capturedAt: capturedAt
+              )]
             : extracted.map { place in
                 CandidateRow(
                     name: place.name,
@@ -759,12 +778,17 @@ struct AddPlaceSheet: View {
         nearbySearchCoordinate = nil
         if extracted.isEmpty, let coordinate {
             nearbySearchCoordinate = coordinate
-            let candidates = await NearbyPlacesService.search(latitude: coordinate.latitude, longitude: coordinate.longitude)
+            let candidates = await NearbyPlacesService.search(
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude,
+                categoryHint: onSiteCategoryHint
+            )
             if let firstRowID = newRows.first?.id {
                 nearbyCandidates = candidates
                 nearbyCandidateRowID = firstRowID
             }
         }
+        onSiteCategoryHint = nil
 
         let locationSourceLabel = hasCameraPhoto ? "your current location" : "your photos' location"
         if let extractionFailureMessage {
