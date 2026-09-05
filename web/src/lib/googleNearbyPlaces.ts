@@ -102,7 +102,12 @@ export async function searchNearbyPlacesGoogle(
   apiKey: string,
   categoryHint?: PlaceCategory,
 ): Promise<NearbyPlaceCandidate[]> {
-  await loadGoogleMapsScript(apiKey);
+  try {
+    await loadGoogleMapsScript(apiKey);
+  } catch (error) {
+    console.warn("Failed to load Google Maps:", error);
+    return [];
+  }
   if (!window.google?.maps?.places) return [];
 
   try {

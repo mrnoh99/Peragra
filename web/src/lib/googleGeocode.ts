@@ -17,7 +17,15 @@ export async function geocodeWithGoogle(
   query: string,
   apiKey: string,
 ): Promise<{ lat: number; lng: number } | null> {
-  await loadGoogleMapsScript(apiKey);
+  try {
+    await loadGoogleMapsScript(apiKey);
+  } catch (error) {
+    // A bad key or a timeout rejects here — never let that become an
+    // uncaught rejection, since every call site treats this the same as
+    // "couldn't locate" and falls back accordingly.
+    console.warn("Failed to load Google Maps:", error);
+    return null;
+  }
   if (!window.google) return null;
 
   const geocoder = new window.google.maps.Geocoder();
@@ -53,7 +61,12 @@ export async function reverseGeocodeWithGoogle(
   lng: number,
   apiKey: string,
 ): Promise<{ address: string; name: string | null } | null> {
-  await loadGoogleMapsScript(apiKey);
+  try {
+    await loadGoogleMapsScript(apiKey);
+  } catch (error) {
+    console.warn("Failed to load Google Maps:", error);
+    return null;
+  }
   if (!window.google) return null;
 
   const geocoder = new window.google.maps.Geocoder();

@@ -10,7 +10,19 @@ export async function geocodeWithNaver(
   query: string,
   clientId: string,
 ): Promise<{ lat: number; lng: number; displayName: string } | null> {
-  await loadNaverMapsScript(clientId);
+  try {
+    await loadNaverMapsScript(clientId);
+  } catch (error) {
+    // A bad/unconfigured Client ID, a blocked network, or a timeout all
+    // reject here — never let that become an uncaught rejection, since
+    // every call site treats this the same as "couldn't geocode" and
+    // falls back accordingly (an uncaught throw here has previously
+    // broken the whole on-site-photo capture flow silently — see
+    // AddPlaceModal.tsx's captureOnSitePlace, which has no top-level
+    // catch of its own).
+    console.warn("Failed to load Naver Maps:", error);
+    return null;
+  }
   const naverMaps = window.naver?.maps;
   if (!naverMaps) return null;
 
@@ -66,7 +78,16 @@ export async function reverseGeocodeWithNaver(
   lng: number,
   clientId: string,
 ): Promise<{ address: string; name: string | null } | null> {
-  await loadNaverMapsScript(clientId);
+  try {
+    await loadNaverMapsScript(clientId);
+  } catch (error) {
+    // See the matching comment in geocodeWithNaver above — this must
+    // never reject, since it's called unconditionally as a Korea-wide
+    // name-lookup fallback (geocode.ts's reverseGeocode) whenever any
+    // Naver Client ID is set, valid or not.
+    console.warn("Failed to load Naver Maps:", error);
+    return null;
+  }
   const naverMaps = window.naver?.maps;
   if (!naverMaps) return null;
 

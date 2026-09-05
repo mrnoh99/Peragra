@@ -107,6 +107,23 @@ export function EditPlaceModal({
     setPhotoError(null);
     setPhotoMessage(null);
 
+    try {
+      await fillFromPhotosInner();
+    } catch (error) {
+      // Belt-and-suspenders: every awaited call in here is already
+      // expected to fail gracefully on its own (returning null/empty
+      // rather than throwing), but a stuck "Reading…" spinner with no
+      // error at all is a much worse failure mode than a generic
+      // message — this backstop guarantees the loading state always
+      // clears no matter what actually goes wrong below.
+      console.error("Fill in from photos failed:", error);
+      setPhotoError("Something went wrong reading those photos.");
+    } finally {
+      setIsProcessingPhotos(false);
+    }
+  }
+
+  async function fillFromPhotosInner() {
     const photos = onSitePhotos;
     setOnSitePhotos([]);
     setNearbyCandidates([]);
@@ -218,8 +235,6 @@ export function EditPlaceModal({
     } else {
       setPhotoMessage("Didn't find any new details in those photos.");
     }
-
-    setIsProcessingPhotos(false);
   }
 
   function applyNearbyCandidate(candidate: NearbyPlaceCandidate) {

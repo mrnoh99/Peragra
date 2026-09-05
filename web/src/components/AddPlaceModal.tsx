@@ -336,6 +336,23 @@ export function AddPlaceModal({
     setExtractError(null);
     setExtractResultMessage(null);
 
+    try {
+      await captureOnSitePlaceInner();
+    } catch (error) {
+      // Belt-and-suspenders: every awaited call in here is already
+      // expected to fail gracefully on its own (returning null/empty
+      // rather than throwing), but a stuck "Reading photos…" spinner
+      // with no error at all is a much worse failure mode than a
+      // generic message — this backstop guarantees the loading state
+      // always clears no matter what actually goes wrong below.
+      console.error("On-site place capture failed:", error);
+      setExtractError("Something went wrong reading those photos — add the place details manually below.");
+    } finally {
+      setIsCapturingOnSite(false);
+    }
+  }
+
+  async function captureOnSitePlaceInner() {
     const photos = onSitePhotos;
     setOnSitePhotos([]);
 
@@ -456,8 +473,6 @@ export function AddPlaceModal({
         `📍 Captured ${locationSourceLabel} and found ${extracted.length} place${extracted.length === 1 ? "" : "s"} — review below before saving.`,
       );
     }
-
-    setIsCapturingOnSite(false);
   }
 
   /**
