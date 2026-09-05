@@ -4,7 +4,7 @@ import { useStore } from "../store/useStore";
 import { EditPlaceModal } from "./EditPlaceModal";
 import { googleMapsUrl } from "../lib/googleMapsUrl";
 import { kakaoMapUrl } from "../lib/kakaoMapUrl";
-import { naverMapUrl } from "../lib/naverMapUrl";
+import { naverMapUrl, openNaverMap } from "../lib/naverMapUrl";
 
 function formatVisitedDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString(undefined, {
@@ -171,17 +171,20 @@ export function PlaceCard({
                       Google Maps
                     </a>
                     {naverUrl && (
-                      // No target="_blank" — nmap:// is a custom scheme with
-                      // no web fallback, so opening it in a new tab would
-                      // just leave a blank tab behind when the Naver Map app
-                      // isn't installed.
-                      <a
-                        href={naverUrl}
-                        onClick={() => setShowMapMenu(false)}
+                      // A plain <a href> to nmap:// pops Safari's "address
+                      // is invalid" alert when the Naver Map app isn't
+                      // installed (confirmed on device) — launch it through
+                      // a hidden iframe instead, which doesn't trigger that.
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMapMenu(false);
+                          openNaverMap(naverUrl);
+                        }}
                         className="whitespace-nowrap rounded px-2 py-1 text-left text-neutral-600 hover:bg-neutral-50"
                       >
                         Naver Map
-                      </a>
+                      </button>
                     )}
                     {kakaoUrl && (
                       <a
