@@ -252,7 +252,9 @@ export function PlaceCard({
               Edit
             </button>
             <button
-              onClick={() => deletePlace(place.id)}
+              onClick={() => {
+                if (confirm(`Remove "${place.name}"?`)) deletePlace(place.id);
+              }}
               className="text-xs text-neutral-400 hover:text-red-500"
             >
               Remove

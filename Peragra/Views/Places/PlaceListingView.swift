@@ -15,6 +15,7 @@ struct PlaceListingView: View {
     @State private var selectedIDs: Set<UUID> = []
     @State private var isSendingToMap = false
     @State private var mapErrorMessage: String?
+    @State private var placePendingDelete: Place?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -52,8 +53,16 @@ struct PlaceListingView: View {
                             }
                             PlaceRowView(place: place, allCollections: allCollections, distanceMeters: distancesByID[place.id], destination: destination)
                         }
+                        .swipeActions(edge: .trailing) {
+                            if !isSelecting {
+                                Button(role: .destructive) {
+                                    placePendingDelete = place
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
                     }
-                    .onDelete(perform: isSelecting ? nil : delete)
                 }
                 .listStyle(.plain)
             }
@@ -62,6 +71,22 @@ struct PlaceListingView: View {
             if isSelecting {
                 bulkActionBar
             }
+        }
+        .confirmationDialog(
+            "Delete this place?",
+            isPresented: Binding(
+                get: { placePendingDelete != nil },
+                set: { if !$0 { placePendingDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let placePendingDelete {
+                    modelContext.delete(placePendingDelete)
+                }
+                placePendingDelete = nil
+            }
+            Button("Cancel", role: .cancel) { placePendingDelete = nil }
         }
     }
 
@@ -263,11 +288,5 @@ struct PlaceListingView: View {
             return
         }
         openURL(url)
-    }
-
-    private func delete(at offsets: IndexSet) {
-        for index in offsets {
-            modelContext.delete(places[index])
-        }
     }
 }
