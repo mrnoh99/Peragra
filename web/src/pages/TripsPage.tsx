@@ -26,7 +26,7 @@ export function TripsPage() {
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Your boards</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Collect the places you've saved on Instagram, then plan around them.
+            Save the places you find — from Instagram, photos, or a map — and visit them later.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
