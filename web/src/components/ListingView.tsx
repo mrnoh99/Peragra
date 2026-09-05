@@ -4,7 +4,9 @@ import { useStore } from "../store/useStore";
 import { PlaceCard } from "./PlaceCard";
 import { googleMapsDirectionsUrl } from "../lib/googleMapsUrl";
 import { kakaoMapDirectionsUrl } from "../lib/kakaoMapUrl";
-import { naverMapDirectionsUrl, openNaverMap } from "../lib/naverMapUrl";
+import { naverMapDirectionsUrl } from "../lib/naverMapUrl";
+import { tmapDirectionsUrl } from "../lib/tmapUrl";
+import { openCustomSchemeUrl } from "../lib/customSchemeUrl";
 
 export function ListingView({
   places,
@@ -97,10 +99,24 @@ export function ListingView({
         setMapError("Couldn't get your current location — allow location access for this site and try again.");
         return;
       }
-      openNaverMap(url);
+      openCustomSchemeUrl(url);
     } finally {
       setIsSendingToMap(false);
     }
+  }
+
+  function sendSelectedToTmap() {
+    setShowMapMenu(false);
+    setMapError(null);
+    // Unlike Kakao/Naver, Tmap needs no explicit starting coordinate, so
+    // this needs no location lookup and isn't async.
+    const selectedPlaces = places.filter((p) => selectedIds.has(p.id));
+    const url = tmapDirectionsUrl(selectedPlaces);
+    if (!url) {
+      setMapError("None of the selected places have a located position yet.");
+      return;
+    }
+    openCustomSchemeUrl(url);
   }
 
   return (
@@ -203,6 +219,13 @@ export function ListingView({
                   className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
                 >
                   Kakao Map
+                </button>
+                <button
+                  type="button"
+                  onClick={sendSelectedToTmap}
+                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                >
+                  Tmap
                 </button>
               </div>
             )}

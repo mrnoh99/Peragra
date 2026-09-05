@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		06E396CC25C22217A1A954B7 /* TmapOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEFBCDE0461B9000C8BAEF66 /* TmapOpener.swift */; };
 		CFBBE95AF25C0407B609AE87 /* KoreaRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = A46B7AEF579F0764C332223A /* KoreaRegion.swift */; };
 		5D2B1A19029BF80C0F6476E5 /* NaverMapOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = 842EC9BF9A1E00C1E6EA1A99 /* NaverMapOpener.swift */; };
 		A9033BC47A48DEBA9EFF95A8 /* KakaoMapOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F07AD3AC900A5E9DEEC9127 /* KakaoMapOpener.swift */; };
@@ -46,6 +47,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		FEFBCDE0461B9000C8BAEF66 /* TmapOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TmapOpener.swift; path = Peragra/Services/TmapOpener.swift; sourceTree = "<group>"; };
 		A46B7AEF579F0764C332223A /* KoreaRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KoreaRegion.swift; path = Peragra/Services/KoreaRegion.swift; sourceTree = "<group>"; };
 		842EC9BF9A1E00C1E6EA1A99 /* NaverMapOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NaverMapOpener.swift; path = Peragra/Services/NaverMapOpener.swift; sourceTree = "<group>"; };
 		5F07AD3AC900A5E9DEEC9127 /* KakaoMapOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KakaoMapOpener.swift; path = Peragra/Services/KakaoMapOpener.swift; sourceTree = "<group>"; };
@@ -111,6 +113,7 @@
 				5F07AD3AC900A5E9DEEC9127 /* KakaoMapOpener.swift */,
 				A46B7AEF579F0764C332223A /* KoreaRegion.swift */,
 				842EC9BF9A1E00C1E6EA1A99 /* NaverMapOpener.swift */,
+				FEFBCDE0461B9000C8BAEF66 /* TmapOpener.swift */,
 			);
 			name = Services;
 			sourceTree = "<group>";
@@ -295,6 +298,7 @@
 				A9033BC47A48DEBA9EFF95A8 /* KakaoMapOpener.swift in Sources */,
 				CFBBE95AF25C0407B609AE87 /* KoreaRegion.swift in Sources */,
 				5D2B1A19029BF80C0F6476E5 /* NaverMapOpener.swift in Sources */,
+				06E396CC25C22217A1A954B7 /* TmapOpener.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

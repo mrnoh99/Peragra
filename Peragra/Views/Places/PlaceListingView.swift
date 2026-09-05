@@ -136,6 +136,11 @@ struct PlaceListingView: View {
                 } label: {
                     Label("Kakao Map", systemImage: "map")
                 }
+                Button {
+                    sendSelectedToTmap()
+                } label: {
+                    Label("Tmap", systemImage: "map")
+                }
             } label: {
                 if isSendingToMap {
                     ProgressView()
@@ -242,6 +247,18 @@ struct PlaceListingView: View {
 
         let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
         guard let url = NaverMapOpener.directionsURL(for: selectedPlaces, from: origin) else {
+            mapErrorMessage = "None of the selected places have a located position yet."
+            return
+        }
+        openURL(url)
+    }
+
+    private func sendSelectedToTmap() {
+        mapErrorMessage = nil
+        // Unlike Kakao/Naver, Tmap needs no explicit starting coordinate,
+        // so this needs no LocationService lookup.
+        let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
+        guard let url = TmapOpener.directionsURL(for: selectedPlaces) else {
             mapErrorMessage = "None of the selected places have a located position yet."
             return
         }

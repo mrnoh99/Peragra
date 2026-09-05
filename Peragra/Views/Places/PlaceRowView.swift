@@ -112,6 +112,13 @@ struct PlaceRowView: View {
                             Label("Kakao Map", systemImage: "map")
                         }
                     }
+                    if let tmapURL = TmapOpener.url(for: place) {
+                        Button {
+                            openURL(tmapURL)
+                        } label: {
+                            Label("Tmap", systemImage: "map")
+                        }
+                    }
                 } label: {
                     Label("Send to Map", systemImage: "map")
                         .font(.caption.weight(.medium))

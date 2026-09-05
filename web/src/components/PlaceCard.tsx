@@ -4,7 +4,9 @@ import { useStore } from "../store/useStore";
 import { EditPlaceModal } from "./EditPlaceModal";
 import { googleMapsUrl } from "../lib/googleMapsUrl";
 import { kakaoMapUrl } from "../lib/kakaoMapUrl";
-import { naverMapUrl, openNaverMap } from "../lib/naverMapUrl";
+import { naverMapUrl } from "../lib/naverMapUrl";
+import { tmapUrl } from "../lib/tmapUrl";
+import { openCustomSchemeUrl } from "../lib/customSchemeUrl";
 
 function formatVisitedDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString(undefined, {
@@ -56,6 +58,7 @@ export function PlaceCard({
     PLACE_CATEGORIES.find((c) => c.value === place.category)?.label ?? "Other";
   const kakaoUrl = kakaoMapUrl(place);
   const naverUrl = naverMapUrl(place);
+  const tmapDestinationUrl = tmapUrl(place);
 
   function copyForMaps() {
     const text = place.address ? `${place.name}, ${place.address}` : place.name;
@@ -179,7 +182,7 @@ export function PlaceCard({
                         type="button"
                         onClick={() => {
                           setShowMapMenu(false);
-                          openNaverMap(naverUrl);
+                          openCustomSchemeUrl(naverUrl);
                         }}
                         className="whitespace-nowrap rounded px-2 py-1 text-left text-neutral-600 hover:bg-neutral-50"
                       >
@@ -196,6 +199,20 @@ export function PlaceCard({
                       >
                         Kakao Map
                       </a>
+                    )}
+                    {tmapDestinationUrl && (
+                      // Same Safari "address is invalid" concern as Naver
+                      // Map above — launch through the hidden iframe too.
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMapMenu(false);
+                          openCustomSchemeUrl(tmapDestinationUrl);
+                        }}
+                        className="whitespace-nowrap rounded px-2 py-1 text-left text-neutral-600 hover:bg-neutral-50"
+                      >
+                        Tmap
+                      </button>
                     )}
                   </div>
                 )}
