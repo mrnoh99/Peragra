@@ -1,4 +1,5 @@
 const LOAD_TIMEOUT_MS = 10_000;
+const SERVICE_POLL_INTERVAL_MS = 100;
 
 let scriptLoadPromise: Promise<void> | null = null;
 let loadedForClientId: string | null = null;
@@ -11,15 +12,19 @@ let loadedForClientId: string | null = null;
  * coverage is thin and Google's Geocoding API has weak support for
  * Korean road-name addresses.
  *
- * Unlike Google's loader script (which does further async setup after its
- * own `onload` fires, requiring a documented `callback` query param to
- * know when it's really ready), Naver's script is a single synchronous
- * bundle — `naver.maps.Service` exists as soon as `onload` fires. A bad
- * Client ID or an unregistered domain doesn't reject the script load
- * itself, though — Naver calls `window.navermap_authFailure` instead
- * (their documented hook), which is wired up here alongside the same
- * timeout fallback used for Google, since not every failure mode is
- * guaranteed to invoke it.
+ * Naver's script usually makes `naver.maps.Service` available as soon as
+ * `onload` fires, but with `submodules=geocoder` the bootstrap script can
+ * kick off a further async request for the submodule itself — reported on
+ * a real device as "script loaded but the API didn't initialize" even
+ * with a valid Client ID, because the geocoder submodule was still a beat
+ * behind the outer `<script>` tag's own `onload`. So `onload` polls
+ * briefly for `naver.maps.Service` instead of checking exactly once,
+ * before falling through to the same timeout used for a genuine hang.
+ * A bad Client ID or an unregistered domain doesn't reject the script
+ * load itself, though — Naver calls `window.navermap_authFailure` instead
+ * (their documented hook), which is wired up here alongside that timeout
+ * fallback used for Google, since not every failure mode is guaranteed to
+ * invoke it.
  *
  * Shared by NaverMapView (to render a map) and naverGeocode (to use
  * naver.maps.Service) — geocoding must go through this loaded SDK rather
@@ -38,10 +43,28 @@ export function loadNaverMapsScript(clientId: string): Promise<void> {
   // silently reusing the old key's script.
   loadedForClientId = clientId;
   scriptLoadPromise = new Promise((resolve, reject) => {
+    let settled = false;
+    let pollInterval: number | null = null;
+
+    const stopWaiting = () => {
+      window.clearTimeout(timeout);
+      if (pollInterval !== null) window.clearInterval(pollInterval);
+    };
+
     const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      stopWaiting();
       scriptLoadPromise = null;
       loadedForClientId = null;
       reject(error);
+    };
+
+    const succeed = () => {
+      if (settled) return;
+      settled = true;
+      stopWaiting();
+      resolve();
     };
 
     const timeout = window.setTimeout(() => {
@@ -49,7 +72,6 @@ export function loadNaverMapsScript(clientId: string): Promise<void> {
     }, LOAD_TIMEOUT_MS);
 
     window.navermap_authFailure = () => {
-      window.clearTimeout(timeout);
       fail(new Error("Naver Maps rejected this Client ID — check it in Settings"));
     };
 
@@ -57,15 +79,18 @@ export function loadNaverMapsScript(clientId: string): Promise<void> {
     script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientId)}&submodules=geocoder`;
     script.async = true;
     script.onload = () => {
-      window.clearTimeout(timeout);
       if (window.naver?.maps?.Service) {
-        resolve();
-      } else {
-        fail(new Error("Naver Maps script loaded but the API didn't initialize"));
+        succeed();
+        return;
       }
+      // Not ready the instant onload fires — poll for it briefly rather
+      // than failing immediately; the timeout above still catches a
+      // genuine failure to ever initialize.
+      pollInterval = window.setInterval(() => {
+        if (window.naver?.maps?.Service) succeed();
+      }, SERVICE_POLL_INTERVAL_MS);
     };
     script.onerror = () => {
-      window.clearTimeout(timeout);
       fail(new Error("Failed to load the Naver Maps script"));
     };
     document.body.appendChild(script);
