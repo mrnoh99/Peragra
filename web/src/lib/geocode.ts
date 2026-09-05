@@ -1,6 +1,7 @@
 import { useMapSettingsStore } from "../store/useMapSettingsStore";
 import { geocodeWithGoogle, reverseGeocodeWithGoogle } from "./googleGeocode";
 import { geocodeWithNaver, reverseGeocodeWithNaver } from "./naverGeocode";
+import { isInKorea } from "./koreaRegion";
 
 export interface GeocodeResult {
   lat: number;
@@ -141,15 +142,32 @@ async function reverseGeocodeWithNominatim(lat: number, lng: number): Promise<Re
  * Reverse geocoding (coordinate -> address/name), for turning a GPS fix
  * read off an on-site photo into something readable to fill in a place's
  * address (and, best-effort, its name) automatically.
+ *
+ * For a Korean coordinate, this always tries Naver for the *name* as a
+ * final step when the primary provider didn't find one — even if Naver
+ * isn't the person's chosen map provider — since Naver's own address
+ * database is the most reliable at resolving "what business is actually
+ * at this exact address" in Korea (a storefront photo with no legible
+ * signage otherwise has no way to name itself). Only needs a Client ID
+ * to have been entered in Settings, not selected as the active provider.
  */
 export async function reverseGeocode(lat: number, lng: number): Promise<ReverseGeocodeResult | null> {
   const { mapProvider, googleMapsApiKey, naverClientId } = useMapSettingsStore.getState();
+  let result: ReverseGeocodeResult | null;
   if (mapProvider === "google" && googleMapsApiKey) {
-    return reverseGeocodeWithGoogle(lat, lng, googleMapsApiKey);
-  }
-  if (mapProvider === "naver" && naverClientId) {
-    return reverseGeocodeWithNaver(lat, lng, naverClientId);
+    result = await reverseGeocodeWithGoogle(lat, lng, googleMapsApiKey);
+  } else if (mapProvider === "naver" && naverClientId) {
+    result = await reverseGeocodeWithNaver(lat, lng, naverClientId);
+  } else {
+    result = await reverseGeocodeWithNominatim(lat, lng);
   }
 
-  return reverseGeocodeWithNominatim(lat, lng);
+  if (!result?.name && mapProvider !== "naver" && naverClientId && isInKorea(lat, lng)) {
+    const naverResult = await reverseGeocodeWithNaver(lat, lng, naverClientId);
+    if (naverResult?.name) {
+      result = result ? { ...result, name: naverResult.name } : naverResult;
+    }
+  }
+
+  return result;
 }

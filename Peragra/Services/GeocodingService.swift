@@ -64,33 +64,46 @@ enum GeocodingService {
     /// fix read off an on-site photo into something readable to fill in a
     /// place's address (and, best-effort, its name) automatically. Same
     /// Google/Apple dispatch as `geocode(query:contextHint:)`.
+    ///
+    /// For a Korean coordinate, this always tries Naver for the *name* as
+    /// a final step when the primary provider didn't find one — even if
+    /// Naver isn't the active provider — since Naver's own address
+    /// database is the most reliable at resolving "what business is
+    /// actually at this exact address" in Korea (a storefront photo with
+    /// no legible signage otherwise has no way to name itself). Only
+    /// needs a Client ID + Secret to have been entered in Settings, not
+    /// selected as the active provider.
     static func reverseGeocode(latitude: Double, longitude: Double) async -> ReverseResult? {
+        var result: ReverseResult?
+
         if MapSettings.shared.isGoogleActive {
             let apiKey = MapSettings.shared.effectiveGoogleMapsAPIKey
-            guard let result = await GoogleGeocodingService.reverseGeocode(latitude: latitude, longitude: longitude, apiKey: apiKey) else {
-                return nil
+            if let googleResult = await GoogleGeocodingService.reverseGeocode(latitude: latitude, longitude: longitude, apiKey: apiKey) {
+                result = ReverseResult(address: googleResult.address, name: googleResult.name)
             }
-            return ReverseResult(address: result.address, name: result.name)
+        } else if MapSettings.shared.isNaverActive,
+                  let clientId = MapSettings.shared.naverClientId,
+                  let clientSecret = MapSettings.shared.naverClientSecret {
+            if let naverResult = await NaverGeocodingService.reverseGeocode(latitude: latitude, longitude: longitude, clientId: clientId, clientSecret: clientSecret) {
+                result = ReverseResult(address: naverResult.address, name: naverResult.name)
+            }
+        } else {
+            let geocoder = CLGeocoder()
+            let location = CLLocation(latitude: latitude, longitude: longitude)
+            if let placemarks = try? await geocoder.reverseGeocodeLocation(location), let placemark = placemarks.first {
+                result = ReverseResult(address: formattedAddress(from: placemark), name: placemark.name)
+            }
         }
 
-        if MapSettings.shared.isNaverActive,
-           let clientId = MapSettings.shared.naverClientId,
-           let clientSecret = MapSettings.shared.naverClientSecret {
-            guard let result = await NaverGeocodingService.reverseGeocode(latitude: latitude, longitude: longitude, clientId: clientId, clientSecret: clientSecret) else {
-                return nil
-            }
-            return ReverseResult(address: result.address, name: result.name)
+        if result?.name == nil, !MapSettings.shared.isNaverActive,
+           let clientId = MapSettings.shared.naverClientId, let clientSecret = MapSettings.shared.naverClientSecret,
+           KoreaRegion.contains(latitude: latitude, longitude: longitude),
+           let naverResult = await NaverGeocodingService.reverseGeocode(latitude: latitude, longitude: longitude, clientId: clientId, clientSecret: clientSecret),
+           let name = naverResult.name {
+            result = ReverseResult(address: result?.address ?? naverResult.address, name: name)
         }
 
-        let geocoder = CLGeocoder()
-        let location = CLLocation(latitude: latitude, longitude: longitude)
-        do {
-            let placemarks = try await geocoder.reverseGeocodeLocation(location)
-            guard let placemark = placemarks.first else { return nil }
-            return ReverseResult(address: formattedAddress(from: placemark), name: placemark.name)
-        } catch {
-            return nil
-        }
+        return result
     }
 
     private static func formattedAddress(from placemark: CLPlacemark) -> String {
