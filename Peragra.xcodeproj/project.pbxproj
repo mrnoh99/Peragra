@@ -30,6 +30,7 @@
 		3E652117311C6E5DCD93C9AA /* NearbyPlacesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7206A3EA7A89B62FD95BDB5B /* NearbyPlacesService.swift */; };
 		B50214389F404D88D24A6F27 /* GoogleNearbyPlacesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB58982BC76355B53CAB4AD /* GoogleNearbyPlacesService.swift */; };
 		8C2648DA8C3AC80BB8935981 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09344DE79832AE4337D0FDBA /* SettingsSheet.swift */; };
+		5D3EECA6AE1A44B29ED04752 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15658DA193E448FF92443F65 /* HelpView.swift */; };
 		91D8479C85B75865CE35EE18 /* InstagramLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 718642978CE1880FF3A7401F /* InstagramLink.swift */; };
 		9EA0447484A2AF2E5C69ADF7 /* PlaceRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA04DC7BF07B250AF95A74F /* PlaceRowView.swift */; };
 		A9F241E1917F88AE05BFC62B /* PlaceCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38284761B40F598FFC15CD78 /* PlaceCollection.swift */; };
@@ -57,6 +58,7 @@
 		01EE476FA99165081A0D4C7A /* MapSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MapSettings.swift; path = Peragra/Models/MapSettings.swift; sourceTree = "<group>"; };
 		06814E248FCB3AB0A38050BB /* GatewayModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GatewayModels.swift; path = Peragra/Models/GatewayModels.swift; sourceTree = "<group>"; };
 		09344DE79832AE4337D0FDBA /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsSheet.swift; path = Peragra/Views/SettingsSheet.swift; sourceTree = "<group>"; };
+		15658DA193E448FF92443F65 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HelpView.swift; path = Peragra/Views/HelpView.swift; sourceTree = "<group>"; };
 		21B44480A4EA75D86D5BF876 /* PeragraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PeragraApp.swift; path = Peragra/App/PeragraApp.swift; sourceTree = "<group>"; };
 		27B84F76ADB57E07BE44A068 /* TripsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TripsListView.swift; path = Peragra/Views/Trips/TripsListView.swift; sourceTree = "<group>"; };
 		028883BBF7824353869042DA /* AllPlacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AllPlacesView.swift; path = Peragra/Views/Trips/AllPlacesView.swift; sourceTree = "<group>"; };
@@ -150,6 +152,7 @@
 				67964CBDB5523AB6193F4D6E /* Places */,
 				F112433787F55AD8026EA315 /* Trips */,
 				09344DE79832AE4337D0FDBA /* SettingsSheet.swift */,
+				15658DA193E448FF92443F65 /* HelpView.swift */,
 			);
 			name = Views;
 			sourceTree = "<group>";
@@ -286,6 +289,7 @@
 				BA4340C4920B2224AF4EBC56 /* AIExtractionService.swift in Sources */,
 				B510449A8E13CF05A23F0946 /* AISettings.swift in Sources */,
 				8C2648DA8C3AC80BB8935981 /* SettingsSheet.swift in Sources */,
+				5D3EECA6AE1A44B29ED04752 /* HelpView.swift in Sources */,
 				4FEB4377B249D4E8FDDFF66F /* EditPlaceSheet.swift in Sources */,
 				29D0457A9418F07992DEC7D4 /* MapSettings.swift in Sources */,
 				80754CE8B9D3CD5295842760 /* GoogleGeocodingService.swift in Sources */,

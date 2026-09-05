@@ -10,9 +10,6 @@ struct AddTripSheet: View {
     @State private var name = ""
     @State private var destination = ""
     @State private var coverEmoji = AddTripSheet.emojiChoices[0]
-    @State private var hasDates = false
-    @State private var startDate = Date()
-    @State private var endDate = Date()
 
     private var canSubmit: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
@@ -22,8 +19,8 @@ struct AddTripSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Trip") {
-                    TextField("Trip name (e.g. Tokyo Spring Trip)", text: $name)
+                Section("Place") {
+                    TextField("Place name (e.g. Tokyo Spring Trip)", text: $name)
                     TextField("Destination (e.g. Tokyo, Japan)", text: $destination)
                 }
 
@@ -50,16 +47,8 @@ struct AddTripSheet: View {
                     }
                     .padding(.vertical, 4)
                 }
-
-                Section {
-                    Toggle("Set dates", isOn: $hasDates.animation())
-                    if hasDates {
-                        DatePicker("Start", selection: $startDate, displayedComponents: .date)
-                        DatePicker("End", selection: $endDate, in: startDate..., displayedComponents: .date)
-                    }
-                }
             }
-            .navigationTitle("New Trip")
+            .navigationTitle("New Place")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -77,9 +66,7 @@ struct AddTripSheet: View {
         let trip = Trip(
             name: name.trimmingCharacters(in: .whitespaces),
             destination: destination.trimmingCharacters(in: .whitespaces),
-            coverEmoji: coverEmoji,
-            startDate: hasDates ? startDate : nil,
-            endDate: hasDates ? endDate : nil
+            coverEmoji: coverEmoji
         )
         modelContext.insert(trip)
         _ = PlaceCollection.ensureFavoritesList(for: trip, context: modelContext)

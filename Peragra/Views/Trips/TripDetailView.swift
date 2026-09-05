@@ -205,7 +205,7 @@ struct TripDetailView: View {
                 Button {
                     tripNameInput = trip.name
                     isRenamingTrip = true
-                } label: { Label("Rename Trip", systemImage: "pencil") }
+                } label: { Label("Rename Place", systemImage: "pencil") }
             }
         }
         .sheet(isPresented: $showingAddPlace) { AddPlaceSheet(trip: trip, defaultCollection: activeCollection) }
@@ -221,7 +221,7 @@ struct TripDetailView: View {
             Button("Cancel", role: .cancel) { newListName = "" }
         }
         .alert("Rename Trip", isPresented: $isRenamingTrip) {
-            TextField("Trip name", text: $tripNameInput)
+            TextField("Place name", text: $tripNameInput)
             Button("Save") {
                 let trimmed = tripNameInput.trimmingCharacters(in: .whitespaces)
                 if !trimmed.isEmpty { trip.name = trimmed }

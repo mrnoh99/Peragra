@@ -164,7 +164,7 @@ export function TripDetailPage() {
   if (!trip) {
     return (
       <div className="py-16 text-center text-sm text-neutral-500">
-        Trip not found. <Link to="/" className="text-brand-600 underline">Back to trips</Link>
+        Place not found. <Link to="/" className="text-brand-600 underline">Back to places</Link>
       </div>
     );
   }
@@ -183,7 +183,7 @@ export function TripDetailPage() {
   return (
     <div>
       <Link to="/" className="text-sm text-neutral-500 hover:text-neutral-700">
-        ← All trips
+        ← All places
       </Link>
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
@@ -211,7 +211,7 @@ export function TripDetailPage() {
               {trip.name}
               <button
                 onClick={startEditingName}
-                aria-label="Rename trip"
+                aria-label="Rename place"
                 className="text-base text-neutral-300 hover:text-neutral-500"
               >
                 ✎

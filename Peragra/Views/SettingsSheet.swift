@@ -134,6 +134,14 @@ struct SettingsSheet: View {
         NavigationStack {
             Form {
                 Section {
+                    NavigationLink {
+                        HelpView()
+                    } label: {
+                        Label("User Guide", systemImage: "book")
+                    }
+                }
+
+                Section {
                     Picker("Provider", selection: $provider) {
                         ForEach(AIProvider.allCases) { p in
                             Text(p.label).tag(p)
@@ -248,11 +256,11 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Data")
                 } footer: {
-                    Text("Back up every trip and place to a file you choose, or restore from one — restoring replaces everything currently in the app.")
+                    Text("Back up every destination and place to a file you choose, or restore from one — restoring replaces everything currently in the app.")
                 }
             }
             .confirmationDialog(
-                "Replace all trips and places with this backup?",
+                "Replace all destinations and places with this backup?",
                 isPresented: $showingRestoreConfirm,
                 titleVisibility: .visible
             ) {
