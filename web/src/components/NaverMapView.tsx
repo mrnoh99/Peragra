@@ -32,7 +32,7 @@ export function NaverMapView({
   destination: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [loadError, setLoadError] = useState(false);
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const located = useMemo(
     () => places.filter((p): p is Place & { lat: number; lng: number } => p.lat !== null && p.lng !== null),
     [places],
@@ -43,7 +43,7 @@ export function NaverMapView({
     loadNaverMapsScript(clientId)
       .then(() => {
         if (cancelled || !containerRef.current || !window.naver) return;
-        setLoadError(false);
+        setLoadErrorMessage(null);
         const { maps } = window.naver;
 
         const first = located[0];
@@ -115,19 +115,24 @@ export function NaverMapView({
 
         if (located.length > 1) map.fitBounds(bounds);
       })
-      .catch(() => {
-        if (!cancelled) setLoadError(true);
+      .catch((error: unknown) => {
+        console.error("Failed to load Naver Maps:", error);
+        if (!cancelled) {
+          setLoadErrorMessage(error instanceof Error ? error.message : "Couldn't load Naver Maps.");
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [clientId, located, destination]);
 
-  if (loadError) {
+  if (loadErrorMessage) {
     return (
       <div className="grid h-full place-items-center bg-neutral-50 px-6 text-center text-sm text-neutral-400">
-        Couldn't load Naver Maps — check your Client ID in Settings, or switch back to the free
-        map.
+        <div>
+          <p>{loadErrorMessage}</p>
+          <p className="mt-1">Check your Client ID in Settings, or switch back to the free map.</p>
+        </div>
       </div>
     );
   }
