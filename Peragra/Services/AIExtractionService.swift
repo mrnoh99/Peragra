@@ -138,15 +138,26 @@ enum AIExtractionService {
     /// *same* place (e.g. a storefront sign, a menu, the interior) sent
     /// together in one request — letting the model cross-reference them
     /// into one accurate, consolidated result rather than reconciling
-    /// separate per-photo guesses itself. Used by the on-site photo flow's
-    /// multi-photo capture; the screenshot path still extracts one image
-    /// at a time via the overload above, since those are typically
-    /// unrelated places rather than multiple views of one.
-    static func extractPlaces(images: [(data: Data, mediaType: String)]) async throws -> [AIExtractedPlace] {
+    /// separate per-photo guesses itself.
+    ///
+    /// `isOnSitePhoto` picks the right prompt for what these photos
+    /// actually show — it can't be inferred from the photo count alone,
+    /// since the on-site flow can just as easily hand this a single photo
+    /// (one storefront shot) as the screenshot flow always does. Getting
+    /// this wrong sends a real on-site photo through wording written for
+    /// an Instagram caption screenshot ("extract every place recommended
+    /// in this caption"), which reads a sign or menu as if it were social
+    /// copy and can come back empty.
+    static func extractPlaces(images: [(data: Data, mediaType: String)], isOnSitePhoto: Bool = false) async throws -> [AIExtractedPlace] {
         let encoded = images.map { (mediaType: $0.mediaType, base64: $0.data.base64EncodedString()) }
-        let textPrompt = images.count > 1
-            ? "These photos all show the same place — extract one consolidated, accurate result for it, cross-referencing all the photos (for example, a storefront sign for the name and a menu photo for prices/items)."
-            : "Extract every place recommended in this screenshot's caption."
+        let textPrompt: String
+        if isOnSitePhoto {
+            textPrompt = images.count > 1
+                ? "These photos were taken in person at a single real place — extract one consolidated, accurate result for it, cross-referencing all the photos (for example, a storefront sign for the name and a menu photo for prices/items)."
+                : "This photo was taken in person at a single real place (its storefront, sign, menu, or interior) — extract one accurate result for it from whatever is written or shown, such as its name and any menu items, prices, or hours visible."
+        } else {
+            textPrompt = "Extract every place recommended in this screenshot's caption."
+        }
         let text = try await performChatRequest(
             systemPrompt: systemPrompt,
             textPrompt: textPrompt,
