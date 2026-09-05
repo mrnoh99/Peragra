@@ -17,7 +17,9 @@ enum GeocodingService {
     /// Looks up coordinates for a free-text place name/address. Uses the
     /// Google Geocoding API when the user has opted into Google Maps in
     /// Settings (their own key if they entered one, otherwise the app's
-    /// bundled default); otherwise falls back to Apple's system geocoder
+    /// bundled default), or Naver's Geocoding API when opted into Naver
+    /// Maps with their own Client ID/Secret (the most accurate for
+    /// Korean addresses); otherwise falls back to Apple's system geocoder
     /// (no API key required — the default). `contextHint` (typically the
     /// trip's destination) disambiguates places that share a common name.
     static func geocode(query: String, contextHint: String?) async -> Result? {
@@ -34,6 +36,15 @@ enum GeocodingService {
         if MapSettings.shared.isGoogleActive {
             let apiKey = MapSettings.shared.effectiveGoogleMapsAPIKey
             guard let result = await GoogleGeocodingService.geocode(query: fullQuery, apiKey: apiKey) else {
+                return nil
+            }
+            return Result(latitude: result.latitude, longitude: result.longitude)
+        }
+
+        if MapSettings.shared.isNaverActive,
+           let clientId = MapSettings.shared.naverClientId,
+           let clientSecret = MapSettings.shared.naverClientSecret {
+            guard let result = await NaverGeocodingService.geocode(query: fullQuery, clientId: clientId, clientSecret: clientSecret) else {
                 return nil
             }
             return Result(latitude: result.latitude, longitude: result.longitude)
@@ -57,6 +68,15 @@ enum GeocodingService {
         if MapSettings.shared.isGoogleActive {
             let apiKey = MapSettings.shared.effectiveGoogleMapsAPIKey
             guard let result = await GoogleGeocodingService.reverseGeocode(latitude: latitude, longitude: longitude, apiKey: apiKey) else {
+                return nil
+            }
+            return ReverseResult(address: result.address, name: result.name)
+        }
+
+        if MapSettings.shared.isNaverActive,
+           let clientId = MapSettings.shared.naverClientId,
+           let clientSecret = MapSettings.shared.naverClientSecret {
+            guard let result = await NaverGeocodingService.reverseGeocode(latitude: latitude, longitude: longitude, clientId: clientId, clientSecret: clientSecret) else {
                 return nil
             }
             return ReverseResult(address: result.address, name: result.name)

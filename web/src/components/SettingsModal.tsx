@@ -178,6 +178,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const googleMapsApiKey = useMapSettingsStore((s) => s.googleMapsApiKey);
   const setGoogleMapsApiKey = useMapSettingsStore((s) => s.setGoogleMapsApiKey);
   const [googleKeyInput, setGoogleKeyInput] = useState(googleMapsApiKey ?? "");
+  const naverClientId = useMapSettingsStore((s) => s.naverClientId);
+  const setNaverClientId = useMapSettingsStore((s) => s.setNaverClientId);
+  const [naverKeyInput, setNaverKeyInput] = useState(naverClientId ?? "");
 
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -346,20 +349,20 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         <div className="border-t border-neutral-100 pt-4">
           <label className="mb-1 block text-sm font-medium text-neutral-700">Map provider</label>
           <div className="mt-1 flex rounded-lg border border-neutral-300 p-1 text-sm">
-            {(["free", "google"] as MapProvider[]).map((provider) => (
+            {(["free", "google", "naver"] as MapProvider[]).map((provider) => (
               <button
                 key={provider}
                 onClick={() => setMapProvider(provider)}
-                className={`flex-1 rounded-md px-3 py-1.5 font-medium ${
+                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium ${
                   mapProvider === provider ? "bg-brand-500 text-white" : "text-neutral-600"
                 }`}
               >
-                {provider === "free" ? "Free (OpenStreetMap)" : "Google Maps"}
+                {provider === "free" ? "Free (OpenStreetMap)" : provider === "google" ? "Google Maps" : "Naver Maps"}
               </button>
             ))}
           </div>
 
-          {mapProvider === "google" ? (
+          {mapProvider === "google" && (
             <>
               <input
                 type="password"
@@ -395,7 +398,48 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                 )}
               </div>
             </>
-          ) : (
+          )}
+
+          {mapProvider === "naver" && (
+            <>
+              <input
+                type="password"
+                value={naverKeyInput}
+                onChange={(e) => setNaverKeyInput(e.target.value)}
+                placeholder="Client ID"
+                spellCheck={false}
+                aria-label="Naver Maps Client ID"
+                className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2 font-mono text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+              <p className="mt-2 text-xs text-neutral-400">
+                Requires your own free Naver Cloud Platform Maps Client ID (Console →
+                AI·NAVER API → Maps), with this site's domain registered under it — the most
+                accurate geocoder for Korean addresses. The map and address lookups call Naver's
+                API directly from your browser.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => setNaverClientId(naverKeyInput)}
+                  className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600"
+                >
+                  Save
+                </button>
+                {naverClientId && (
+                  <button
+                    onClick={() => {
+                      setNaverClientId(null);
+                      setNaverKeyInput("");
+                    }}
+                    className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+                  >
+                    Remove Client ID
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
+          {mapProvider === "free" && (
             <p className="mt-2 text-xs text-neutral-400">
               OpenStreetMap and Nominatim need no API key and no account — this is the default.
             </p>
@@ -473,8 +517,8 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           numbers are always kept exactly as written.
         </Section>
         <Section title="Map provider">
-          Free (OpenStreetMap) needs no key. Switch to Google Maps for a nicer map if you add
-          your own key.
+          Free (OpenStreetMap) needs no key. Switch to Google Maps for a nicer map, or Naver Maps
+          for the most accurate geocoding in Korea, if you add your own key/Client ID.
         </Section>
         <Section title="Backup & Restore">
           Back up every board and place to a file you choose, and restore from one later.

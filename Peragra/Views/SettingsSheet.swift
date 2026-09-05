@@ -59,6 +59,8 @@ struct SettingsSheet: View {
     @State private var mapSettings = MapSettings.shared
     @State private var mapProvider: MapProvider = MapSettings.shared.provider
     @State private var googleMapsKeyInput: String = MapSettings.shared.googleMapsAPIKey ?? ""
+    @State private var naverClientIdInput: String = MapSettings.shared.naverClientId ?? ""
+    @State private var naverClientSecretInput: String = MapSettings.shared.naverClientSecret ?? ""
 
     @State private var showingBackupExporter = false
     @State private var backupDocument: BackupDocument?
@@ -204,6 +206,7 @@ struct SettingsSheet: View {
                     Picker("Map provider", selection: $mapProvider) {
                         Text("Free (Apple Maps)").tag(MapProvider.free)
                         Text("Google Maps").tag(MapProvider.google)
+                        Text("Naver Maps").tag(MapProvider.naver)
                     }
                     .pickerStyle(.segmented)
 
@@ -212,12 +215,26 @@ struct SettingsSheet: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                     }
+
+                    if mapProvider == .naver {
+                        TextField("Client ID", text: $naverClientIdInput)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        SecureField("Client Secret", text: $naverClientSecretInput)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
                 } header: {
                     Text("Map provider")
                 } footer: {
-                    Text(mapProvider == .google
-                        ? "Works right away using this app's own Google Maps key — enter your own above only if you'd rather use your own Google Cloud project's quota instead."
-                        : "Apple Maps and its geocoder need no API key and no account — this is the default.")
+                    switch mapProvider {
+                    case .google:
+                        Text("Works right away using this app's own Google Maps key — enter your own above only if you'd rather use your own Google Cloud project's quota instead.")
+                    case .naver:
+                        Text("Requires your own free NAVER Cloud Platform Maps Client ID and Client Secret (Console → AI·NAVER API → Maps) — the most accurate geocoder for Korean addresses. No bundled default, unlike Google.")
+                    case .free:
+                        Text("Apple Maps and its geocoder need no API key and no account — this is the default.")
+                    }
                 }
 
                 if mapSettings.googleMapsAPIKey != nil {
@@ -225,6 +242,17 @@ struct SettingsSheet: View {
                         Button("Remove Google Maps Key", role: .destructive) {
                             mapSettings.setGoogleMapsAPIKey(nil)
                             googleMapsKeyInput = ""
+                        }
+                    }
+                }
+
+                if mapSettings.naverClientId != nil || mapSettings.naverClientSecret != nil {
+                    Section {
+                        Button("Remove Naver Maps Credentials", role: .destructive) {
+                            mapSettings.setNaverClientId(nil)
+                            mapSettings.setNaverClientSecret(nil)
+                            naverClientIdInput = ""
+                            naverClientSecretInput = ""
                         }
                     }
                 }
@@ -313,6 +341,8 @@ struct SettingsSheet: View {
 
                         mapSettings.setProvider(mapProvider)
                         mapSettings.setGoogleMapsAPIKey(googleMapsKeyInput)
+                        mapSettings.setNaverClientId(naverClientIdInput)
+                        mapSettings.setNaverClientSecret(naverClientSecretInput)
                         dismiss()
                     }
                 }

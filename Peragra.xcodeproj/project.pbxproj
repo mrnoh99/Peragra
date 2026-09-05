@@ -27,6 +27,7 @@
 		6E6844D2B9A89DD6613ABD38 /* GeocodingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E74D7D82C88C55F4E7AA03 /* GeocodingService.swift */; };
 		70F14B7899E319410C055906 /* AddPlaceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D74B1688389732B5CD38E3 /* AddPlaceSheet.swift */; };
 		80754CE8B9D3CD5295842760 /* GoogleGeocodingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AB455D80578B776DC3D4A3 /* GoogleGeocodingService.swift */; };
+		9C6FEA7CF39E09814D1C23EC /* NaverGeocodingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC38B3E80B11B924CE52FDE5 /* NaverGeocodingService.swift */; };
 		3E652117311C6E5DCD93C9AA /* NearbyPlacesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7206A3EA7A89B62FD95BDB5B /* NearbyPlacesService.swift */; };
 		B50214389F404D88D24A6F27 /* GoogleNearbyPlacesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB58982BC76355B53CAB4AD /* GoogleNearbyPlacesService.swift */; };
 		8C2648DA8C3AC80BB8935981 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09344DE79832AE4337D0FDBA /* SettingsSheet.swift */; };
@@ -79,6 +80,7 @@
 		C0D74B1688389732B5CD38E3 /* AddPlaceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddPlaceSheet.swift; path = Peragra/Views/Places/AddPlaceSheet.swift; sourceTree = "<group>"; };
 		C0EC4AE3B322246DAA168D68 /* TripDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TripDetailView.swift; path = Peragra/Views/Trips/TripDetailView.swift; sourceTree = "<group>"; };
 		C1AB455D80578B776DC3D4A3 /* GoogleGeocodingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoogleGeocodingService.swift; path = Peragra/Services/GoogleGeocodingService.swift; sourceTree = "<group>"; };
+		FC38B3E80B11B924CE52FDE5 /* NaverGeocodingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NaverGeocodingService.swift; path = Peragra/Services/NaverGeocodingService.swift; sourceTree = "<group>"; };
 		7206A3EA7A89B62FD95BDB5B /* NearbyPlacesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NearbyPlacesService.swift; path = Peragra/Services/NearbyPlacesService.swift; sourceTree = "<group>"; };
 		ACB58982BC76355B53CAB4AD /* GoogleNearbyPlacesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoogleNearbyPlacesService.swift; path = Peragra/Services/GoogleNearbyPlacesService.swift; sourceTree = "<group>"; };
 		C6E049BCBA203197C3FC9809 /* Trip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Trip.swift; path = Peragra/Models/Trip.swift; sourceTree = "<group>"; };
@@ -108,6 +110,7 @@
 				67754B66A448FD1EF6D5B920 /* KeychainService.swift */,
 				A09D4E01A03ED8194F5A9673 /* AIExtractionService.swift */,
 				C1AB455D80578B776DC3D4A3 /* GoogleGeocodingService.swift */,
+				FC38B3E80B11B924CE52FDE5 /* NaverGeocodingService.swift */,
 				7206A3EA7A89B62FD95BDB5B /* NearbyPlacesService.swift */,
 				ACB58982BC76355B53CAB4AD /* GoogleNearbyPlacesService.swift */,
 				33CA141563EA6082C6D8EA1F /* GoogleMapsOpener.swift */,
@@ -293,6 +296,7 @@
 				4FEB4377B249D4E8FDDFF66F /* EditPlaceSheet.swift in Sources */,
 				29D0457A9418F07992DEC7D4 /* MapSettings.swift in Sources */,
 				80754CE8B9D3CD5295842760 /* GoogleGeocodingService.swift in Sources */,
+				9C6FEA7CF39E09814D1C23EC /* NaverGeocodingService.swift in Sources */,
 				3E652117311C6E5DCD93C9AA /* NearbyPlacesService.swift in Sources */,
 				B50214389F404D88D24A6F27 /* GoogleNearbyPlacesService.swift in Sources */,
 				35624F0CA9E68832540B4790 /* GoogleMapWebView.swift in Sources */,

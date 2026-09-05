@@ -24,7 +24,7 @@ struct HelpView: View {
                 Text("Optional. Add an API key below (Gateway, Anthropic, OpenAI, Gemini, or Perplexity) to let AI read screenshots and photos and fill in details. Without one, pasted captions are still parsed with free pattern-matching. The AI extracted info language setting controls what language AI writes extracted notes in — names, addresses, and phone numbers are always kept exactly as written.")
             }
             section("Map provider") {
-                Text("Free (Apple Maps) needs no key. Switch to Google Maps for a nicer map if you add your own key.")
+                Text("Free (Apple Maps) needs no key. Switch to Google Maps for a nicer map, or Naver Maps for the most accurate geocoding in Korea, if you add your own key/Client ID.")
             }
             section("Backup & Restore") {
                 Text("Back up every board and place to a file you choose, and restore from one later.")

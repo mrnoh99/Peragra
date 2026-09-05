@@ -1,5 +1,6 @@
 import { useMapSettingsStore } from "../store/useMapSettingsStore";
 import { geocodeWithGoogle, reverseGeocodeWithGoogle } from "./googleGeocode";
+import { geocodeWithNaver, reverseGeocodeWithNaver } from "./naverGeocode";
 
 export interface GeocodeResult {
   lat: number;
@@ -65,8 +66,10 @@ async function geocodeWithNominatim(
 /**
  * Free-text geocoding, turning a place name/address into map coordinates.
  * Uses the Google Geocoding API when the user has opted into Google Maps
- * in Settings with their own API key; otherwise falls back to
- * OpenStreetMap's Nominatim (no API key required — the default).
+ * in Settings with their own API key, or Naver's when opted into Naver
+ * Maps with their own Client ID (the most accurate for Korean addresses);
+ * otherwise falls back to OpenStreetMap's Nominatim (no API key required
+ * — the default).
  */
 export async function geocodePlace(
   query: string,
@@ -76,10 +79,13 @@ export async function geocodePlace(
   if (!trimmed) return null;
   const fullQuery = contextHint ? `${trimmed}, ${contextHint}` : trimmed;
 
-  const { mapProvider, googleMapsApiKey } = useMapSettingsStore.getState();
+  const { mapProvider, googleMapsApiKey, naverClientId } = useMapSettingsStore.getState();
   if (mapProvider === "google" && googleMapsApiKey) {
     const result = await geocodeWithGoogle(fullQuery, googleMapsApiKey);
     return result ? { ...result, displayName: fullQuery } : null;
+  }
+  if (mapProvider === "naver" && naverClientId) {
+    return geocodeWithNaver(fullQuery, naverClientId);
   }
 
   return geocodeWithNominatim(fullQuery);
@@ -137,9 +143,12 @@ async function reverseGeocodeWithNominatim(lat: number, lng: number): Promise<Re
  * address (and, best-effort, its name) automatically.
  */
 export async function reverseGeocode(lat: number, lng: number): Promise<ReverseGeocodeResult | null> {
-  const { mapProvider, googleMapsApiKey } = useMapSettingsStore.getState();
+  const { mapProvider, googleMapsApiKey, naverClientId } = useMapSettingsStore.getState();
   if (mapProvider === "google" && googleMapsApiKey) {
     return reverseGeocodeWithGoogle(lat, lng, googleMapsApiKey);
+  }
+  if (mapProvider === "naver" && naverClientId) {
+    return reverseGeocodeWithNaver(lat, lng, naverClientId);
   }
 
   return reverseGeocodeWithNominatim(lat, lng);
