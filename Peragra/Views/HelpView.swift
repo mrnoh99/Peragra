@@ -33,7 +33,7 @@ struct HelpView: View {
                 Text("Back up every board and place to a file you choose, and restore from one later. Automatic Backups lets you pick a folder once and Peragra keeps a fresh backup there for you, checked daily or weekly whenever you open the app.")
             }
             Section {
-                Text("Peragra — developed by JaiSung Noh, MD. · Version 1.0 · Build 2 · 2026")
+                Text("Peragra — developed by JaiSung Noh, MD. · Version 1.0 · Build 3 · 2026")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

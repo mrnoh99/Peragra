@@ -688,7 +688,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           backup there for you, checked daily or weekly whenever you open the app.
         </Section>
         <div className="border-t border-neutral-100 pt-3 text-xs text-neutral-400">
-          Peragra — developed by JaiSung Noh, MD. · Version 1.0 · Build 2 · 2026
+          Peragra — developed by JaiSung Noh, MD. · Version 1.0 · Build 3 · 2026
         </div>
       </div>
     </Modal>

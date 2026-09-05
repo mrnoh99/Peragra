@@ -33,7 +33,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">{children}</main>
       <footer className="border-t border-black/5 py-4 text-center text-neutral-400">
         <p className="text-xs">Peragra — plan trips from the places you save</p>
-        <p className="mt-1 text-[10px]">developed by JaiSung Noh, MD. · Version 1.0 · Build 2 · 2026</p>
+        <p className="mt-1 text-[10px]">developed by JaiSung Noh, MD. · Version 1.0 · Build 3 · 2026</p>
       </footer>
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
