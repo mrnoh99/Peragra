@@ -174,10 +174,13 @@ export function PlaceCard({
                       Google Maps
                     </a>
                     {naverUrl && (
-                      // A plain <a href> to nmap:// pops Safari's "address
-                      // is invalid" alert when the Naver Map app isn't
-                      // installed (confirmed on device) — launch it through
-                      // a hidden iframe instead, which doesn't trigger that.
+                      // Not a plain <a href> — nmap:// needs
+                      // openCustomSchemeUrl's own launch mechanism (an
+                      // invisible anchor click, not a direct navigation)
+                      // to actually switch to the app reliably; see that
+                      // function for why. It also handles Android's
+                      // intent:// wrapping and Safari's own "address is
+                      // invalid" alert when the app isn't installed.
                       <button
                         type="button"
                         onClick={() => {
@@ -201,8 +204,7 @@ export function PlaceCard({
                       </a>
                     )}
                     {tmapDestinationUrl && (
-                      // Same Safari "address is invalid" concern as Naver
-                      // Map above — launch through the hidden iframe too.
+                      // Same reason as Naver Map above.
                       <button
                         type="button"
                         onClick={() => {

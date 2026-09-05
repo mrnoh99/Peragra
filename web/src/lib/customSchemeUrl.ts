@@ -35,28 +35,40 @@ function toAndroidIntentUrl(schemeUrl: string): string | null {
 }
 
 /**
- * Launches a custom-scheme URL (nmap://, tmap://, ...) via a direct
- * top-level navigation — wrapped in Android's `intent://` syntax first
- * when both on Android and the scheme has a known package (see
- * toAndroidIntentUrl).
+ * Launches a custom-scheme URL (nmap://, tmap://, ...) — wrapped in
+ * Android's `intent://` syntax first when both on Android and the scheme
+ * has a known package (see toAndroidIntentUrl).
  *
- * This used to go through a hidden iframe instead, to avoid Safari's own
- * "Safari cannot open the page because the address is invalid" alert that
- * a direct link tap pops when no app is installed to handle the scheme.
- * That traded away the one thing that actually matters: confirmed on a
- * real iPhone with Naver Map installed that the iframe approach no longer
- * switches to the app at all — modern iOS Safari appears to block
- * cross-origin iframe navigation to non-http(s) schemes outright,
- * regardless of whether a handler exists. Direct navigation is the one
- * mechanism confirmed to actually launch an installed app, so this is
- * back to that, accepting the alert as the cost when the app isn't
- * installed — these schemes have no documented web fallback of their own
- * either way.
+ * Two earlier approaches were tried and ruled out here:
+ * - A hidden iframe, to avoid Safari's own "Safari cannot open the page
+ *   because the address is invalid" alert that a direct link tap pops
+ *   when no app is installed. Confirmed on a real iPhone with Naver Map
+ *   installed that this approach doesn't switch to the app at all —
+ *   modern iOS Safari appears to block cross-origin iframe navigation to
+ *   non-http(s) schemes outright, regardless of whether a handler exists.
+ * - Assigning `window.location.href` directly, which did switch to the
+ *   app on that same test at the time — but was later reported to
+ *   silently do nothing at all (no app switch, no alert either) with the
+ *   Naver Map app installed. iOS Safari appears to treat a script setting
+ *   `location.href` to a non-http(s) scheme with more suspicion than an
+ *   actual `<a href>` element being clicked, even from the same
+ *   synchronous click handler.
+ *
+ * This creates a real (invisible) anchor element and dispatches a click
+ * on it instead — the one mechanism that's consistently treated as a
+ * genuine, user-initiated link navigation regardless of scheme. Still
+ * accepts Safari's own alert as the cost when the app isn't installed —
+ * these schemes have no documented web fallback of their own either way.
  */
 export function openCustomSchemeUrl(url: string): void {
   const isAndroid = /android/i.test(navigator.userAgent);
   const intentUrl = isAndroid ? toAndroidIntentUrl(url) : null;
-  window.location.href = intentUrl ?? url;
+  const link = document.createElement("a");
+  link.href = intentUrl ?? url;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 /**
