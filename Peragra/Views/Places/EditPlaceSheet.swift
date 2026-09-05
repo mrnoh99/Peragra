@@ -65,6 +65,18 @@ struct EditPlaceSheet: View {
     @State private var nearbySearchCoordinate: CLLocationCoordinate2D?
     @State private var isRefiningNearbySearch = false
 
+    // A screenshot of a map app (Google/Naver/Kakao/Apple Maps) showing
+    // this place's own info card — read on demand, then shown for review
+    // before applying, since (unlike the on-site-photo flow above, which
+    // only ever fills in blanks) this is meant to let a wrong/outdated
+    // name or address be corrected, which means it has to be allowed to
+    // overwrite what's already there.
+    @State private var mapScreenshotItem: PhotosPickerItem?
+    @State private var mapScreenshotData: Data?
+    @State private var isReadingMapScreenshot = false
+    @State private var mapScreenshotErrorMessage: String?
+    @State private var mapScreenshotResult: AIExtractedPlace?
+
     private var aiSettings: AISettings { AISettings.shared }
 
     init(place: Place) {
@@ -196,6 +208,83 @@ struct EditPlaceSheet: View {
                     Text("Take a photo here or upload one of this place (a sign, a menu, ...) and AI reads it to fill in whatever's still blank above — it never overwrites what you've already entered. A location read from the photo (or your current location) is queued to apply when you save.")
                 }
 
+                Section {
+                    PhotosPicker(selection: $mapScreenshotItem, matching: .images) {
+                        Label(
+                            mapScreenshotData == nil ? "Upload Map Screenshot" : "Change Map Screenshot",
+                            systemImage: "map"
+                        )
+                    }
+                    .disabled(isReadingMapScreenshot)
+
+                    if let mapScreenshotData, let uiImage = UIImage(data: mapScreenshotData) {
+                        HStack {
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 32, height: 32)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                            Text("Map screenshot")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button {
+                                dismissMapScreenshotResult()
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        if mapScreenshotResult == nil {
+                            Button {
+                                Task { await readMapScreenshot() }
+                            } label: {
+                                if isReadingMapScreenshot {
+                                    ProgressView()
+                                } else {
+                                    Text("🗺️ Read Map Screenshot")
+                                }
+                            }
+                            .disabled(isReadingMapScreenshot)
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
+
+                    if let mapScreenshotErrorMessage {
+                        Text(mapScreenshotErrorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+
+                    if let mapScreenshotResult {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(mapScreenshotResult.name)
+                                .foregroundStyle(.primary)
+                            if let address = mapScreenshotResult.address {
+                                Text(address)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let telephone = mapScreenshotResult.telephone {
+                                Text(telephone)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        HStack {
+                            Button("Apply") { applyMapScreenshotResult() }
+                                .buttonStyle(.borderedProminent)
+                            Button("Dismiss", role: .cancel) { dismissMapScreenshotResult() }
+                        }
+                    }
+                } header: {
+                    Text("Correct Info From a Map Screenshot")
+                } footer: {
+                    Text("Upload a screenshot of this place's info card from a map app (Google Maps, Naver Map, Kakao Map, ...) and AI reads its name, address, and phone off the screen — unlike the photo above, this can correct a name or address that's already filled in, not just add to a blank one, so review the result before applying it.")
+                }
+
                 if nearbySearchCoordinate != nil {
                     Section {
                         ForEach(nearbyCandidates) { candidate in
@@ -254,6 +343,10 @@ struct EditPlaceSheet: View {
                     await loadUploadPhotos(newItems)
                     uploadPhotoItems = []
                 }
+            }
+            .onChange(of: mapScreenshotItem) { _, newItem in
+                guard let newItem else { return }
+                Task { await loadMapScreenshot(newItem) }
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -434,6 +527,72 @@ struct EditPlaceSheet: View {
         }
     }
 
+    private func loadMapScreenshot(_ item: PhotosPickerItem) async {
+        mapScreenshotResult = nil
+        mapScreenshotErrorMessage = nil
+        guard
+            let originalData = try? await item.loadTransferable(type: Data.self),
+            let image = UIImage(data: originalData),
+            let jpegData = image.jpegData(compressionQuality: 0.85)
+        else {
+            mapScreenshotErrorMessage = "Couldn't read that screenshot."
+            return
+        }
+        mapScreenshotData = jpegData
+    }
+
+    /// Reads a map app screenshot via AI and shows what it found for
+    /// review — applying it is a separate, explicit step
+    /// (applyMapScreenshotResult) since this is the one AI-extraction
+    /// source in this form that's meant to be able to correct an
+    /// existing name/address rather than just fill in blanks, so it
+    /// shouldn't happen silently.
+    private func readMapScreenshot() async {
+        guard let mapScreenshotData else { return }
+        guard aiSettings.activeAPIKey != nil else {
+            mapScreenshotErrorMessage = "Add an AI extraction API key in Settings to read a map screenshot."
+            return
+        }
+        isReadingMapScreenshot = true
+        mapScreenshotErrorMessage = nil
+        mapScreenshotResult = nil
+        defer { isReadingMapScreenshot = false }
+
+        do {
+            let extracted = try await AIExtractionService.extractPlaces(
+                images: [(data: mapScreenshotData, mediaType: "image/jpeg")],
+                photoKind: .mapScreenshot
+            )
+            guard let found = extracted.first else {
+                mapScreenshotErrorMessage = "Couldn't find a place's info in that screenshot."
+                return
+            }
+            mapScreenshotResult = found
+        } catch {
+            mapScreenshotErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Something went wrong reading that screenshot."
+        }
+    }
+
+    private func applyMapScreenshotResult() {
+        guard let mapScreenshotResult else { return }
+        name = mapScreenshotResult.name
+        if let resultAddress = mapScreenshotResult.address { address = resultAddress }
+        if let resultPhone = mapScreenshotResult.telephone { phone = resultPhone }
+        if let resultNotes = mapScreenshotResult.notes {
+            notes = [notes.trimmingCharacters(in: .whitespacesAndNewlines), resultNotes]
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n\n")
+        }
+        dismissMapScreenshotResult()
+    }
+
+    private func dismissMapScreenshotResult() {
+        mapScreenshotItem = nil
+        mapScreenshotData = nil
+        mapScreenshotResult = nil
+        mapScreenshotErrorMessage = nil
+    }
+
     private func handleCameraCapture(_ data: Data?) {
         showingCamera = false
         guard let data else { return }
@@ -484,7 +643,7 @@ struct EditPlaceSheet: View {
             do {
                 extracted = try await AIExtractionService.extractPlaces(
                     images: photos.map { (data: $0.displayData, mediaType: "image/jpeg") },
-                    isOnSitePhoto: true
+                    photoKind: .onSite
                 )
             } catch {
                 extractionFailureMessage = (error as? LocalizedError)?.errorDescription ?? "AI extraction failed."

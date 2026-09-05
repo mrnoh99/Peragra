@@ -388,7 +388,7 @@ export function AddPlaceModal({
             return { mediaType, base64: await fileToBase64(file) };
           }),
         );
-        extracted = await extractPlacesFromImages(images, true);
+        extracted = await extractPlacesFromImages(images, "onSite");
       } catch (error) {
         extractionFailureMessage =
           error instanceof AIExtractionError

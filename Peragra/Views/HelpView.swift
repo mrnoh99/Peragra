@@ -11,6 +11,9 @@ struct HelpView: View {
             section("Adding saved places") {
                 Text("Inside a board, tap Add Places. Paste an Instagram caption to auto-fill a name and address, upload a screenshot for AI to read, or use Upload On-Site Photos / Take Photo Here to log a place you're standing at right now — that marks it Visited automatically, timestamped to the photo.")
             }
+            section("Correcting a saved place") {
+                Text("When editing a place, upload a screenshot of its info card from a map app (Google Maps, Naver Map, Kakao Map, ...) and AI reads its name, address, and phone off the screen. Unlike the other photo options, this can correct a name or address that's already filled in — review the result before applying it.")
+            }
             section("Organizing") {
                 Text("Star a place to favorite it, tap the checkmark to mark it visited, or make your own custom list. Search, filter by category, and sort by name or by distance from a place you pick.")
             }

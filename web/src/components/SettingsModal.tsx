@@ -652,6 +652,12 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           Here to log a place you're standing at right now — that marks it Visited automatically,
           timestamped to the photo.
         </Section>
+        <Section title="Correcting a saved place">
+          When editing a place, upload a screenshot of its info card from a map app (Google Maps,
+          Naver Map, Kakao Map, ...) and AI reads its name, address, and phone off the screen.
+          Unlike the other photo options, this can correct a name or address that's already
+          filled in — review the result before applying it.
+        </Section>
         <Section title="Organizing">
           Star a place to favorite it, tap the checkmark to mark it visited, or make your own
           custom list. Search, filter by category, and sort by name or by distance from a place

@@ -66,6 +66,18 @@ export function EditPlaceModal({
   const uploadPhotosInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
+  // A screenshot of a map app (Google/Naver/Kakao/Apple Maps) showing
+  // this place's own info card — read on demand, then shown for review
+  // before applying, since (unlike the on-site-photo flow above, which
+  // only ever fills in blanks) this is meant to let a wrong/outdated
+  // name or address be corrected, which means it has to be allowed to
+  // overwrite what's already there.
+  const [mapScreenshotFile, setMapScreenshotFile] = useState<File | null>(null);
+  const [isReadingMapScreenshot, setIsReadingMapScreenshot] = useState(false);
+  const [mapScreenshotError, setMapScreenshotError] = useState<string | null>(null);
+  const [mapScreenshotResult, setMapScreenshotResult] = useState<AIExtractedPlace | null>(null);
+  const mapScreenshotInputRef = useRef<HTMLInputElement>(null);
+
   const canSubmit = name.trim().length > 0;
 
   function handleUploadPhotosChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -90,6 +102,70 @@ export function EditPlaceModal({
 
   function removeOnSitePhoto(id: string) {
     setOnSitePhotos((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  function handleMapScreenshotChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (mapScreenshotInputRef.current) mapScreenshotInputRef.current.value = "";
+    if (!file) return;
+    setMapScreenshotFile(file);
+    setMapScreenshotResult(null);
+    setMapScreenshotError(null);
+  }
+
+  /**
+   * Reads a map app screenshot via AI and shows what it found for
+   * review — applying it is a separate, explicit step (applyMapScreenshotResult)
+   * since this is the one AI-extraction source in this form that's meant
+   * to be able to correct an existing name/address rather than just fill
+   * in blanks, so it shouldn't happen silently.
+   */
+  async function readMapScreenshot() {
+    if (!mapScreenshotFile) return;
+    if (!apiKey) {
+      setMapScreenshotError("Add an AI extraction API key in Settings to read a map screenshot.");
+      return;
+    }
+    setIsReadingMapScreenshot(true);
+    setMapScreenshotError(null);
+    setMapScreenshotResult(null);
+    try {
+      const mediaType = mapScreenshotFile.type;
+      if (!isSupportedImageMediaType(mediaType)) {
+        throw new AIExtractionError("That image format isn't supported — try a JPEG or PNG.");
+      }
+      const base64 = await fileToBase64(mapScreenshotFile);
+      const extracted = await extractPlacesFromImages([{ mediaType, base64 }], "mapScreenshot");
+      const found = extracted[0] ?? null;
+      if (!found) {
+        setMapScreenshotError("Couldn't find a place's info in that screenshot.");
+        return;
+      }
+      setMapScreenshotResult(found);
+    } catch (error) {
+      setMapScreenshotError(
+        error instanceof AIExtractionError ? error.message : "Something went wrong reading that screenshot.",
+      );
+    } finally {
+      setIsReadingMapScreenshot(false);
+    }
+  }
+
+  function applyMapScreenshotResult() {
+    if (!mapScreenshotResult) return;
+    setName(mapScreenshotResult.name);
+    if (mapScreenshotResult.address) setAddress(mapScreenshotResult.address);
+    if (mapScreenshotResult.telephone) setPhone(mapScreenshotResult.telephone);
+    if (mapScreenshotResult.notes) {
+      setNotes((prev) => [prev.trim(), mapScreenshotResult.notes].filter(Boolean).join("\n\n"));
+    }
+    setMapScreenshotResult(null);
+    setMapScreenshotFile(null);
+  }
+
+  function dismissMapScreenshotResult() {
+    setMapScreenshotResult(null);
+    setMapScreenshotFile(null);
   }
 
   /**
@@ -155,7 +231,7 @@ export function EditPlaceModal({
             return { mediaType, base64: await fileToBase64(file) };
           }),
         );
-        extracted = await extractPlacesFromImages(images, true);
+        extracted = await extractPlacesFromImages(images, "onSite");
       } catch (error) {
         extractionFailureMessage =
           error instanceof AIExtractionError ? error.message : "AI extraction failed.";
@@ -496,6 +572,88 @@ export function EditPlaceModal({
                     {c.label}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-dashed border-neutral-300 p-3">
+          <label className="mb-1 block text-sm font-medium text-neutral-700">Correct info from a map screenshot</label>
+          <p className="mb-2 text-xs text-neutral-400">
+            Upload a screenshot of this place's info card from a map app (Google Maps, Naver Map,
+            Kakao Map, ...) and AI reads its name, address, and phone off the screen — unlike the
+            photo above, this can correct a name or address that's already filled in, not just add
+            to a blank one, so review the result before applying it.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={mapScreenshotInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleMapScreenshotChange}
+              className="hidden"
+              id="edit-map-screenshot-input"
+            />
+            <label
+              htmlFor="edit-map-screenshot-input"
+              className={`cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 ${
+                isReadingMapScreenshot ? "pointer-events-none opacity-40" : ""
+              }`}
+            >
+              🗺️ {mapScreenshotFile ? "Change Map Screenshot" : "Upload Map Screenshot"}
+            </label>
+            {mapScreenshotFile && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-600">
+                {mapScreenshotFile.name}
+                <button
+                  type="button"
+                  onClick={dismissMapScreenshotResult}
+                  aria-label="Remove map screenshot"
+                  className="text-neutral-400 hover:text-red-500"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {mapScreenshotFile && !mapScreenshotResult && (
+              <button
+                type="button"
+                onClick={readMapScreenshot}
+                disabled={isReadingMapScreenshot}
+                className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isReadingMapScreenshot ? "Reading…" : "🗺️ Read Map Screenshot"}
+              </button>
+            )}
+          </div>
+          {mapScreenshotError && <p className="mt-2 text-xs text-amber-600">{mapScreenshotError}</p>}
+          {mapScreenshotResult && (
+            <div className="mt-2 rounded-lg border border-dashed border-brand-300 bg-brand-50/40 p-2">
+              <p className="mb-1.5 text-xs font-medium text-neutral-700">Found on the map:</p>
+              <div className="mb-2 rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-xs">
+                <span className="font-medium text-neutral-700">{mapScreenshotResult.name}</span>
+                {mapScreenshotResult.address && (
+                  <span className="block text-neutral-400">{mapScreenshotResult.address}</span>
+                )}
+                {mapScreenshotResult.telephone && (
+                  <span className="block text-neutral-400">{mapScreenshotResult.telephone}</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={applyMapScreenshotResult}
+                  className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600"
+                >
+                  Apply
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissMapScreenshotResult}
+                  className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+                >
+                  Dismiss
+                </button>
               </div>
             </div>
           )}

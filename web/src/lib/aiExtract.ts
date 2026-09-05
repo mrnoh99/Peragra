@@ -364,33 +364,42 @@ export async function extractPlacesFromImage(
   return extractPlacesFromImages([{ mediaType, base64: imageBase64 }]);
 }
 
+export type PhotoKind = "captionScreenshot" | "onSite" | "mapScreenshot";
+
 /**
  * Extracts places from one or more photos in a single AI request, so the
  * model can cross-reference them (e.g. a storefront sign for the name, a
  * menu photo for prices/items) into one consolidated result, rather than
  * merging independent per-photo extractions client-side.
  *
- * `isOnSitePhoto` picks the right prompt for what these photos actually
- * show — it can't be inferred from the photo count alone, since the
- * on-site flow can just as easily hand this a single photo (one storefront
- * shot) as the screenshot flow always does. Getting this wrong sends a
+ * `photoKind` picks the right prompt for what these photos actually show
+ * — it can't be inferred from the photo count alone, since the on-site
+ * flow can just as easily hand this a single photo (one storefront shot)
+ * as the screenshot flow always does. Getting this wrong sends, say, a
  * real on-site photo through wording written for an Instagram caption
  * screenshot ("extract every place recommended in this caption"), which
  * reads a sign or menu as if it were social copy and can come back empty.
  */
 export async function extractPlacesFromImages(
   images: { mediaType: ImageMediaType; base64: string }[],
-  isOnSitePhoto = false,
+  photoKind: PhotoKind = "captionScreenshot",
 ): Promise<AIExtractedPlace[]> {
-  const text = isOnSitePhoto
-    ? images.length > 1
-      ? "These photos were taken in person at a single real place — extract one consolidated, " +
-        "accurate result for it, cross-referencing all the photos (for example, a storefront sign " +
-        "for the name and a menu photo for prices/items)."
-      : "This photo was taken in person at a single real place (its storefront, sign, menu, or " +
-        "interior) — extract one accurate result for it from whatever is written or shown, such as " +
-        "its name and any menu items, prices, or hours visible."
-    : "Extract every place recommended in this screenshot's caption.";
+  const text =
+    photoKind === "onSite"
+      ? images.length > 1
+        ? "These photos were taken in person at a single real place — extract one consolidated, " +
+          "accurate result for it, cross-referencing all the photos (for example, a storefront sign " +
+          "for the name and a menu photo for prices/items)."
+        : "This photo was taken in person at a single real place (its storefront, sign, menu, or " +
+          "interior) — extract one accurate result for it from whatever is written or shown, such as " +
+          "its name and any menu items, prices, or hours visible."
+      : photoKind === "mapScreenshot"
+        ? "This is a screenshot of a map app (Google Maps, Naver Map, Kakao Map, Apple Maps, or " +
+          "similar) showing a single place's info card or pin label — extract that place's details " +
+          "from whatever the map app itself displays: its name, address, and phone number, plus " +
+          "anything else useful shown alongside them (category, hours, rating). Read exactly what's " +
+          "on screen — don't infer or guess beyond it."
+        : "Extract every place recommended in this screenshot's caption.";
   const { extractionLanguage } = useAISettingsStore.getState();
   const systemPrompt = systemPromptForLanguage(SYSTEM_PROMPT, extractionLanguage);
   const content = await callModel({ systemPrompt, text, images });

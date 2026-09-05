@@ -726,7 +726,7 @@ struct AddPlaceSheet: View {
             do {
                 extracted = try await AIExtractionService.extractPlaces(
                     images: photos.map { (data: $0.displayData, mediaType: "image/jpeg") },
-                    isOnSitePhoto: true
+                    photoKind: .onSite
                 )
             } catch {
                 extractionFailureMessage = (error as? LocalizedError)?.errorDescription ?? "AI extraction failed — add the place details manually below."
