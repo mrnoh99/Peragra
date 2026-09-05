@@ -24,6 +24,13 @@ struct GoogleMapWebView: UIViewRepresentable {
         let addressTrusted: Bool
         let latitude: Double
         let longitude: Double
+        /// Precomputed here (rather than in the JS below) since building
+        /// these needs KoreaRegion/KakaoMapOpener/NaverMapOpener/TmapOpener,
+        /// which only exist on the Swift side — nil when that service isn't
+        /// available for this place (outside Korea, say).
+        let kakaoMapUrlString: String?
+        let naverMapUrlString: String?
+        let tmapUrlString: String?
     }
 
     let apiKey: String
@@ -174,13 +181,19 @@ struct GoogleMapWebView: UIViewRepresentable {
                     : [place.name, tripDestination].filter(Boolean).join(", ");
                   const mapsUrl = "https://www.google.com/maps/search/?api=1&query=" +
                     encodeURIComponent(mapsQuery);
-                  const linkEl = document.createElement("a");
-                  linkEl.href = mapsUrl;
-                  linkEl.textContent = "Open in Google Maps";
-                  linkEl.style.display = "block";
-                  linkEl.style.marginTop = "4px";
-                  linkEl.style.fontSize = "12px";
-                  content.appendChild(linkEl);
+                  const makeMapLink = (href, label) => {
+                    const linkEl = document.createElement("a");
+                    linkEl.href = href;
+                    linkEl.textContent = label;
+                    linkEl.style.display = "block";
+                    linkEl.style.marginTop = "4px";
+                    linkEl.style.fontSize = "12px";
+                    return linkEl;
+                  };
+                  content.appendChild(makeMapLink(mapsUrl, "Open in Google Maps"));
+                  if (place.naverMapUrlString) content.appendChild(makeMapLink(place.naverMapUrlString, "Open in Naver Map"));
+                  if (place.kakaoMapUrlString) content.appendChild(makeMapLink(place.kakaoMapUrlString, "Open in Kakao Map"));
+                  if (place.tmapUrlString) content.appendChild(makeMapLink(place.tmapUrlString, "Open in Tmap"));
                   infoWindow.setContent(content);
                   infoWindow.open(map, marker);
                 });

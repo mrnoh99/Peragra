@@ -195,7 +195,7 @@ export function ListingView({
               disabled={selectedIds.size === 0 || isSendingToMap}
               className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
             >
-              {isSendingToMap ? "Locating…" : `🗺️ Send to Map ${showMapMenu ? "▲" : "▼"}`}
+              {isSendingToMap ? "Locating…" : `🗺️ Open in Map ${showMapMenu ? "▲" : "▼"}`}
             </button>
             {showMapMenu && (
               <div className="absolute left-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">

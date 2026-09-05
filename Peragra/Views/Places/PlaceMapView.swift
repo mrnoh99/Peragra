@@ -85,7 +85,10 @@ struct PlaceMapView: View {
             visited: place.visited,
             addressTrusted: place.geocodeStatus == .located,
             latitude: place.latitude ?? 0,
-            longitude: place.longitude ?? 0
+            longitude: place.longitude ?? 0,
+            kakaoMapUrlString: KakaoMapOpener.url(for: place)?.absoluteString,
+            naverMapUrlString: NaverMapOpener.url(for: place)?.absoluteString,
+            tmapUrlString: TmapOpener.url(for: place)?.absoluteString
         )
     }
 
@@ -123,8 +126,21 @@ private struct SelectedPlaceCard: View {
             if !place.address.isEmpty {
                 Text(place.address).font(.subheadline).foregroundStyle(.secondary)
             }
-            if let mapsURL = GoogleMapsOpener.url(for: place, tripDestination: destination) {
-                Button("Open in Google Maps") { openURL(mapsURL) }
+            Menu {
+                if let mapsURL = GoogleMapsOpener.url(for: place, tripDestination: destination) {
+                    Button("Google Maps") { openURL(mapsURL) }
+                }
+                if let naverURL = NaverMapOpener.url(for: place) {
+                    Button("Naver Map") { openURL(naverURL) }
+                }
+                if let kakaoURL = KakaoMapOpener.url(for: place) {
+                    Button("Kakao Map") { openURL(kakaoURL) }
+                }
+                if let tmapURL = TmapOpener.url(for: place) {
+                    Button("Tmap") { openURL(tmapURL) }
+                }
+            } label: {
+                Label("Open in Map", systemImage: "map")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(Color.accentColor)
             }

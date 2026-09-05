@@ -120,7 +120,7 @@ struct PlaceRowView: View {
                         }
                     }
                 } label: {
-                    Label("Send to Map", systemImage: "map")
+                    Label("Open in Map", systemImage: "map")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Color.accentColor)
                 }

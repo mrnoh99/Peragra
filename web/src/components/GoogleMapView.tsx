@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadGoogleMapsScript } from "../lib/googleMapsLoader";
 import { googleMapsUrl } from "../lib/googleMapsUrl";
+import { kakaoMapUrl } from "../lib/kakaoMapUrl";
+import { naverMapUrl } from "../lib/naverMapUrl";
+import { tmapUrl } from "../lib/tmapUrl";
 import type { Place } from "../types";
 
 const CATEGORY_ICON: Record<string, string> = {
@@ -76,15 +79,31 @@ export function GoogleMapView({
               addressEl.textContent = place.address;
               content.appendChild(addressEl);
             }
-            const linkEl = document.createElement("a");
-            linkEl.href = googleMapsUrl(place, destination);
-            linkEl.target = "_blank";
-            linkEl.rel = "noreferrer";
-            linkEl.textContent = "Open in Google Maps";
-            linkEl.style.display = "block";
-            linkEl.style.marginTop = "4px";
-            linkEl.style.fontSize = "12px";
-            content.appendChild(linkEl);
+            // No target="_blank" for Naver Map/Tmap — they're app-only
+            // custom schemes (nmap://, tmap://) with no web fallback, so a
+            // new tab would just sit blank behind when the app isn't
+            // installed.
+            const makeMapLink = (href: string, label: string, color: string, newTab: boolean) => {
+              const linkEl = document.createElement("a");
+              linkEl.href = href;
+              if (newTab) {
+                linkEl.target = "_blank";
+                linkEl.rel = "noreferrer";
+              }
+              linkEl.textContent = label;
+              linkEl.style.display = "block";
+              linkEl.style.marginTop = "4px";
+              linkEl.style.fontSize = "12px";
+              linkEl.style.color = color;
+              return linkEl;
+            };
+            content.appendChild(makeMapLink(googleMapsUrl(place, destination), "Open in Google Maps", "#2563eb", true));
+            const naverUrl = naverMapUrl(place);
+            if (naverUrl) content.appendChild(makeMapLink(naverUrl, "Open in Naver Map", "#16a34a", false));
+            const kakaoUrl = kakaoMapUrl(place);
+            if (kakaoUrl) content.appendChild(makeMapLink(kakaoUrl, "Open in Kakao Map", "#d97706", true));
+            const tmapDestinationUrl = tmapUrl(place);
+            if (tmapDestinationUrl) content.appendChild(makeMapLink(tmapDestinationUrl, "Open in Tmap", "#0284c7", false));
             infoWindow.setContent(content);
             infoWindow.open(map, marker);
           });

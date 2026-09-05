@@ -3,6 +3,9 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import type { Place } from "../types";
 import { googleMapsUrl } from "../lib/googleMapsUrl";
+import { kakaoMapUrl } from "../lib/kakaoMapUrl";
+import { naverMapUrl } from "../lib/naverMapUrl";
+import { tmapUrl } from "../lib/tmapUrl";
 
 const CATEGORY_ICON: Record<string, string> = {
   restaurant: "🍽️",
@@ -74,40 +77,67 @@ export function LeafletMapView({ places, destination }: { places: Place[]; desti
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <FitBounds points={points} />
-            {located.map((place) => (
-              <Marker
-                key={place.id}
-                position={[place.lat, place.lng]}
-                icon={makeIcon(place.category, place.visited)}
-              >
-                <Popup>
-                  <div className="min-w-[160px]">
-                    <p className="font-semibold">{place.name}</p>
-                    {place.address && (
-                      <p className="text-xs text-neutral-500">{place.address}</p>
-                    )}
-                    <a
-                      href={googleMapsUrl(place, destination)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block text-xs text-brand-600 underline"
-                    >
-                      Open in Google Maps
-                    </a>
-                    {place.instagramUrl && (
-                      <a
-                        href={place.instagramUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-pink-600 underline"
-                      >
-                        View on Instagram
-                      </a>
-                    )}
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+            {located.map((place) => {
+              const kakaoUrl = kakaoMapUrl(place);
+              const naverUrl = naverMapUrl(place);
+              const tmapDestinationUrl = tmapUrl(place);
+              return (
+                <Marker
+                  key={place.id}
+                  position={[place.lat, place.lng]}
+                  icon={makeIcon(place.category, place.visited)}
+                >
+                  <Popup>
+                    <div className="min-w-[160px]">
+                      <p className="font-semibold">{place.name}</p>
+                      {place.address && (
+                        <p className="text-xs text-neutral-500">{place.address}</p>
+                      )}
+                      <div className="mt-1 flex flex-col items-start gap-0.5">
+                        <a
+                          href={googleMapsUrl(place, destination)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-brand-600 underline"
+                        >
+                          Open in Google Maps
+                        </a>
+                        {naverUrl && (
+                          <a href={naverUrl} className="text-xs text-green-600 underline">
+                            Open in Naver Map
+                          </a>
+                        )}
+                        {kakaoUrl && (
+                          <a
+                            href={kakaoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-amber-600 underline"
+                          >
+                            Open in Kakao Map
+                          </a>
+                        )}
+                        {tmapDestinationUrl && (
+                          <a href={tmapDestinationUrl} className="text-xs text-sky-600 underline">
+                            Open in Tmap
+                          </a>
+                        )}
+                      </div>
+                      {place.instagramUrl && (
+                        <a
+                          href={place.instagramUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-pink-600 underline"
+                        >
+                          View on Instagram
+                        </a>
+                      )}
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
           </MapContainer>
         )}
       </div>

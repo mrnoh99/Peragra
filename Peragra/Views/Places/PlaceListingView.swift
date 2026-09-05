@@ -145,7 +145,7 @@ struct PlaceListingView: View {
                 if isSendingToMap {
                     ProgressView()
                 } else {
-                    Label("Send to Map", systemImage: "map")
+                    Label("Open in Map", systemImage: "map")
                         .font(.subheadline.weight(.medium))
                 }
             }

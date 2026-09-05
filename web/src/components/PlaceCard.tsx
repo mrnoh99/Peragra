@@ -160,7 +160,7 @@ export function PlaceCard({
                   onClick={() => setShowMapMenu((v) => !v)}
                   className="inline-flex items-center gap-1 text-brand-600 hover:underline"
                 >
-                  🗺️ Send to Map {showMapMenu ? "▲" : "▼"}
+                  🗺️ Open in Map {showMapMenu ? "▲" : "▼"}
                 </button>
                 {showMapMenu && (
                   <div className="absolute left-0 top-full z-10 mt-1 flex min-w-[9rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
