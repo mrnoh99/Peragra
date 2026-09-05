@@ -1,13 +1,20 @@
 import SwiftUI
 import SwiftData
 
-struct AddTripSheet: View {
-    @Environment(\.modelContext) private var modelContext
+struct EditTripSheet: View {
+    @Bindable var trip: Trip
     @Environment(\.dismiss) private var dismiss
 
-    @State private var name = ""
-    @State private var destination = ""
-    @State private var coverEmoji = Trip.coverEmojiChoices[0]
+    @State private var name: String
+    @State private var destination: String
+    @State private var coverEmoji: String
+
+    init(trip: Trip) {
+        self.trip = trip
+        _name = State(initialValue: trip.name)
+        _destination = State(initialValue: trip.destination)
+        _coverEmoji = State(initialValue: trip.coverEmoji)
+    }
 
     private var canSubmit: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
@@ -46,34 +53,30 @@ struct AddTripSheet: View {
                     .padding(.vertical, 4)
                 }
             }
-            .navigationTitle("New Board")
+            .navigationTitle("Edit Board")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") { createTrip() }
+                    Button("Save") { save() }
                         .disabled(!canSubmit)
                 }
             }
         }
     }
 
-    private func createTrip() {
-        let trip = Trip(
-            name: name.trimmingCharacters(in: .whitespaces),
-            destination: destination.trimmingCharacters(in: .whitespaces),
-            coverEmoji: coverEmoji
-        )
-        modelContext.insert(trip)
-        _ = PlaceCollection.ensureFavoritesList(for: trip, context: modelContext)
-        _ = PlaceCollection.ensureVisitedList(for: trip, context: modelContext)
+    private func save() {
+        trip.name = name.trimmingCharacters(in: .whitespaces)
+        trip.destination = destination.trimmingCharacters(in: .whitespaces)
+        trip.coverEmoji = coverEmoji
         dismiss()
     }
 }
 
 #Preview {
-    AddTripSheet()
+    let trip = Trip(name: "Tokyo Spring Trip", destination: "Tokyo, Japan", coverEmoji: "✈️")
+    return EditTripSheet(trip: trip)
         .modelContainer(for: [Trip.self, Place.self, PlaceCollection.self], inMemory: true)
 }

@@ -3,10 +3,12 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AddPlaceModal } from "../components/AddPlaceModal";
 import { ListingView } from "../components/ListingView";
 import { MapView } from "../components/MapView";
+import { Modal } from "../components/Modal";
 import { PlaceFilterBar, type SortMode } from "../components/PlaceFilterBar";
 import { distanceKm } from "../lib/distance";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory } from "../types";
+import { EMOJI_CHOICES } from "../lib/emojiChoices";
 
 type Tab = "listing" | "map";
 
@@ -56,8 +58,7 @@ export function TripDetailPage() {
   const [showAddPlace, setShowAddPlace] = useState(false);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState("");
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState("");
+  const [showEditBoard, setShowEditBoard] = useState(false);
 
   // Search/category/visited/favorites/sort — shared by the Listing and Map
   // tabs (via PlaceFilterBar below) so switching tabs doesn't reset what
@@ -172,17 +173,6 @@ export function TripDetailPage() {
     );
   }
 
-  function startEditingName() {
-    setNameInput(trip!.name);
-    setIsEditingName(true);
-  }
-
-  function saveName() {
-    const trimmed = nameInput.trim();
-    if (trimmed) updateTrip(tripId!, { name: trimmed });
-    setIsEditingName(false);
-  }
-
   return (
     <div>
       <Link to="/" className="text-sm text-neutral-500 hover:text-neutral-700">
@@ -191,37 +181,18 @@ export function TripDetailPage() {
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
         <div>
-          {isEditingName ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                saveName();
-              }}
-              className="flex items-center gap-2"
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-neutral-900">
+            <span>{trip.coverEmoji}</span>
+            {trip.name}
+            <button
+              onClick={() => setShowEditBoard(true)}
+              aria-label="Edit board"
+              title="Edit board"
+              className="grid h-7 w-7 place-items-center rounded-full border border-neutral-300 text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700"
             >
-              <span className="text-2xl">{trip.coverEmoji}</span>
-              <input
-                autoFocus
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                onBlur={saveName}
-                className="rounded-lg border border-brand-400 px-2 py-1 text-2xl font-bold text-neutral-900 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              />
-            </form>
-          ) : (
-            <h1 className="flex items-center gap-2 text-2xl font-bold text-neutral-900">
-              <span>{trip.coverEmoji}</span>
-              {trip.name}
-              <button
-                onClick={startEditingName}
-                aria-label="Rename board"
-                title="Rename"
-                className="grid h-7 w-7 place-items-center rounded-full border border-neutral-300 text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700"
-              >
-                ✎
-              </button>
-            </h1>
-          )}
+              ✎
+            </button>
+          </h1>
           <p className="text-sm text-neutral-500">
             {trip.destination}
             {trip.startDate && (
@@ -420,6 +391,90 @@ export function TripDetailPage() {
           onClose={() => setShowAddPlace(false)}
         />
       )}
+
+      {showEditBoard && (
+        <EditBoardModal
+          trip={trip}
+          onClose={() => setShowEditBoard(false)}
+          onSave={(patch) => {
+            updateTrip(tripId, patch);
+            setShowEditBoard(false);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function EditBoardModal({
+  trip,
+  onClose,
+  onSave,
+}: {
+  trip: { name: string; destination: string; coverEmoji: string };
+  onClose: () => void;
+  onSave: (patch: { name: string; destination: string; coverEmoji: string }) => void;
+}) {
+  const [name, setName] = useState(trip.name);
+  const [destination, setDestination] = useState(trip.destination);
+  const [emoji, setEmoji] = useState(trip.coverEmoji);
+
+  const canSubmit = name.trim().length > 0 && destination.trim().length > 0;
+
+  return (
+    <Modal title="Edit board" onClose={onClose}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!canSubmit) return;
+          onSave({ name: name.trim(), destination: destination.trim(), coverEmoji: emoji });
+        }}
+        className="space-y-4"
+      >
+        <div>
+          <label className="mb-1 block text-sm font-medium text-neutral-700">Board name</label>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-neutral-700">Destination</label>
+          <input
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-neutral-700">Cover icon</label>
+          <div className="flex flex-wrap gap-2">
+            {EMOJI_CHOICES.map((choice) => (
+              <button
+                type="button"
+                key={choice}
+                onClick={() => setEmoji(choice)}
+                className={`grid h-10 w-10 place-items-center rounded-lg border text-xl ${
+                  emoji === choice
+                    ? "border-brand-500 bg-brand-50"
+                    : "border-neutral-200 hover:bg-neutral-50"
+                }`}
+              >
+                {choice}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="w-full rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Save
+        </button>
+      </form>
+    </Modal>
   );
 }

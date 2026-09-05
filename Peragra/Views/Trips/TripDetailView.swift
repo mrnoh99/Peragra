@@ -20,8 +20,7 @@ struct TripDetailView: View {
     @State private var showingAddList = false
     @State private var newListName = ""
     @State private var activeCollection: PlaceCollection?
-    @State private var isRenamingTrip = false
-    @State private var tripNameInput = ""
+    @State private var isEditingBoard = false
 
     // Filter/sort state shared by the Listing and Map tabs, so switching
     // tabs doesn't reset what you were looking at and the map can be
@@ -213,12 +212,12 @@ struct TripDetailView: View {
             }
             ToolbarItem(placement: .secondaryAction) {
                 Button {
-                    tripNameInput = trip.name
-                    isRenamingTrip = true
-                } label: { Label("Rename Board", systemImage: "pencil") }
+                    isEditingBoard = true
+                } label: { Label("Edit Board", systemImage: "pencil") }
             }
         }
         .sheet(isPresented: $showingAddPlace) { AddPlaceSheet(trip: trip, defaultCollection: activeCollection) }
+        .sheet(isPresented: $isEditingBoard) { EditTripSheet(trip: trip) }
         .alert("New List", isPresented: $showingAddList) {
             TextField("List name", text: $newListName)
             Button("Add") {
@@ -229,14 +228,6 @@ struct TripDetailView: View {
                 newListName = ""
             }
             Button("Cancel", role: .cancel) { newListName = "" }
-        }
-        .alert("Rename Trip", isPresented: $isRenamingTrip) {
-            TextField("Board name", text: $tripNameInput)
-            Button("Save") {
-                let trimmed = tripNameInput.trimmingCharacters(in: .whitespaces)
-                if !trimmed.isEmpty { trip.name = trimmed }
-            }
-            Button("Cancel", role: .cancel) {}
         }
         .confirmationDialog(
             "Delete the empty board \"\(trip.name)\"?",

@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Modal } from "../components/Modal";
+import { EMOJI_CHOICES } from "../lib/emojiChoices";
 import { useStore } from "../store/useStore";
-
-const EMOJI_CHOICES = ["✈️", "🗺️", "🏖️", "🏙️", "⛰️", "🍜", "🎡", "🚆"];
 
 export function TripsPage() {
   const trips = useStore((s) => s.trips);

@@ -3,6 +3,9 @@ import SwiftData
 
 @Model
 final class Trip {
+    /// Cover-icon choices shared by board creation and board editing.
+    static let coverEmojiChoices = ["✈️", "🗺️", "🏖️", "🏙️", "⛰️", "🍜", "🎡", "🚆"]
+
     var id: UUID
     var name: String
     var destination: String
