@@ -45,8 +45,8 @@ struct AllPlacesView: View {
                 List {
                     if !trips.isEmpty {
                         Section {
-                            Picker("Trip", selection: $tripFilter) {
-                                Text("All Trips").tag(Trip?.none)
+                            Picker("Destination", selection: $tripFilter) {
+                                Text("All Destinations").tag(Trip?.none)
                                 ForEach(trips) { trip in
                                     Text("\(trip.coverEmoji) \(trip.name)").tag(Trip?.some(trip))
                                 }

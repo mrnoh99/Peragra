@@ -183,7 +183,7 @@ export function TripDetailPage() {
   return (
     <div>
       <Link to="/" className="text-sm text-neutral-500 hover:text-neutral-700">
-        ← All places
+        ← Your places
       </Link>
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">

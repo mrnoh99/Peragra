@@ -49,7 +49,7 @@ export function AllPlacesPage() {
   return (
     <div>
       <Link to="/" className="text-sm text-neutral-500 hover:text-neutral-700">
-        ← All trips
+        ← Your places
       </Link>
       <div className="mb-6 mt-2">
         <h1 className="text-2xl font-bold text-neutral-900">All places</h1>
@@ -76,7 +76,7 @@ export function AllPlacesPage() {
               onChange={(e) => setTripFilter(e.target.value)}
               className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm"
             >
-              <option value="all">All trips</option>
+              <option value="all">All destinations</option>
               {trips.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.coverEmoji} {t.name}
