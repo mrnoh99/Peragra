@@ -34,12 +34,14 @@ struct EditPlaceSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Trip.createdAt, order: .reverse) private var allTrips: [Trip]
 
     @State private var name: String
     @State private var category: PlaceCategory
     @State private var address: String
     @State private var phone: String
     @State private var notes: String
+    @State private var selectedTrip: Trip?
     @State private var isSaving = false
 
     @State private var uploadPhotoItems: [PhotosPickerItem] = []
@@ -68,6 +70,7 @@ struct EditPlaceSheet: View {
         _address = State(initialValue: place.address)
         _phone = State(initialValue: place.phone ?? "")
         _notes = State(initialValue: place.notes)
+        _selectedTrip = State(initialValue: place.trip)
     }
 
     private var canSubmit: Bool {
@@ -79,6 +82,13 @@ struct EditPlaceSheet: View {
             Form {
                 Section {
                     TextField("Place name", text: $name)
+                    if allTrips.count > 1 {
+                        Picker("Board", selection: $selectedTrip) {
+                            ForEach(allTrips) { trip in
+                                Text("\(trip.coverEmoji) \(trip.name)").tag(Trip?.some(trip))
+                            }
+                        }
+                    }
                     TextField("Address (improves map accuracy)", text: $address)
                     Picker("Category", selection: $category) {
                         ForEach(PlaceCategory.allCases) { option in
@@ -260,12 +270,29 @@ struct EditPlaceSheet: View {
         let trimmedPhone = phone.trimmingCharacters(in: .whitespaces)
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let addressChanged = trimmedAddress != place.address
+        let boardChanged = selectedTrip?.id != place.trip?.id
 
         place.name = trimmedName
         place.category = category
         place.address = trimmedAddress
         place.phone = trimmedPhone.isEmpty ? nil : trimmedPhone
         place.notes = trimmedNotes
+
+        if boardChanged, let newTrip = selectedTrip {
+            // Custom-list membership doesn't carry over (those lists
+            // belong to the old board), but visited/favorite status is
+            // preserved and re-synced against the new board's own
+            // Visited/Favorites lists.
+            place.trip = newTrip
+            var newCollections: [PlaceCollection] = []
+            if place.visited {
+                newCollections.append(PlaceCollection.ensureVisitedList(for: newTrip, context: modelContext))
+            }
+            if place.favorite {
+                newCollections.append(PlaceCollection.ensureFavoritesList(for: newTrip, context: modelContext))
+            }
+            place.collections = newCollections
+        }
 
         // A coordinate captured from a photo (its Photos library record,
         // or EXIF) is already a real fix — more trustworthy than geocoding
@@ -275,9 +302,11 @@ struct EditPlaceSheet: View {
             place.latitude = pendingCoordinate.latitude
             place.longitude = pendingCoordinate.longitude
             place.geocodeStatus = .located
-        } else if addressChanged {
-            // Only re-geocode when the address actually changed —
-            // otherwise leave the existing coordinates (and
+        } else if addressChanged || boardChanged {
+            // Re-geocode when the address changed, or the place moved to
+            // a different board — the same address text can resolve
+            // differently once it's disambiguated against a new
+            // destination. Otherwise leave the existing coordinates (and
             // geocodeStatus) alone.
             await geocodeAndStore(
                 name: trimmedName,

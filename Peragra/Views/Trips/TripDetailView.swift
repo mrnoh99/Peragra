@@ -12,6 +12,8 @@ struct TripDetailView: View {
     @Query private var places: [Place]
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @State private var isConfirmingDeleteBoard = false
     @State private var tab: DetailTab = .listing
     @State private var showingAddPlace = false
     @State private var showingAddList = false
@@ -171,6 +173,9 @@ struct TripDetailView: View {
                 } actions: {
                     Button("Add Places") { showingAddPlace = true }
                         .buttonStyle(.borderedProminent)
+                    Button("Delete This Board", role: .destructive) {
+                        isConfirmingDeleteBoard = true
+                    }
                 }
                 .frame(maxHeight: .infinity)
             } else {
@@ -225,6 +230,17 @@ struct TripDetailView: View {
             Button("Save") {
                 let trimmed = tripNameInput.trimmingCharacters(in: .whitespaces)
                 if !trimmed.isEmpty { trip.name = trimmed }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog(
+            "Delete the empty board \"\(trip.name)\"?",
+            isPresented: $isConfirmingDeleteBoard,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Board", role: .destructive) {
+                modelContext.delete(trip)
+                dismiss()
             }
             Button("Cancel", role: .cancel) {}
         }

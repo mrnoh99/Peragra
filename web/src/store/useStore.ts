@@ -36,6 +36,11 @@ interface AppState {
   updatePlace: (placeId: string, patch: Partial<Place>) => void;
   updatePlacesCategory: (placeIds: string[], category: PlaceCategory) => void;
   deletePlace: (placeId: string) => void;
+  /** Moves a place to a different board. Custom-list membership doesn't
+   *  carry over (those lists belong to the old board), but visited/
+   *  favorite status is preserved and re-synced against the new board's
+   *  own Visited/Favorites lists. */
+  movePlaceToBoard: (placeId: string, newTripId: string) => void;
   setPlaceCoords: (
     placeId: string,
     coords: { lat: number; lng: number } | null,
@@ -150,6 +155,19 @@ export const useStore = create<AppState>()(
 
       deletePlace: (placeId) => {
         set((state) => ({ places: state.places.filter((p) => p.id !== placeId) }));
+      },
+
+      movePlaceToBoard: (placeId, newTripId) => {
+        const place = get().places.find((p) => p.id === placeId);
+        if (!place || place.tripId === newTripId) return;
+        const newCollectionIds: string[] = [];
+        if (place.visited) newCollectionIds.push(get().ensureVisitedCollection(newTripId).id);
+        if (place.favorite) newCollectionIds.push(get().ensureFavoritesCollection(newTripId).id);
+        set((state) => ({
+          places: state.places.map((p) =>
+            p.id === placeId ? { ...p, tripId: newTripId, collectionIds: newCollectionIds } : p,
+          ),
+        }));
       },
 
       setPlaceCoords: (placeId, coords, status) => {

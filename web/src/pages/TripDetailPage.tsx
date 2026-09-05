@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AddPlaceModal } from "../components/AddPlaceModal";
 import { ListingView } from "../components/ListingView";
 import { MapView } from "../components/MapView";
@@ -14,8 +14,10 @@ const CATEGORY_ORDER = new Map(PLACE_CATEGORIES.map((c, i) => [c.value, i]));
 
 export function TripDetailPage() {
   const { tripId } = useParams<{ tripId: string }>();
+  const navigate = useNavigate();
   const trips = useStore((s) => s.trips);
   const updateTrip = useStore((s) => s.updateTrip);
+  const deleteTrip = useStore((s) => s.deleteTrip);
   const allPlaces = useStore((s) => s.places);
   const allCollections = useStore((s) => s.collections);
   const addCollection = useStore((s) => s.addCollection);
@@ -353,12 +355,25 @@ export function TripDetailPage() {
                 Paste a link from a post you saved on Instagram, or add a place by hand, to
                 start building your {trip.destination} itinerary.
               </p>
-              <button
-                onClick={() => setShowAddPlace(true)}
-                className="mt-5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
-              >
-                Add your first place
-              </button>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  onClick={() => setShowAddPlace(true)}
+                  className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
+                >
+                  Add your first place
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm(`Delete the empty board "${trip.name}"?`)) {
+                      deleteTrip(tripId);
+                      navigate("/");
+                    }
+                  }}
+                  className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-500 hover:border-red-300 hover:text-red-500"
+                >
+                  Delete this board
+                </button>
+              </div>
             </div>
           ) : (
             <>

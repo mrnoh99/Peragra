@@ -37,9 +37,12 @@ export function EditPlaceModal({
 }) {
   const updatePlace = useStore((s) => s.updatePlace);
   const setPlaceCoords = useStore((s) => s.setPlaceCoords);
+  const movePlaceToBoard = useStore((s) => s.movePlaceToBoard);
+  const trips = useStore((s) => s.trips);
   const apiKey = useAISettingsStore(selectActiveApiKey);
 
   const [name, setName] = useState(place.name);
+  const [boardId, setBoardId] = useState(place.tripId);
   const [category, setCategory] = useState<PlaceCategory>(place.category);
   const [address, setAddress] = useState(place.address);
   const [phone, setPhone] = useState(place.phone ?? "");
@@ -245,19 +248,25 @@ export function EditPlaceModal({
       phone: trimmedPhone || null,
       notes: notes.trim(),
     });
+    if (boardId !== place.tripId) movePlaceToBoard(place.id, boardId);
+
+    // A moved place should geocode against its new board's destination,
+    // not the one this modal opened with.
+    const effectiveDestination = trips.find((t) => t.id === boardId)?.destination ?? destination;
 
     // A coordinate captured from a photo's own EXIF data is already a
     // real fix — more trustworthy than geocoding an address — so it's
     // used directly instead of the address-change geocode below.
     if (pendingCoords) {
       setPlaceCoords(place.id, pendingCoords, "located");
-    } else if (trimmedAddress !== place.address) {
-      // Only re-geocode when the address actually changed — otherwise
-      // leave the existing coordinates (and geocodeStatus) alone.
+    } else if (trimmedAddress !== place.address || boardId !== place.tripId) {
+      // Re-geocode when the address changed, or when the place moved to
+      // a different board — the same address text can resolve
+      // differently once it's disambiguated against a new destination.
       const query = trimmedAddress || trimmedName;
       let located = false;
       try {
-        const result = await geocodePlace(query, destination);
+        const result = await geocodePlace(query, effectiveDestination);
         if (result) {
           setPlaceCoords(place.id, { lat: result.lat, lng: result.lng }, "located");
           located = true;
@@ -271,14 +280,14 @@ export function EditPlaceModal({
       // that guess, rather than leaving it unlocated.
       if (!located && apiKey) {
         try {
-          const guessedAddress = await guessNearestAddress(destination, {
+          const guessedAddress = await guessNearestAddress(effectiveDestination, {
             name: trimmedName,
             address: trimmedAddress || null,
             telephone: trimmedPhone || null,
             notes: notes.trim() || null,
           });
           if (guessedAddress) {
-            const estimate = await geocodePlace(guessedAddress, destination);
+            const estimate = await geocodePlace(guessedAddress, effectiveDestination);
             if (estimate) {
               setPlaceCoords(place.id, { lat: estimate.lat, lng: estimate.lng }, "estimated");
               located = true;
@@ -310,6 +319,24 @@ export function EditPlaceModal({
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
         </div>
+
+        {trips.length > 1 && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-neutral-700">Board</label>
+            <select
+              aria-label="Board"
+              value={boardId}
+              onChange={(e) => setBoardId(e.target.value)}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            >
+              {trips.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.coverEmoji} {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="rounded-lg border border-dashed border-neutral-300 p-3">
           <label className="mb-1 block text-sm font-medium text-neutral-700">Add info from a photo</label>
