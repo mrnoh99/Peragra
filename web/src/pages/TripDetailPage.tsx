@@ -257,10 +257,11 @@ export function TripDetailPage() {
                 {!c.isVisitedList && !c.isFavoritesList && (
                   <button
                     onClick={() => {
+                      if (!confirm(`Delete the list "${c.name}"?`)) return;
                       if (activeCollectionId === c.id) setActiveCollectionId(null);
                       deleteCollection(c.id);
                     }}
-                    className="hidden shrink-0 pr-1 text-xs text-neutral-400 hover:text-red-500 group-hover:block"
+                    className="shrink-0 pr-1 text-xs text-neutral-400 hover:text-red-500"
                     aria-label={`Delete ${c.name}`}
                   >
                     ✕

@@ -67,13 +67,13 @@ export function TripsPage() {
                     {placeCount} saved place{placeCount === 1 ? "" : "s"}
                   </p>
                 </Link>
-                <div className="absolute right-3 top-3 hidden gap-1 group-hover:flex">
+                <div className="absolute right-3 top-3 flex gap-1">
                   <button
                     onClick={(e) => {
                       e.preventDefault();
                       setEditingTrip(trip);
                     }}
-                    className="grid h-7 w-7 place-items-center rounded-full bg-white text-neutral-400 hover:text-brand-600"
+                    className="grid h-7 w-7 place-items-center rounded-full border border-neutral-200 bg-white text-neutral-400 hover:text-brand-600"
                     aria-label="Edit board"
                     title="Edit board"
                   >
@@ -88,7 +88,7 @@ export function TripsPage() {
                       }
                     }}
                     disabled={!canDelete}
-                    className="grid h-7 w-7 place-items-center rounded-full bg-white text-neutral-400 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-neutral-400"
+                    className="grid h-7 w-7 place-items-center rounded-full border border-neutral-200 bg-white text-neutral-400 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-neutral-400"
                     aria-label="Delete board"
                     title={canDelete ? "Delete board" : "Remove its saved places first to delete this board"}
                   >
