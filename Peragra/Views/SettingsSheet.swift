@@ -1,4 +1,6 @@
 import SwiftUI
+import SwiftData
+import UniformTypeIdentifiers
 
 struct SettingsSheet: View {
     // Explicit, so this view's access level never depends on Swift's
@@ -23,6 +25,7 @@ struct SettingsSheet: View {
     }
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @State private var settings = AISettings.shared
     @State private var provider: AIProvider = AISettings.shared.provider
 
@@ -55,6 +58,13 @@ struct SettingsSheet: View {
     @State private var mapProvider: MapProvider = MapSettings.shared.provider
     @State private var googleMapsKeyInput: String = MapSettings.shared.googleMapsAPIKey ?? ""
 
+    @State private var showingBackupExporter = false
+    @State private var backupDocument: BackupDocument?
+    @State private var showingRestoreImporter = false
+    @State private var showingRestoreConfirm = false
+    @State private var restorePendingURL: URL?
+    @State private var backupMessage: String?
+
     /// Whether the *currently selected* provider (which may not be saved
     /// yet) already has a stored key, to decide whether "Remove Key" shows.
     private var currentProviderHasStoredKey: Bool {
@@ -84,6 +94,24 @@ struct SettingsSheet: View {
         case .perplexity:
             settings.setPerplexityAPIKey(nil)
             perplexityKeyInput = ""
+        }
+    }
+
+    /// `.fileImporter` hands back a security-scoped URL that's only
+    /// readable while access is explicitly requested — without that
+    /// bracketing, reading a file from outside the app's own sandbox
+    /// (iCloud Drive, another app's Files location, ...) fails silently.
+    private func performRestore() {
+        guard let url = restorePendingURL else { return }
+        restorePendingURL = nil
+        let accessed = url.startAccessingSecurityScopedResource()
+        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let data = try Data(contentsOf: url)
+            try BackupService.restore(from: data, context: modelContext)
+            backupMessage = "Restored from backup."
+        } catch {
+            backupMessage = (error as? BackupService.BackupError)?.errorDescription ?? "Couldn't restore from that file."
         }
     }
 
@@ -177,6 +205,61 @@ struct SettingsSheet: View {
                         }
                     }
                 }
+
+                Section {
+                    Button("Back Up Data") {
+                        do {
+                            backupDocument = BackupDocument(data: try BackupService.exportData(context: modelContext))
+                            showingBackupExporter = true
+                        } catch {
+                            backupMessage = "Couldn't prepare a backup."
+                        }
+                    }
+                    .fileExporter(
+                        isPresented: $showingBackupExporter,
+                        document: backupDocument,
+                        contentType: .json,
+                        defaultFilename: BackupService.filename()
+                    ) { result in
+                        switch result {
+                        case .success: backupMessage = "Backup saved."
+                        case .failure: backupMessage = "Couldn't save the backup."
+                        }
+                    }
+
+                    Button("Restore from Backup", role: .destructive) {
+                        showingRestoreImporter = true
+                    }
+                    .fileImporter(isPresented: $showingRestoreImporter, allowedContentTypes: [.json]) { result in
+                        switch result {
+                        case .success(let url):
+                            restorePendingURL = url
+                            showingRestoreConfirm = true
+                        case .failure:
+                            backupMessage = "Couldn't read that file."
+                        }
+                    }
+
+                    if let backupMessage {
+                        Text(backupMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Data")
+                } footer: {
+                    Text("Back up every trip and place to a file you choose, or restore from one — restoring replaces everything currently in the app.")
+                }
+            }
+            .confirmationDialog(
+                "Replace all trips and places with this backup?",
+                isPresented: $showingRestoreConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Restore", role: .destructive) { performRestore() }
+                Button("Cancel", role: .cancel) { restorePendingURL = nil }
+            } message: {
+                Text("This can't be undone.")
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

@@ -44,6 +44,7 @@
 		73C14CCED1F50796BA176AA6 /* GoogleMapsOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CA141563EA6082C6D8EA1F /* GoogleMapsOpener.swift */; };
 		C2C9BD7BCF298521D33647B6 /* PlaceFilterBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB583D3A90CE85D33F3818BB /* PlaceFilterBar.swift */; };
 		4C81FABB20A2E8C839CCF11D /* PhotoMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */; };
+		D00C3A30175C411E81277965 /* BackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EAEE5772124F4FACF141F3 /* BackupService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -85,6 +86,7 @@
 		33CA141563EA6082C6D8EA1F /* GoogleMapsOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoogleMapsOpener.swift; path = Peragra/Services/GoogleMapsOpener.swift; sourceTree = "<group>"; };
 		EB583D3A90CE85D33F3818BB /* PlaceFilterBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceFilterBar.swift; path = Peragra/Views/Places/PlaceFilterBar.swift; sourceTree = "<group>"; };
 		B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PhotoMetadata.swift; path = Peragra/Services/PhotoMetadata.swift; sourceTree = "<group>"; };
+		A9EAEE5772124F4FACF141F3 /* BackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackupService.swift; path = Peragra/Services/BackupService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -108,6 +110,7 @@
 				ACB58982BC76355B53CAB4AD /* GoogleNearbyPlacesService.swift */,
 				33CA141563EA6082C6D8EA1F /* GoogleMapsOpener.swift */,
 				B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */,
+				A9EAEE5772124F4FACF141F3 /* BackupService.swift */,
 				DDEC7178DEDD1F939938DFB8 /* LocationService.swift */,
 				5F07AD3AC900A5E9DEEC9127 /* KakaoMapOpener.swift */,
 				A46B7AEF579F0764C332223A /* KoreaRegion.swift */,
@@ -293,6 +296,7 @@
 				73C14CCED1F50796BA176AA6 /* GoogleMapsOpener.swift in Sources */,
 				C2C9BD7BCF298521D33647B6 /* PlaceFilterBar.swift in Sources */,
 				4C81FABB20A2E8C839CCF11D /* PhotoMetadata.swift in Sources */,
+				D00C3A30175C411E81277965 /* BackupService.swift in Sources */,
 				B12C5E090088E25DEB914B9A /* LocationService.swift in Sources */,
 				C052B83134DFD7A8D22AA57A /* CameraCaptureView.swift in Sources */,
 				A9033BC47A48DEBA9EFF95A8 /* KakaoMapOpener.swift in Sources */,

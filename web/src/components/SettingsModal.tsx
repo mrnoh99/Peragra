@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react";
+import { useRef, useMemo, useState } from "react";
 import { Modal } from "./Modal";
+import { buildBackup, parseBackup, saveBackupFile } from "../lib/backup";
 import { GATEWAY_MODELS } from "../lib/gatewayModels";
+import { useStore } from "../store/useStore";
 import {
   DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_GEMINI_MODEL,
@@ -173,6 +175,42 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const setGoogleMapsApiKey = useMapSettingsStore((s) => s.setGoogleMapsApiKey);
   const [googleKeyInput, setGoogleKeyInput] = useState(googleMapsApiKey ?? "");
 
+  const [backupMessage, setBackupMessage] = useState<string | null>(null);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleBackup() {
+    const { trips, places, collections } = useStore.getState();
+    const data = buildBackup(trips, places, collections);
+    try {
+      const result = await saveBackupFile(data);
+      setBackupMessage(result === "cancelled" ? null : "Backup saved.");
+    } catch {
+      setBackupMessage("Couldn't save the backup.");
+    }
+  }
+
+  function handleRestoreFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (restoreInputRef.current) restoreInputRef.current.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = parseBackup(String(reader.result));
+        const current = useStore.getState();
+        const confirmed = confirm(
+          `Replace all ${current.trips.length} current trip${current.trips.length === 1 ? "" : "s"} and ${current.places.length} place${current.places.length === 1 ? "" : "s"} with the ${data.trips.length} trip${data.trips.length === 1 ? "" : "s"} and ${data.places.length} place${data.places.length === 1 ? "" : "s"} in this backup? This can't be undone.`,
+        );
+        if (!confirmed) return;
+        useStore.setState({ trips: data.trips, places: data.places, collections: data.collections });
+        setBackupMessage("Restored from backup.");
+      } catch (err) {
+        setBackupMessage(err instanceof Error ? err.message : "Couldn't read that file.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
   return (
     <Modal title="Settings" onClose={onClose} closeLabel="Close">
       <div className="space-y-6">
@@ -325,6 +363,37 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               OpenStreetMap and Nominatim need no API key and no account — this is the default.
             </p>
           )}
+        </div>
+
+        <div className="border-t border-neutral-100 pt-4">
+          <label className="mb-1 block text-sm font-medium text-neutral-700">Data</label>
+          <p className="mb-2 text-xs text-neutral-400">
+            Back up every trip and place to a file you choose, or restore from one — restoring
+            replaces everything currently in the app.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handleBackup}
+              className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600"
+            >
+              Back up data
+            </button>
+            <input
+              ref={restoreInputRef}
+              type="file"
+              accept="application/json"
+              onChange={handleRestoreFile}
+              className="hidden"
+              id="restore-backup-input"
+            />
+            <label
+              htmlFor="restore-backup-input"
+              className="cursor-pointer rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+            >
+              Restore from backup
+            </label>
+          </div>
+          {backupMessage && <p className="mt-2 text-xs text-neutral-400">{backupMessage}</p>}
         </div>
       </div>
     </Modal>
