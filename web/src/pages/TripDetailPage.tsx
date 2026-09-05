@@ -212,7 +212,8 @@ export function TripDetailPage() {
               <button
                 onClick={startEditingName}
                 aria-label="Rename place"
-                className="text-base text-neutral-300 hover:text-neutral-500"
+                title="Rename"
+                className="grid h-7 w-7 place-items-center rounded-full border border-neutral-300 text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700"
               >
                 ✎
               </button>
