@@ -69,6 +69,10 @@ struct SettingsSheet: View {
     @State private var restorePendingURL: URL?
     @State private var backupMessage: String?
 
+    @State private var backupFolderSettings = BackupFolderSettings.shared
+    @State private var showingBackupFolderPicker = false
+    @State private var autoBackupMessage: String?
+
     /// Whether the *currently selected* provider (which may not be saved
     /// yet) already has a stored key, to decide whether "Remove Key" shows.
     private var currentProviderHasStoredKey: Bool {
@@ -116,6 +120,27 @@ struct SettingsSheet: View {
             backupMessage = "Restored from backup."
         } catch {
             backupMessage = (error as? BackupService.BackupError)?.errorDescription ?? "Couldn't restore from that file."
+        }
+    }
+
+    /// Turns the folder `.fileImporter` hands back into a security-scoped
+    /// bookmark that's still resolvable after the app relaunches (a plain
+    /// URL isn't) — access needs to be requested around bookmark
+    /// creation itself, same as `performRestore()`.
+    private func handleBackupFolderPicked(_ result: Result<URL, Error>) {
+        switch result {
+        case .success(let url):
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            guard let bookmark = try? url.bookmarkData() else {
+                autoBackupMessage = "Couldn't set up that backup folder."
+                return
+            }
+            backupFolderSettings.setFolder(bookmark: bookmark, displayName: url.lastPathComponent)
+            backupFolderSettings.setAutoBackupEnabled(true)
+            autoBackupMessage = nil
+        case .failure:
+            autoBackupMessage = "Couldn't set up that backup folder."
         }
     }
 
@@ -301,6 +326,57 @@ struct SettingsSheet: View {
                 } footer: {
                     Text("Back up every board and place to a file you choose, or restore from one — restoring replaces everything currently in the app.")
                 }
+
+                Section {
+                    if backupFolderSettings.folderDisplayName == nil {
+                        Button("Choose Backup Folder…") { showingBackupFolderPicker = true }
+                    } else {
+                        Text("Folder: \(backupFolderSettings.folderDisplayName ?? "")")
+                            .foregroundStyle(.secondary)
+                        Toggle("Back Up Automatically", isOn: Binding(
+                            get: { backupFolderSettings.autoBackupEnabled },
+                            set: { backupFolderSettings.setAutoBackupEnabled($0) }
+                        ))
+                        Picker("Every", selection: Binding(
+                            get: { backupFolderSettings.autoBackupIntervalDays },
+                            set: { backupFolderSettings.setAutoBackupIntervalDays($0) }
+                        )) {
+                            Text("Day").tag(1)
+                            Text("Week").tag(7)
+                        }
+                        .pickerStyle(.segmented)
+
+                        if let lastAutoBackupAt = backupFolderSettings.lastAutoBackupAt {
+                            Text("Last backup: \(lastAutoBackupAt.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        if backupFolderSettings.needsReauthorization {
+                            Text("Access to this folder needs to be re-chosen below before backups can continue.")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+
+                        Button("Back Up Now") {
+                            autoBackupMessage = AutoBackupService.runNow(context: modelContext)
+                                ? "Backed up to your chosen folder."
+                                : "Couldn't write to that backup folder — choose it again below."
+                        }
+                        Button("Change Folder…") { showingBackupFolderPicker = true }
+                        Button("Turn Off", role: .destructive) { backupFolderSettings.clearFolder() }
+                    }
+
+                    if let autoBackupMessage {
+                        Text(autoBackupMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Automatic Backups")
+                } footer: {
+                    Text("Pick a folder once, and Peragra keeps writing fresh backups there — checked whenever you open the app, no more than once per the interval above.")
+                }
+                .fileImporter(isPresented: $showingBackupFolderPicker, allowedContentTypes: [.folder], onCompletion: handleBackupFolderPicked)
             }
             .confirmationDialog(
                 "Replace all boards and places with this backup?",

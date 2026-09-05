@@ -4,6 +4,7 @@ import SwiftData
 struct TripsListView: View {
     @Query(sort: \Trip.createdAt, order: .reverse) private var trips: [Trip]
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var showingAddTrip = false
     @State private var showingSettings = false
@@ -85,6 +86,18 @@ struct TripsListView: View {
                     tripPendingDelete = nil
                 }
                 Button("Cancel", role: .cancel) { tripPendingDelete = nil }
+            }
+        }
+        // Checked on cold launch (.task, which .onChange alone wouldn't
+        // catch — it only fires on a transition, not the initial value)
+        // and every time the app returns to the foreground after that —
+        // there's no reliable way to run this while the app isn't open
+        // at all without a background-refresh entitlement this app
+        // doesn't have wired up.
+        .task { AutoBackupService.runIfDue(context: modelContext) }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                AutoBackupService.runIfDue(context: modelContext)
             }
         }
     }

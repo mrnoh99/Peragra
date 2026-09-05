@@ -1,6 +1,13 @@
 import { useRef, useMemo, useState } from "react";
 import { Modal } from "./Modal";
 import { buildBackup, parseBackup, saveBackupFile } from "../lib/backup";
+import {
+  chooseAutoBackupFolder,
+  forgetAutoBackupFolder,
+  isAutoBackupSupported,
+  reauthorizeBackupFolder,
+  runAutoBackupNow,
+} from "../lib/autoBackup";
 import { GATEWAY_MODELS } from "../lib/gatewayModels";
 import { useStore } from "../store/useStore";
 import {
@@ -13,6 +20,7 @@ import {
   type AIProvider,
 } from "../store/useAISettingsStore";
 import { useMapSettingsStore, type MapProvider } from "../store/useMapSettingsStore";
+import { useBackupSettingsStore, type AutoBackupInterval } from "../store/useBackupSettingsStore";
 
 const CUSTOM_MODEL_VALUE = "__custom__";
 
@@ -185,6 +193,15 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
+  const autoBackupEnabled = useBackupSettingsStore((s) => s.autoBackupEnabled);
+  const setAutoBackupEnabled = useBackupSettingsStore((s) => s.setAutoBackupEnabled);
+  const autoBackupIntervalDays = useBackupSettingsStore((s) => s.autoBackupIntervalDays);
+  const setAutoBackupIntervalDays = useBackupSettingsStore((s) => s.setAutoBackupIntervalDays);
+  const backupFolderName = useBackupSettingsStore((s) => s.backupFolderName);
+  const lastAutoBackupAt = useBackupSettingsStore((s) => s.lastAutoBackupAt);
+  const needsReauthorization = useBackupSettingsStore((s) => s.needsReauthorization);
+  const [autoBackupBusy, setAutoBackupBusy] = useState(false);
+
   async function handleBackup() {
     const { trips, places, collections } = useStore.getState();
     const data = buildBackup(trips, places, collections);
@@ -193,6 +210,47 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
       setBackupMessage(result === "cancelled" ? null : "Backup saved.");
     } catch {
       setBackupMessage("Couldn't save the backup.");
+    }
+  }
+
+  async function handleChooseAutoBackupFolder() {
+    setAutoBackupBusy(true);
+    try {
+      const name = await chooseAutoBackupFolder();
+      if (name) setAutoBackupEnabled(true);
+    } catch {
+      setBackupMessage("Couldn't set up that backup folder.");
+    } finally {
+      setAutoBackupBusy(false);
+    }
+  }
+
+  async function handleReauthorize() {
+    setAutoBackupBusy(true);
+    try {
+      const granted = await reauthorizeBackupFolder();
+      if (!granted) setBackupMessage("Access wasn't granted — automatic backups stay paused.");
+    } finally {
+      setAutoBackupBusy(false);
+    }
+  }
+
+  async function handleBackUpNow() {
+    setAutoBackupBusy(true);
+    try {
+      const { trips, places, collections } = useStore.getState();
+      const result = await runAutoBackupNow(trips, places, collections);
+      setBackupMessage(
+        result === "saved"
+          ? "Backed up to your chosen folder."
+          : result === "needs-permission"
+            ? "Access to that folder needs to be re-granted below."
+            : "No backup folder set.",
+      );
+    } catch {
+      setBackupMessage("Couldn't write to that backup folder.");
+    } finally {
+      setAutoBackupBusy(false);
     }
   }
 
@@ -475,6 +533,104 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             </label>
           </div>
           {backupMessage && <p className="mt-2 text-xs text-neutral-400">{backupMessage}</p>}
+
+          {isAutoBackupSupported() ? (
+            <div className="mt-4 border-t border-neutral-100 pt-3">
+              <label className="mb-1 block text-sm font-medium text-neutral-700">Automatic backups</label>
+              {!backupFolderName ? (
+                <>
+                  <p className="mb-2 text-xs text-neutral-400">
+                    Pick a folder once, and Peragra keeps writing fresh backups there for you —
+                    checked whenever you open the app, no more than once per the interval below.
+                  </p>
+                  <button
+                    onClick={handleChooseAutoBackupFolder}
+                    disabled={autoBackupBusy}
+                    className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Choose backup folder…
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="mb-2 text-xs text-neutral-500">
+                    Folder: <span className="font-medium text-neutral-700">{backupFolderName}</span>
+                  </p>
+                  <label className="mb-2 flex items-center gap-2 text-xs text-neutral-600">
+                    <input
+                      type="checkbox"
+                      checked={autoBackupEnabled}
+                      onChange={(e) => setAutoBackupEnabled(e.target.checked)}
+                    />
+                    Back up automatically
+                  </label>
+                  <div className="mb-2 flex items-center gap-2 text-xs text-neutral-600">
+                    <span>Every</span>
+                    <div className="flex rounded-lg border border-neutral-300 p-0.5">
+                      {([1, 7] as AutoBackupInterval[]).map((days) => (
+                        <button
+                          key={days}
+                          onClick={() => setAutoBackupIntervalDays(days)}
+                          className={`rounded-md px-2 py-1 font-medium ${
+                            autoBackupIntervalDays === days ? "bg-brand-500 text-white" : "text-neutral-600"
+                          }`}
+                        >
+                          {days === 1 ? "Day" : "Week"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {lastAutoBackupAt && (
+                    <p className="mb-2 text-xs text-neutral-400">
+                      Last backup: {new Date(lastAutoBackupAt).toLocaleString()}
+                    </p>
+                  )}
+                  {needsReauthorization && (
+                    <p className="mb-2 text-xs text-amber-600">
+                      Access to this folder needs to be re-granted before backups can continue.
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {needsReauthorization && (
+                      <button
+                        onClick={handleReauthorize}
+                        disabled={autoBackupBusy}
+                        className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Re-allow access
+                      </button>
+                    )}
+                    <button
+                      onClick={handleBackUpNow}
+                      disabled={autoBackupBusy}
+                      className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Back up now
+                    </button>
+                    <button
+                      onClick={handleChooseAutoBackupFolder}
+                      disabled={autoBackupBusy}
+                      className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Change folder
+                    </button>
+                    <button
+                      onClick={() => void forgetAutoBackupFolder()}
+                      disabled={autoBackupBusy}
+                      className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Turn off
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <p className="mt-4 border-t border-neutral-100 pt-3 text-xs text-neutral-400">
+              Automatic backups need a Chromium-based browser (Chrome, Edge) — not supported here.
+              Use "Back up data" above instead.
+            </p>
+          )}
         </div>
       </div>
     </Modal>
@@ -522,6 +678,8 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         </Section>
         <Section title="Backup & Restore">
           Back up every board and place to a file you choose, and restore from one later.
+          Automatic backups (Chrome/Edge) let you pick a folder once and Peragra keeps a fresh
+          backup there for you, checked daily or weekly whenever you open the app.
         </Section>
         <div className="border-t border-neutral-100 pt-3 text-xs text-neutral-400">
           Peragra — developed by JaiSung Noh, MD. · Version 1.0 · Build 2 · 2026

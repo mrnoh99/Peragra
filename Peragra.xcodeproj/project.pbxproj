@@ -15,6 +15,8 @@
 		C052B83134DFD7A8D22AA57A /* CameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50787C07D48AF72434E63513 /* CameraCaptureView.swift */; };
 		194D42A5880CB7E18B3B3E73 /* Place.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A949D6936EFF5314976F72 /* Place.swift */; };
 		29D0457A9418F07992DEC7D4 /* MapSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01EE476FA99165081A0D4C7A /* MapSettings.swift */; };
+		39C47BF82888B94A04BF34AD /* BackupFolderSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A03AAB42E16D1C126B2E218B /* BackupFolderSettings.swift */; };
+		214787A235F6726344507E48 /* AutoBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E55049CCC51DDBE876FF2B /* AutoBackupService.swift */; };
 		2B3C4928A507274E72FE9D96 /* TripDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0EC4AE3B322246DAA168D68 /* TripDetailView.swift */; };
 		2DF84AD8803382A42C37CA1E /* Trip.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6E049BCBA203197C3FC9809 /* Trip.swift */; };
 		35624F0CA9E68832540B4790 /* GoogleMapWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7ED4E179AD24B6F86E577A6 /* GoogleMapWebView.swift */; };
@@ -57,6 +59,8 @@
 		DDEC7178DEDD1F939938DFB8 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LocationService.swift; path = Peragra/Services/LocationService.swift; sourceTree = "<group>"; };
 		50787C07D48AF72434E63513 /* CameraCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraCaptureView.swift; path = Peragra/Views/Places/CameraCaptureView.swift; sourceTree = "<group>"; };
 		01EE476FA99165081A0D4C7A /* MapSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MapSettings.swift; path = Peragra/Models/MapSettings.swift; sourceTree = "<group>"; };
+		A03AAB42E16D1C126B2E218B /* BackupFolderSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackupFolderSettings.swift; path = Peragra/Models/BackupFolderSettings.swift; sourceTree = "<group>"; };
+		11E55049CCC51DDBE876FF2B /* AutoBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AutoBackupService.swift; path = Peragra/Services/AutoBackupService.swift; sourceTree = "<group>"; };
 		06814E248FCB3AB0A38050BB /* GatewayModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GatewayModels.swift; path = Peragra/Models/GatewayModels.swift; sourceTree = "<group>"; };
 		09344DE79832AE4337D0FDBA /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsSheet.swift; path = Peragra/Views/SettingsSheet.swift; sourceTree = "<group>"; };
 		15658DA193E448FF92443F65 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HelpView.swift; path = Peragra/Views/HelpView.swift; sourceTree = "<group>"; };
@@ -116,6 +120,7 @@
 				33CA141563EA6082C6D8EA1F /* GoogleMapsOpener.swift */,
 				B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */,
 				A9EAEE5772124F4FACF141F3 /* BackupService.swift */,
+				11E55049CCC51DDBE876FF2B /* AutoBackupService.swift */,
 				DDEC7178DEDD1F939938DFB8 /* LocationService.swift */,
 				5F07AD3AC900A5E9DEEC9127 /* KakaoMapOpener.swift */,
 				A46B7AEF579F0764C332223A /* KoreaRegion.swift */,
@@ -190,6 +195,7 @@
 				E1E34F8F9F0C225B0D4629E5 /* AISettings.swift */,
 				01EE476FA99165081A0D4C7A /* MapSettings.swift */,
 				06814E248FCB3AB0A38050BB /* GatewayModels.swift */,
+				A03AAB42E16D1C126B2E218B /* BackupFolderSettings.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -295,6 +301,8 @@
 				5D3EECA6AE1A44B29ED04752 /* HelpView.swift in Sources */,
 				4FEB4377B249D4E8FDDFF66F /* EditPlaceSheet.swift in Sources */,
 				29D0457A9418F07992DEC7D4 /* MapSettings.swift in Sources */,
+				39C47BF82888B94A04BF34AD /* BackupFolderSettings.swift in Sources */,
+				214787A235F6726344507E48 /* AutoBackupService.swift in Sources */,
 				80754CE8B9D3CD5295842760 /* GoogleGeocodingService.swift in Sources */,
 				9C6FEA7CF39E09814D1C23EC /* NaverGeocodingService.swift in Sources */,
 				3E652117311C6E5DCD93C9AA /* NearbyPlacesService.swift in Sources */,

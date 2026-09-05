@@ -27,7 +27,7 @@ struct HelpView: View {
                 Text("Free (Apple Maps) needs no key. Switch to Google Maps for a nicer map, or Naver Maps for the most accurate geocoding in Korea, if you add your own key/Client ID.")
             }
             section("Backup & Restore") {
-                Text("Back up every board and place to a file you choose, and restore from one later.")
+                Text("Back up every board and place to a file you choose, and restore from one later. Automatic Backups lets you pick a folder once and Peragra keeps a fresh backup there for you, checked daily or weekly whenever you open the app.")
             }
             Section {
                 Text("Peragra — developed by JaiSung Noh, MD. · Version 1.0 · Build 2 · 2026")
