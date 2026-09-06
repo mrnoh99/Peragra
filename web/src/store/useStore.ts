@@ -59,7 +59,10 @@ interface AppState {
   addCollection: (tripId: string, name: string) => Collection;
   deleteCollection: (collectionId: string) => void;
   togglePlaceCollection: (placeId: string, collectionId: string) => void;
-  addPlacesToCollection: (placeIds: string[], collectionId: string) => void;
+  /** Same as togglePlaceCollection, for a bulk selection at once: if every
+   *  selected place already belongs to the list, removes them all;
+   *  otherwise adds whichever ones don't yet belong. */
+  togglePlacesCollection: (placeIds: string[], collectionId: string) => void;
   /** Finds the trip's auto-created "Visited" list, creating it if this
    *  trip predates the feature. */
   ensureVisitedCollection: (tripId: string) => Collection;
@@ -303,17 +306,28 @@ export const useStore = create<AppState>()(
         }));
       },
 
-      addPlacesToCollection: (placeIds, collectionId) => {
-        // Adds rather than toggles — a bulk selection can mix places
-        // already in the list with ones that aren't, and "send to list"
-        // should only ever add, never accidentally remove someone who
-        // was already there. Adding to the Visited/Favorites list also
-        // sets that flag, same as togglePlaceCollection.
+      togglePlacesCollection: (placeIds, collectionId) => {
+        // Tri-state: a bulk selection can mix places already in the list
+        // with ones that aren't. If every selected place is already in,
+        // this removes them all (a real "toggle off"); otherwise it adds
+        // whichever aren't in yet, same as the single-place toggle.
         const idSet = new Set(placeIds);
         const collection = get().collections.find((c) => c.id === collectionId);
+        const selected = get().places.filter((p) => idSet.has(p.id));
+        const allIn = selected.length > 0 && selected.every((p) => p.collectionIds.includes(collectionId));
         set((state) => ({
           places: state.places.map((p) => {
-            if (!idSet.has(p.id) || p.collectionIds.includes(collectionId)) return p;
+            if (!idSet.has(p.id)) return p;
+            if (allIn) {
+              return {
+                ...p,
+                collectionIds: p.collectionIds.filter((id) => id !== collectionId),
+                visited: collection?.isVisitedList ? false : p.visited,
+                visitedAt: collection?.isVisitedList ? null : p.visitedAt,
+                favorite: collection?.isFavoritesList ? false : p.favorite,
+              };
+            }
+            if (p.collectionIds.includes(collectionId)) return p;
             return {
               ...p,
               collectionIds: [...p.collectionIds, collectionId],

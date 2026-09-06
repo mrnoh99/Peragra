@@ -30,7 +30,7 @@ export function ListingView({
   const [mapError, setMapError] = useState<string | null>(null);
   const [showMapMenu, setShowMapMenu] = useState(false);
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
-  const addPlacesToCollection = useStore((s) => s.addPlacesToCollection);
+  const togglePlacesCollection = useStore((s) => s.togglePlacesCollection);
   const movePlacesToBoard = useStore((s) => s.movePlacesToBoard);
 
   function toggleSelecting() {
@@ -60,11 +60,15 @@ export function ListingView({
     setIsSelecting(false);
   }
 
-  // A place can belong to any number of lists at once, so this only ever
-  // adds (never removes, never closes the selection) — the same
-  // selection can be sent to several lists one after another.
-  function applyBulkAddToList(collectionId: string) {
-    addPlacesToCollection([...selectedIds], collectionId);
+  // Toggles the whole selection's membership in this list (never closes
+  // the selection) — the same selection can be sent to (or removed from)
+  // several lists one after another.
+  function applyBulkToggleList(collectionId: string) {
+    togglePlacesCollection([...selectedIds], collectionId);
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => (prev.size === places.length ? new Set() : new Set(places.map((p) => p.id))));
   }
 
   /** Whether every currently-selected place already belongs to this list. */
@@ -149,6 +153,14 @@ export function ListingView({
           <span className="text-sm font-medium text-brand-700">
             {selectedIds.size === 0 ? "Select places to edit" : `${selectedIds.size} selected`}
           </span>
+          <button
+            type="button"
+            onClick={toggleSelectAll}
+            disabled={places.length === 0}
+            className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+          >
+            {selectedIds.size === places.length ? "Deselect all" : "Select all"}
+          </button>
           <select
             disabled={selectedIds.size === 0}
             value=""
@@ -203,7 +215,7 @@ export function ListingView({
                       <button
                         key={c.id}
                         type="button"
-                        onClick={() => applyBulkAddToList(c.id)}
+                        onClick={() => applyBulkToggleList(c.id)}
                         className={`whitespace-nowrap rounded px-2 py-1 text-left text-sm ${
                           onAll ? "bg-brand-50 text-brand-700" : "text-neutral-600 hover:bg-neutral-50"
                         }`}

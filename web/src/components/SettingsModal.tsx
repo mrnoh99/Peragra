@@ -293,6 +293,29 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-700">
+            AI extracted info language
+          </label>
+          <p className="mb-2 text-xs text-neutral-400">
+            Language for the notes AI extracts from photos and screenshots. Names, addresses, and
+            phone numbers are always kept exactly as written. This app's own menus and buttons
+            always stay in English.
+          </p>
+          <select
+            value={extractionLanguage}
+            onChange={(e) => setExtractionLanguage(e.target.value)}
+            aria-label="AI extracted info language"
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          >
+            {AI_EXTRACTION_LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-neutral-700">
             AI place extraction
           </label>
           <p className="mb-2 text-xs text-neutral-400">
@@ -381,27 +404,6 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               helpText="Calls Perplexity's own API directly from your browser with your own Perplexity API key. Perplexity has no vision support, so screenshot extraction is unavailable while it's selected — caption-text extraction still works."
             />
           )}
-
-          <label className="mb-1 mt-4 block text-sm font-medium text-neutral-700">
-            AI extracted info language
-          </label>
-          <p className="mb-2 text-xs text-neutral-400">
-            Language for the notes AI extracts from photos and screenshots. Names, addresses, and
-            phone numbers are always kept exactly as written. This app's own menus and buttons
-            always stay in English.
-          </p>
-          <select
-            value={extractionLanguage}
-            onChange={(e) => setExtractionLanguage(e.target.value)}
-            aria-label="AI extracted info language"
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-          >
-            {AI_EXTRACTION_LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.label}
-              </option>
-            ))}
-          </select>
         </div>
 
         <div className="border-t border-neutral-100 pt-4">

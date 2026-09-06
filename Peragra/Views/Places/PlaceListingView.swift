@@ -112,6 +112,13 @@ struct PlaceListingView: View {
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
             Spacer()
+            Button {
+                toggleSelectAll()
+            } label: {
+                Text(selectedIDs.count == places.count ? "Deselect All" : "Select All")
+                    .font(.subheadline.weight(.medium))
+            }
+            .disabled(places.isEmpty)
             Menu {
                 ForEach(PlaceCategory.allCases) { category in
                     Button {
@@ -146,7 +153,7 @@ struct PlaceListingView: View {
                 Menu {
                     ForEach(allCollections) { collection in
                         Button {
-                            addSelected(to: collection)
+                            toggleSelected(to: collection)
                         } label: {
                             let title = collectionLabel(collection)
                             if isOnAllSelected(collection) {
@@ -204,6 +211,16 @@ struct PlaceListingView: View {
         }
     }
 
+    /// Selects (or deselects) every place currently shown — respects
+    /// whatever search/filter is already narrowing `places`.
+    private func toggleSelectAll() {
+        if selectedIDs.count == places.count {
+            selectedIDs.removeAll()
+        } else {
+            selectedIDs = Set(places.map { $0.id })
+        }
+    }
+
     private func applyCategory(_ category: PlaceCategory) {
         for place in places where selectedIDs.contains(place.id) {
             place.category = category
@@ -234,23 +251,35 @@ struct PlaceListingView: View {
         isSelecting = false
     }
 
-    /// Adds rather than toggles — a bulk selection can mix places already
-    /// in the list with ones that aren't, and "send to list" should only
-    /// ever add, never accidentally remove someone who was already there.
-    /// Leaves the selection in place afterward (unlike applyCategory) so
-    /// the same places can be sent to another list right after, since a
-    /// place can belong to any number of lists at once.
-    private func addSelected(to collection: PlaceCollection) {
+    /// Tri-state: a bulk selection can mix places already in the list with
+    /// ones that aren't. If every selected place is already in, this
+    /// removes them all (a real "toggle off"); otherwise it adds whichever
+    /// aren't in yet. Leaves the selection in place afterward (unlike
+    /// applyCategory) so the same places can be sent to another list right
+    /// after, since a place can belong to any number of lists at once.
+    private func toggleSelected(to collection: PlaceCollection) {
+        let allIn = isOnAllSelected(collection)
         for place in places where selectedIDs.contains(place.id) {
-            if !place.collections.contains(where: { $0.id == collection.id }) {
-                place.collections.append(collection)
-            }
-            if collection.isVisitedList {
-                place.visited = true
-                place.visitedAt = .now
-            }
-            if collection.isFavoritesList {
-                place.favorite = true
+            if allIn {
+                place.collections.removeAll { $0.id == collection.id }
+                if collection.isVisitedList {
+                    place.visited = false
+                    place.visitedAt = nil
+                }
+                if collection.isFavoritesList {
+                    place.favorite = false
+                }
+            } else {
+                if !place.collections.contains(where: { $0.id == collection.id }) {
+                    place.collections.append(collection)
+                }
+                if collection.isVisitedList {
+                    place.visited = true
+                    place.visitedAt = .now
+                }
+                if collection.isFavoritesList {
+                    place.favorite = true
+                }
             }
         }
     }

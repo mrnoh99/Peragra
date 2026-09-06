@@ -171,6 +171,19 @@ struct SettingsSheet: View {
                 }
 
                 Section {
+                    Picker("Info language", selection: $extractionLanguage) {
+                        ForEach(AIExtractionService.extractionLanguages, id: \.code) { language in
+                            Text(language.label).tag(language.code)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                } header: {
+                    Text("AI extracted info language")
+                } footer: {
+                    Text("Language for the notes AI extracts from photos and screenshots. Names, addresses, and phone numbers are always kept exactly as written. This app's own menus and buttons always stay in English.")
+                }
+
+                Section {
                     Picker("Provider", selection: $provider) {
                         ForEach(AIProvider.allCases) { p in
                             Text(p.label).tag(p)
@@ -206,19 +219,6 @@ struct SettingsSheet: View {
                     Text("AI place extraction")
                 } footer: {
                     Text(providerFooterText + " Leave the key blank to skip AI — the free pattern-matching extraction still works without one.")
-                }
-
-                Section {
-                    Picker("Info language", selection: $extractionLanguage) {
-                        ForEach(AIExtractionService.extractionLanguages, id: \.code) { language in
-                            Text(language.label).tag(language.code)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                } header: {
-                    Text("AI extracted info language")
-                } footer: {
-                    Text("Language for the notes AI extracts from photos and screenshots. Names, addresses, and phone numbers are always kept exactly as written. This app's own menus and buttons always stay in English.")
                 }
 
                 if currentProviderHasStoredKey {
