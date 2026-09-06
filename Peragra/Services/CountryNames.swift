@@ -175,4 +175,40 @@ enum CountryNames {
             entry.english != "South Korea" && text.contains(entry.korean)
         }
     }
+
+    // Deduplicated English names, longest first — same reasoning as
+    // sortedEntries: "United Arab Emirates" shouldn't get shadowed by a
+    // shorter name that happens to be a substring of it.
+    private static let englishCountryNames: [String] =
+        Array(Set(koreanToEnglish.values)).sorted { $0.count > $1.count }
+
+    /// Whether `word` appears in `text` as its own token — not as part of
+    /// a longer word (e.g. "Georgia" in "Tbilisi, Georgia" but not inside
+    /// "Georgian").
+    private static func containsWord(_ text: String, _ word: String) -> Bool {
+        let escaped = NSRegularExpression.escapedPattern(for: word)
+        guard let regex = try? NSRegularExpression(pattern: "(^|[^a-zA-Z])\(escaped)([^a-zA-Z]|$)", options: .caseInsensitive) else {
+            return false
+        }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return regex.firstMatch(in: text, range: range) != nil
+    }
+
+    /// Finds any known country mentioned anywhere in a piece of text (an
+    /// address or place name) — by its Korean name, or its canonical
+    /// English name for text that's already in English. Used to
+    /// auto-classify a place into a "country" list (see
+    /// Place.syncCountryList) from its own text, before or without a
+    /// geocoded coordinate. Unlike mentionsNonKoreanCountry, this includes
+    /// South Korea itself and returns the match rather than a yes/no.
+    static func detectCountryFromText(_ text: String) -> String? {
+        guard !text.isEmpty else { return nil }
+        for entry in sortedEntries where text.contains(entry.korean) {
+            return entry.english
+        }
+        for english in englishCountryNames where containsWord(text, english) {
+            return english
+        }
+        return nil
+    }
 }

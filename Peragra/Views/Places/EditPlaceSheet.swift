@@ -471,6 +471,7 @@ struct EditPlaceSheet: View {
                 notes: trimmedNotes
             )
         }
+        place.syncCountryList(context: modelContext)
 
         // Explicit rather than relying on SwiftData's autosave timing —
         // views elsewhere (like TripDetailView's @Query-backed Export

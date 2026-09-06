@@ -174,3 +174,38 @@ export function mentionsNonKoreanCountry(text: string): boolean {
     ([korean, english]) => english !== "South Korea" && text.includes(korean),
   );
 }
+
+// Deduplicated English names, longest first — same reasoning as
+// SORTED_ENTRIES: "United Arab Emirates" shouldn't get shadowed by a
+// shorter name that happens to be a substring of it.
+const ENGLISH_COUNTRY_NAMES = Array.from(new Set(Object.values(KOREAN_TO_ENGLISH_COUNTRY))).sort(
+  (a, b) => b.length - a.length,
+);
+
+/** Whether `word` appears in `text` as its own token — not as part of a
+ *  longer word (e.g. "Georgia" in "Tbilisi, Georgia" but not inside
+ *  "Georgian"). */
+function containsWord(text: string, word: string): boolean {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-zA-Z])${escaped}([^a-zA-Z]|$)`, "i").test(text);
+}
+
+/**
+ * Finds any known country mentioned anywhere in a piece of text (an
+ * address or place name) — by its Korean name, or its canonical English
+ * name for text that's already in English. Used to auto-classify a place
+ * into a "country" list (see countryClassification.ts) from its own text,
+ * before or without a geocoded coordinate. Unlike mentionsNonKoreanCountry,
+ * this includes South Korea itself and returns the match rather than a
+ * yes/no.
+ */
+export function detectCountryFromText(text: string): string | null {
+  if (!text) return null;
+  for (const [korean, english] of SORTED_ENTRIES) {
+    if (text.includes(korean)) return english;
+  }
+  for (const english of ENGLISH_COUNTRY_NAMES) {
+    if (containsWord(text, english)) return english;
+  }
+  return null;
+}

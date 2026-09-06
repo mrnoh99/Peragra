@@ -46,7 +46,44 @@ enum BackupService {
         let name: String
         let isVisitedList: Bool
         let isFavoritesList: Bool
+        let isCountryList: Bool
+        let countryName: String?
         let createdAt: Double
+
+        init(
+            id: UUID,
+            tripId: UUID,
+            name: String,
+            isVisitedList: Bool,
+            isFavoritesList: Bool,
+            isCountryList: Bool,
+            countryName: String?,
+            createdAt: Double
+        ) {
+            self.id = id
+            self.tripId = tripId
+            self.name = name
+            self.isVisitedList = isVisitedList
+            self.isFavoritesList = isFavoritesList
+            self.isCountryList = isCountryList
+            self.countryName = countryName
+            self.createdAt = createdAt
+        }
+
+        // Backups made before the auto country-list feature existed won't
+        // have isCountryList/countryName at all — default to "not a
+        // country list" rather than failing to restore the whole file.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(UUID.self, forKey: .id)
+            tripId = try container.decode(UUID.self, forKey: .tripId)
+            name = try container.decode(String.self, forKey: .name)
+            isVisitedList = try container.decode(Bool.self, forKey: .isVisitedList)
+            isFavoritesList = try container.decode(Bool.self, forKey: .isFavoritesList)
+            isCountryList = try container.decodeIfPresent(Bool.self, forKey: .isCountryList) ?? false
+            countryName = try container.decodeIfPresent(String.self, forKey: .countryName)
+            createdAt = try container.decode(Double.self, forKey: .createdAt)
+        }
     }
 
     struct BackupData: Codable {
@@ -126,6 +163,8 @@ enum BackupService {
                     name: collection.name,
                     isVisitedList: collection.isVisitedList,
                     isFavoritesList: collection.isFavoritesList,
+                    isCountryList: collection.isCountryList,
+                    countryName: collection.countryName,
                     createdAt: collection.createdAt.timeIntervalSince1970 * 1000
                 )
             }
@@ -174,7 +213,9 @@ enum BackupService {
                 name: backupCollection.name,
                 trip: trip,
                 isVisitedList: backupCollection.isVisitedList,
-                isFavoritesList: backupCollection.isFavoritesList
+                isFavoritesList: backupCollection.isFavoritesList,
+                isCountryList: backupCollection.isCountryList,
+                countryName: backupCollection.countryName
             )
             collection.id = backupCollection.id
             collection.createdAt = Date(timeIntervalSince1970: backupCollection.createdAt / 1000)

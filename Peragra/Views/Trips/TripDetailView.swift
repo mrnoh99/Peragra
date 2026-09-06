@@ -46,15 +46,31 @@ struct TripDetailView: View {
 
     // Default lists are pinned ahead of whatever order the user's own
     // lists were created in — Favorites right after "All places", then
-    // Visited, matching the sidebar chip bar's fixed reading order.
+    // Visited, then the auto-created country lists, matching the sidebar
+    // chip bar's fixed reading order.
     private func defaultListRank(_ collection: PlaceCollection) -> Int {
         if collection.isFavoritesList { return 0 }
         if collection.isVisitedList { return 1 }
-        return 2
+        if collection.isCountryList { return 2 }
+        return 3
     }
 
     private var collections: [PlaceCollection] {
-        trip.collections.sorted { defaultListRank($0) < defaultListRank($1) }
+        trip.collections.sorted { a, b in
+            let rankDiff = defaultListRank(a) - defaultListRank(b)
+            if rankDiff != 0 { return rankDiff < 0 }
+            if a.isCountryList && b.isCountryList {
+                return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+            }
+            return false
+        }
+    }
+
+    // Auto country lists are filter-only — a place's membership is fully
+    // derived from its address, so they're excluded from the manual "Add
+    // to list"/"Send to List" pickers where the user assigns lists by hand.
+    private var manualCollections: [PlaceCollection] {
+        collections.filter { !$0.isCountryList }
     }
 
     private var otherBoards: [Trip] {
@@ -204,7 +220,7 @@ struct TripDetailView: View {
                 if tab == .listing {
                     PlaceListingView(
                         places: sortedPlaces,
-                        allCollections: collections,
+                        allCollections: manualCollections,
                         distancesByID: distancesByID,
                         destination: trip.destination,
                         otherBoards: otherBoards,
@@ -305,9 +321,10 @@ struct TripDetailView: View {
                             activeCollectionIDs.insert(collection.id)
                         }
                     }
-                    // The default Favorites/Visited lists aren't
-                    // deletable, so they get no long-press menu at all.
-                    if collection.isFavoritesList || collection.isVisitedList {
+                    // The default Favorites/Visited lists and the
+                    // auto-created country lists aren't deletable, so
+                    // they get no long-press menu at all.
+                    if collection.isFavoritesList || collection.isVisitedList || collection.isCountryList {
                         collectionChip
                     } else {
                         collectionChip.contextMenu {
@@ -326,7 +343,7 @@ struct TripDetailView: View {
     }
 
     private func deleteCollection(_ collection: PlaceCollection) {
-        guard !collection.isFavoritesList, !collection.isVisitedList else { return }
+        guard !collection.isFavoritesList, !collection.isVisitedList, !collection.isCountryList else { return }
         activeCollectionIDs.remove(collection.id)
         modelContext.delete(collection)
     }
@@ -337,6 +354,9 @@ struct TripDetailView: View {
         }
         if collection.isVisitedList {
             return "✅ \(collection.name) (\(places.filter(\.visited).count))"
+        }
+        if collection.isCountryList {
+            return "🌍 \(collection.name) (\(collection.places.count))"
         }
         return collection.name
     }

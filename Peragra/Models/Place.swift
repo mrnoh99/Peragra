@@ -127,4 +127,54 @@ final class Place {
             collections.removeAll { $0.id == favoritesList.id }
         }
     }
+
+    /// Recomputes which auto-created "country" list (if any) this place
+    /// belongs to, from its current name/address text and geocoded
+    /// coordinates — mirrors MapProviderPolicy's Korea/non-Korea signal
+    /// but resolves an actual country name rather than just yes/no.
+    /// Call after anything that could change either (added, edited,
+    /// geocoded, or moved to a different board). Creates the country's
+    /// list the first time a place needs it, and prunes any auto country
+    /// list left with no members (on any trip, since a board move can
+    /// orphan one).
+    func syncCountryList(context: ModelContext) {
+        guard let trip else { return }
+
+        var countryName = CountryNames.detectCountryFromText(address)
+        if countryName == nil { countryName = CountryNames.detectCountryFromText(name) }
+        if countryName == nil, let latitude, let longitude, KoreaRegion.contains(latitude: latitude, longitude: longitude) {
+            countryName = "South Korea"
+        }
+
+        let countryCollections = trip.collections.filter(\.isCountryList)
+        var target: PlaceCollection?
+        if let countryName {
+            target = countryCollections.first { $0.countryName == countryName }
+            if target == nil {
+                let collection = PlaceCollection(name: countryName, trip: trip, isCountryList: true, countryName: countryName)
+                context.insert(collection)
+                target = collection
+            }
+        }
+
+        for collection in countryCollections where collection.id != target?.id {
+            collections.removeAll { $0.id == collection.id }
+        }
+        if let target, !collections.contains(where: { $0.id == target.id }) {
+            collections.append(target)
+        }
+
+        Self.pruneEmptyCountryLists(context: context)
+    }
+
+    /// Auto country lists are fully derived from place data, so any that
+    /// lost its last member (e.g. after a board move away from it) is
+    /// deleted rather than left behind as clutter.
+    private static func pruneEmptyCountryLists(context: ModelContext) {
+        let descriptor = FetchDescriptor<PlaceCollection>(predicate: #Predicate<PlaceCollection> { $0.isCountryList })
+        guard let countryLists = try? context.fetch(descriptor) else { return }
+        for list in countryLists where list.places.isEmpty {
+            context.delete(list)
+        }
+    }
 }

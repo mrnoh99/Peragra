@@ -263,6 +263,7 @@ struct PlaceRowView: View {
         } else {
             place.geocodeStatus = .failed
         }
+        place.syncCountryList(context: modelContext)
     }
 }
 

@@ -216,6 +216,7 @@ struct PlaceListingView: View {
                 newCollections.append(PlaceCollection.ensureFavoritesList(for: newTrip, context: modelContext))
             }
             place.collections = newCollections
+            place.syncCountryList(context: modelContext)
         }
         selectedIDs.removeAll()
         isSelecting = false

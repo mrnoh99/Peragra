@@ -58,6 +58,15 @@ export interface Collection {
   // Same idea as isVisitedList, kept in sync with each place's `favorite`
   // flag instead.
   isFavoritesList?: boolean;
+  // Marks an auto-created, undeletable, un-manually-assignable "country"
+  // list — one per distinct country detected among the board's places
+  // (see countryClassification.ts). Membership is fully derived from each
+  // place's own address/name/coordinates, recomputed by
+  // useStore's syncPlaceCountry whenever those could have changed.
+  isCountryList?: boolean;
+  // The canonical English country name this list was created for (e.g.
+  // "Italy") — only set when isCountryList is true.
+  countryName?: string;
   createdAt: number;
 }
 

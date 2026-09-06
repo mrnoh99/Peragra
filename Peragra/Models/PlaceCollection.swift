@@ -18,17 +18,35 @@ final class PlaceCollection {
     // Same idea as isVisitedList, kept in sync with each place's
     // `favorite` flag instead.
     var isFavoritesList: Bool = false
+    // Marks an auto-created, undeletable, un-manually-assignable "country"
+    // list — one per distinct country detected among the trip's places
+    // (see Place.syncCountryList). Membership is fully derived from each
+    // place's own address/name/coordinates, recomputed whenever those
+    // could have changed.
+    var isCountryList: Bool = false
+    // The canonical English country name this list was created for (e.g.
+    // "Italy") — only set when isCountryList is true.
+    var countryName: String? = nil
 
     var trip: Trip?
     var places: [Place] = []
 
-    init(name: String, trip: Trip?, isVisitedList: Bool = false, isFavoritesList: Bool = false) {
+    init(
+        name: String,
+        trip: Trip?,
+        isVisitedList: Bool = false,
+        isFavoritesList: Bool = false,
+        isCountryList: Bool = false,
+        countryName: String? = nil
+    ) {
         self.id = UUID()
         self.name = name
         self.createdAt = .now
         self.trip = trip
         self.isVisitedList = isVisitedList
         self.isFavoritesList = isFavoritesList
+        self.isCountryList = isCountryList
+        self.countryName = countryName
     }
 
     /// Finds the trip's auto-created "Visited" list, creating (and

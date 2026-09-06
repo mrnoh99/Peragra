@@ -32,12 +32,22 @@ export function TripDetailPage() {
   );
   // Default lists are pinned ahead of whatever order the user's own
   // lists were created in — Favorites right after "All places", then
-  // Visited, matching the sidebar's fixed reading order.
-  const defaultListRank = (c: Collection) => (c.isFavoritesList ? 0 : c.isVisitedList ? 1 : 2);
+  // Visited, then the auto-created country lists, matching the sidebar's
+  // fixed reading order.
+  const defaultListRank = (c: Collection) => (c.isFavoritesList ? 0 : c.isVisitedList ? 1 : c.isCountryList ? 2 : 3);
   const collections = useMemo(() => {
     const tripCollections = allCollections.filter((c) => c.tripId === tripId);
-    return [...tripCollections].sort((a, b) => defaultListRank(a) - defaultListRank(b));
+    return [...tripCollections].sort((a, b) => {
+      const rankDiff = defaultListRank(a) - defaultListRank(b);
+      if (rankDiff !== 0) return rankDiff;
+      if (a.isCountryList && b.isCountryList) return a.name.localeCompare(b.name);
+      return 0;
+    });
   }, [allCollections, tripId]);
+  // Auto country lists are filter-only — a place's membership is fully
+  // derived from its address, so they're excluded from the manual "Add to
+  // list"/"Send to list" pickers where the user assigns lists by hand.
+  const manualCollections = useMemo(() => collections.filter((c) => !c.isCountryList), [collections]);
 
   // Trips created before the Visited/Favorites-list feature don't have
   // them yet — back-fill lazily so they always show in the sidebar, not
@@ -247,7 +257,7 @@ export function TripDetailPage() {
                     }`}
                   >
                     {active ? "✓ " : ""}
-                    {c.isFavoritesList ? "⭐ " : c.isVisitedList ? "✅ " : ""}
+                    {c.isFavoritesList ? "⭐ " : c.isVisitedList ? "✅ " : c.isCountryList ? "🌍 " : ""}
                     {c.name}
                     {c.isFavoritesList && (
                       <span className="ml-1 text-xs text-neutral-400">({favoritesCount})</span>
@@ -255,8 +265,13 @@ export function TripDetailPage() {
                     {c.isVisitedList && (
                       <span className="ml-1 text-xs text-neutral-400">({visitedCount})</span>
                     )}
+                    {c.isCountryList && (
+                      <span className="ml-1 text-xs text-neutral-400">
+                        ({places.filter((p) => p.collectionIds.includes(c.id)).length})
+                      </span>
+                    )}
                   </button>
-                  {!c.isVisitedList && !c.isFavoritesList && (
+                  {!c.isVisitedList && !c.isFavoritesList && !c.isCountryList && (
                     <button
                       onClick={() => {
                         if (!confirm(`Delete the list "${c.name}"?`)) return;
@@ -378,7 +393,7 @@ export function TripDetailPage() {
               {tab === "listing" ? (
                 <ListingView
                   places={sorted}
-                  collections={collections}
+                  collections={manualCollections}
                   destination={trip.destination}
                   distancesById={distancesById}
                   otherBoards={otherBoards}

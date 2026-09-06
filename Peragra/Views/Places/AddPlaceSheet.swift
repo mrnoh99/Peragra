@@ -862,6 +862,7 @@ struct AddPlaceSheet: View {
             }
 
             await geocodeAndStore(place, row: row)
+            place.syncCountryList(context: modelContext)
         }
 
         // Explicit rather than relying on SwiftData's autosave timing —

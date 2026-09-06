@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { detectCountry } from "../lib/countryClassification";
 import type { Collection, GeocodeStatus, Place, PlaceCategory, Trip } from "../types";
 
 function makeId(): string {
@@ -68,6 +69,13 @@ interface AppState {
   ensureVisitedCollection: (tripId: string) => Collection;
   /** Same as ensureVisitedCollection, for the auto-created "Favorites" list. */
   ensureFavoritesCollection: (tripId: string) => Collection;
+  /** Recomputes which auto-created "country" list (if any) a place
+   *  belongs to, from its current name/address text and geocoded
+   *  coordinates — call after anything that could change either (added,
+   *  edited, geocoded, or moved to a different board). Creates the
+   *  country's list the first time a place needs it, and deletes an auto
+   *  country list that's lost its last member. */
+  syncPlaceCountry: (placeId: string) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -142,6 +150,7 @@ export const useStore = create<AppState>()(
           createdAt: Date.now(),
         };
         set((state) => ({ places: [place, ...state.places] }));
+        get().syncPlaceCountry(place.id);
         return place;
       },
 
@@ -173,6 +182,7 @@ export const useStore = create<AppState>()(
             p.id === placeId ? { ...p, tripId: newTripId, collectionIds: newCollectionIds } : p,
           ),
         }));
+        get().syncPlaceCountry(placeId);
       },
 
       movePlacesToBoard: (placeIds, newTripId) => {
@@ -195,6 +205,7 @@ export const useStore = create<AppState>()(
             return { ...p, tripId: newTripId, collectionIds: newCollectionIds };
           }),
         }));
+        for (const placeId of placeIds) get().syncPlaceCountry(placeId);
       },
 
       setPlaceCoords: (placeId, coords, status) => {
@@ -203,6 +214,7 @@ export const useStore = create<AppState>()(
           lng: coords?.lng ?? null,
           geocodeStatus: status,
         });
+        get().syncPlaceCountry(placeId);
       },
 
       toggleVisited: (placeId) => {
@@ -268,11 +280,11 @@ export const useStore = create<AppState>()(
       },
 
       deleteCollection: (collectionId) => {
-        // The auto-created Visited/Favorites lists aren't user-deletable
-        // — the UI never shows a delete control for them, but guard here
-        // too.
+        // The auto-created Visited/Favorites/country lists aren't
+        // user-deletable — the UI never shows a delete control for them,
+        // but guard here too.
         const collection = get().collections.find((c) => c.id === collectionId);
-        if (collection?.isVisitedList || collection?.isFavoritesList) return;
+        if (collection?.isVisitedList || collection?.isFavoritesList || collection?.isCountryList) return;
         set((state) => ({
           collections: state.collections.filter((c) => c.id !== collectionId),
           places: state.places.map((p) => ({
@@ -365,6 +377,47 @@ export const useStore = create<AppState>()(
         };
         set((state) => ({ collections: [...state.collections, collection] }));
         return collection;
+      },
+
+      syncPlaceCountry: (placeId) => {
+        const place = get().places.find((p) => p.id === placeId);
+        if (!place) return;
+        const countryName = detectCountry(place);
+        const countryCollections = get().collections.filter(
+          (c) => c.tripId === place.tripId && c.isCountryList,
+        );
+        let targetId = countryCollections.find((c) => c.countryName === countryName)?.id ?? null;
+        if (countryName && !targetId) {
+          const collection: Collection = {
+            id: makeId(),
+            tripId: place.tripId,
+            name: countryName,
+            isCountryList: true,
+            countryName,
+            createdAt: Date.now(),
+          };
+          set((state) => ({ collections: [...state.collections, collection] }));
+          targetId = collection.id;
+        }
+        const otherCountryIds = new Set(
+          countryCollections.filter((c) => c.id !== targetId).map((c) => c.id),
+        );
+        set((state) => ({
+          places: state.places.map((p) => {
+            if (p.id !== placeId) return p;
+            const kept = p.collectionIds.filter((id) => !otherCountryIds.has(id));
+            const withTarget = targetId && !kept.includes(targetId) ? [...kept, targetId] : kept;
+            return { ...p, collectionIds: withTarget };
+          }),
+        }));
+        // Auto country lists are fully derived — delete any that lost
+        // their last member, on this board or any other (e.g. after a
+        // board move away from it).
+        set((state) => {
+          const stillUsed = new Set(state.places.flatMap((p) => p.collectionIds));
+          const collections = state.collections.filter((c) => !c.isCountryList || stillUsed.has(c.id));
+          return collections.length === state.collections.length ? {} : { collections };
+        });
       },
     }),
     { name: "peragra-store" },
