@@ -3,13 +3,15 @@ import { PLACE_CATEGORIES, type Collection, type Place } from "../types";
 import { useStore } from "../store/useStore";
 import { EditPlaceModal } from "./EditPlaceModal";
 import { googleMapsUrl } from "../lib/googleMapsUrl";
-import { geocodePlaceByAddressOrName } from "../lib/geocode";
+import { geocodePlace, geocodePlaceByAddressOrName } from "../lib/geocode";
+import { guessNearestAddress } from "../lib/aiExtract";
 import { kakaoMapUrl } from "../lib/kakaoMapUrl";
 import { naverMapUrl } from "../lib/naverMapUrl";
 import { tmapUrl } from "../lib/tmapUrl";
 import { openCustomSchemeUrl } from "../lib/customSchemeUrl";
 import { isInstagramLink, normalizeLinkHref } from "../lib/linkUrl";
 import { isPlaceOutsideKorea } from "../lib/mapProviderPolicy";
+import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
 
 function formatVisitedDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString(undefined, {
@@ -62,6 +64,7 @@ export function PlaceCard({
   const togglePlaceCollection = useStore((s) => s.togglePlaceCollection);
   const setPlaceCoords = useStore((s) => s.setPlaceCoords);
   const allPlaces = useStore((s) => s.places);
+  const apiKey = useAISettingsStore(selectActiveApiKey);
   const [showCollections, setShowCollections] = useState(false);
   const [showMapMenu, setShowMapMenu] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -74,12 +77,39 @@ export function PlaceCard({
   // switching map providers in Settings, or because this fix's own
   // geocodePlaceByAddressOrName fallback (try the name when the address
   // text doesn't resolve) wasn't in effect the first time this ran.
+  //
+  // Falls back to the same AI nearest-address estimate AddPlaceModal/
+  // EditPlaceModal already use on a fresh geocode failure — without this,
+  // retrying an address real geocoders simply have no data for (a small
+  // business Nominatim/Google/Naver has never indexed) reruns the exact
+  // same query and fails the exact same way every time.
   async function retryGeocode() {
     setIsRetryingGeocode(true);
     try {
       const siblingPlaces = allPlaces.filter((p) => p.tripId === place.tripId && p.id !== place.id);
       const result = await geocodePlaceByAddressOrName(place, destination, siblingPlaces);
-      setPlaceCoords(place.id, result, result ? "located" : "failed");
+      if (result) {
+        setPlaceCoords(place.id, result, "located");
+        return;
+      }
+
+      if (apiKey) {
+        const guessedAddress = await guessNearestAddress(destination, {
+          name: place.name,
+          address: place.address || null,
+          telephone: place.phone || null,
+          notes: place.notes || null,
+        }).catch(() => null);
+        if (guessedAddress) {
+          const estimate = await geocodePlace(guessedAddress, destination).catch(() => null);
+          if (estimate) {
+            setPlaceCoords(place.id, estimate, "estimated");
+            return;
+          }
+        }
+      }
+
+      setPlaceCoords(place.id, null, "failed");
     } catch {
       setPlaceCoords(place.id, null, "failed");
     } finally {

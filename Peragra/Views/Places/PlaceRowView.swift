@@ -307,6 +307,11 @@ struct PlaceRowView: View {
         return String(format: "%.1f km", meters / 1000)
     }
 
+    /// Falls back to the same AI nearest-address estimate AddPlaceSheet/
+    /// EditPlaceSheet already use on a fresh geocode failure — without
+    /// this, retrying an address real geocoders simply have no data for
+    /// (a small business Nominatim/Google/Naver has never indexed) reruns
+    /// the exact same query and fails the exact same way every time.
     private func retryGeocode() async {
         isRetryingGeocode = true
         defer { isRetryingGeocode = false }
@@ -317,9 +322,33 @@ struct PlaceRowView: View {
             place.latitude = result.latitude
             place.longitude = result.longitude
             place.geocodeStatus = .located
-        } else {
-            place.geocodeStatus = .failed
+            place.syncCountryList(context: modelContext)
+            return
         }
+
+        if AISettings.shared.activeAPIKey != nil {
+            do {
+                let guessedAddress = try await AIExtractionService.guessNearestAddress(
+                    destination: destination,
+                    name: place.name,
+                    address: place.address.isEmpty ? nil : place.address,
+                    telephone: place.phone?.isEmpty == false ? place.phone : nil,
+                    notes: place.notes.isEmpty ? nil : place.notes
+                )
+                if let guessedAddress,
+                   let estimate = await GeocodingService.geocode(query: guessedAddress, contextHint: destination) {
+                    place.latitude = estimate.latitude
+                    place.longitude = estimate.longitude
+                    place.geocodeStatus = .estimated
+                    place.syncCountryList(context: modelContext)
+                    return
+                }
+            } catch {
+                // fall through to .failed below
+            }
+        }
+
+        place.geocodeStatus = .failed
         place.syncCountryList(context: modelContext)
     }
 }
