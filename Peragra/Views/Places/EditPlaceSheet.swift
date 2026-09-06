@@ -490,10 +490,9 @@ struct EditPlaceSheet: View {
     /// approximate. Only `.failed` once both the real geocode and the AI
     /// estimate come up empty (or there's no API key to try at all).
     private func geocodeAndStore(name: String, address: String, phone: String, notes: String) async {
-        let query = address.isEmpty ? name : address
         let destination = place.trip?.destination
 
-        if let result = await GeocodingService.geocode(query: query, contextHint: destination) {
+        if let result = await GeocodingService.geocode(name: name, address: address, contextHint: destination) {
             place.latitude = result.latitude
             place.longitude = result.longitude
             place.geocodeStatus = .located

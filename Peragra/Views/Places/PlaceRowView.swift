@@ -18,6 +18,7 @@ struct PlaceRowView: View {
     @State private var showingEdit = false
     @State private var showingCopiedBadge = false
     @State private var notesExpanded = false
+    @State private var isRetryingGeocode = false
 
     /// Notes past this length get a "Show more" toggle instead of always
     /// stretching the row to fit — long enough that a short one-line note
@@ -94,9 +95,26 @@ struct PlaceRowView: View {
             }
 
             if place.geocodeStatus == .failed {
-                Label("Couldn't locate this on the map — try a more specific address.", systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
+                HStack(spacing: 6) {
+                    Label("Couldn't locate this on the map — try a more specific address.", systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Spacer(minLength: 0)
+                    // Lets a failed pin be retried without editing the
+                    // address — e.g. after switching map providers in
+                    // Settings, or because GeocodingService's own
+                    // address-then-name fallback wasn't in effect the
+                    // first time this ran.
+                    if isRetryingGeocode {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Button("Retry") {
+                            Task { await retryGeocode() }
+                        }
+                        .font(.caption.weight(.medium))
+                        .buttonStyle(.plain)
+                    }
+                }
             }
 
             if place.geocodeStatus == .estimated {
@@ -230,6 +248,18 @@ struct PlaceRowView: View {
             return "\(Int(meters.rounded())) m"
         }
         return String(format: "%.1f km", meters / 1000)
+    }
+
+    private func retryGeocode() async {
+        isRetryingGeocode = true
+        defer { isRetryingGeocode = false }
+        if let result = await GeocodingService.geocode(name: place.name, address: place.address, contextHint: destination) {
+            place.latitude = result.latitude
+            place.longitude = result.longitude
+            place.geocodeStatus = .located
+        } else {
+            place.geocodeStatus = .failed
+        }
     }
 }
 

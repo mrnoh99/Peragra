@@ -100,6 +100,34 @@ export async function geocodePlace(
   return geocodeWithNominatim(fullQuery);
 }
 
+/**
+ * Tries geocoding a place's own address text first (when it has one),
+ * then falls back to geocoding by its name alone. An address-focused
+ * geocoder (Nominatim, or Google's Geocoding API — a different, stricter
+ * product than Google Maps' own consumer search) is much better at
+ * matching a well-known landmark by its *name* than at parsing a vague,
+ * informal, or incomplete address string — e.g. a private island's
+ * garden with no real street address of its own, which the interactive
+ * Google Maps app still finds by name even though the Geocoding API
+ * rejects its address text outright.
+ */
+export async function geocodePlaceByAddressOrName(
+  place: { name: string; address: string },
+  contextHint?: string,
+): Promise<GeocodeResult | null> {
+  const address = place.address.trim();
+  const name = place.name.trim();
+
+  if (address) {
+    const result = await geocodePlace(address, contextHint);
+    if (result) return result;
+  }
+  if (name) {
+    return geocodePlace(name, contextHint);
+  }
+  return null;
+}
+
 export interface ReverseGeocodeResult {
   address: string;
   // Best-effort — only set when the coordinate resolved to an actual

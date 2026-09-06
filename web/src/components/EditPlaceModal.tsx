@@ -10,7 +10,7 @@ import {
 } from "../lib/aiExtract";
 import { readPhotoExif } from "../lib/photoExif";
 import { getCurrentLocation } from "../lib/currentLocation";
-import { geocodePlace, reverseGeocode } from "../lib/geocode";
+import { geocodePlace, geocodePlaceByAddressOrName, reverseGeocode } from "../lib/geocode";
 import { searchNearbyPlaces, type NearbyPlaceCandidate } from "../lib/nearbyPlaces";
 import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
 import { useStore } from "../store/useStore";
@@ -381,10 +381,12 @@ export function EditPlaceModal({
       // Re-geocode when the address changed, or when the place moved to
       // a different board — the same address text can resolve
       // differently once it's disambiguated against a new destination.
-      const query = trimmedAddress || trimmedName;
       let located = false;
       try {
-        const result = await geocodePlace(query, effectiveDestination);
+        const result = await geocodePlaceByAddressOrName(
+          { name: trimmedName, address: trimmedAddress },
+          effectiveDestination,
+        );
         if (result) {
           setPlaceCoords(place.id, { lat: result.lat, lng: result.lng }, "located");
           located = true;

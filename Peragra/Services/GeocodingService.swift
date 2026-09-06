@@ -67,6 +67,27 @@ enum GeocodingService {
         }
     }
 
+    /// Tries geocoding a place's own address text first (when it has
+    /// one), then falls back to geocoding by its name alone. An
+    /// address-focused geocoder is much better at matching a well-known
+    /// landmark by its *name* than at parsing a vague, informal, or
+    /// incomplete address string — e.g. a private island's garden with
+    /// no real street address of its own, which the interactive Google
+    /// Maps app still finds by name even though the Geocoding API
+    /// rejects its address text outright.
+    static func geocode(name: String, address: String, contextHint: String?) async -> Result? {
+        let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if !trimmedAddress.isEmpty, let result = await geocode(query: trimmedAddress, contextHint: contextHint) {
+            return result
+        }
+        if !trimmedName.isEmpty {
+            return await geocode(query: trimmedName, contextHint: contextHint)
+        }
+        return nil
+    }
+
     /// Reverse geocoding (coordinate -> address/name), for turning a GPS
     /// fix read off an on-site photo into something readable to fill in a
     /// place's address (and, best-effort, its name) automatically. Same

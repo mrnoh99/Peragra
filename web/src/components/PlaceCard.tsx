@@ -3,6 +3,7 @@ import { PLACE_CATEGORIES, type Collection, type Place } from "../types";
 import { useStore } from "../store/useStore";
 import { EditPlaceModal } from "./EditPlaceModal";
 import { googleMapsUrl } from "../lib/googleMapsUrl";
+import { geocodePlaceByAddressOrName } from "../lib/geocode";
 import { kakaoMapUrl } from "../lib/kakaoMapUrl";
 import { naverMapUrl } from "../lib/naverMapUrl";
 import { tmapUrl } from "../lib/tmapUrl";
@@ -53,12 +54,30 @@ export function PlaceCard({
   const toggleFavorite = useStore((s) => s.toggleFavorite);
   const deletePlace = useStore((s) => s.deletePlace);
   const togglePlaceCollection = useStore((s) => s.togglePlaceCollection);
+  const setPlaceCoords = useStore((s) => s.setPlaceCoords);
   const [showCollections, setShowCollections] = useState(false);
   const [showMapMenu, setShowMapMenu] = useState(false);
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(false);
+  const [isRetryingGeocode, setIsRetryingGeocode] = useState(false);
   const longPressTimer = useRef<number | null>(null);
+
+  // Lets a failed pin be retried without editing the address — e.g. after
+  // switching map providers in Settings, or because this fix's own
+  // geocodePlaceByAddressOrName fallback (try the name when the address
+  // text doesn't resolve) wasn't in effect the first time this ran.
+  async function retryGeocode() {
+    setIsRetryingGeocode(true);
+    try {
+      const result = await geocodePlaceByAddressOrName(place, destination);
+      setPlaceCoords(place.id, result, result ? "located" : "failed");
+    } catch {
+      setPlaceCoords(place.id, null, "failed");
+    } finally {
+      setIsRetryingGeocode(false);
+    }
+  }
 
   const categoryLabel =
     PLACE_CATEGORIES.find((c) => c.value === place.category)?.label ?? "Other";
@@ -165,7 +184,16 @@ export function PlaceCard({
             )}
             {place.geocodeStatus === "failed" && (
               <p className="mt-1 text-xs text-amber-600">
-                Couldn't locate this on the map — try adding a more specific address.
+                Couldn't locate this on the map — try adding a more specific address, or{" "}
+                <button
+                  type="button"
+                  onClick={retryGeocode}
+                  disabled={isRetryingGeocode}
+                  className="font-medium underline hover:no-underline disabled:no-underline disabled:opacity-60"
+                >
+                  {isRetryingGeocode ? "Retrying…" : "retry"}
+                </button>
+                .
               </p>
             )}
             {place.geocodeStatus === "estimated" && (

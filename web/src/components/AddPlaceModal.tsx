@@ -3,7 +3,7 @@ import { Modal } from "./Modal";
 import { InstagramEmbed } from "./InstagramEmbed";
 import { readPhotoExif } from "../lib/photoExif";
 import { getCurrentLocation } from "../lib/currentLocation";
-import { geocodePlace, reverseGeocode } from "../lib/geocode";
+import { geocodePlace, geocodePlaceByAddressOrName, reverseGeocode } from "../lib/geocode";
 import { searchNearbyPlaces, type NearbyPlaceCandidate } from "../lib/nearbyPlaces";
 import { isInstagramPostUrl, normalizeInstagramUrl } from "../lib/instagram";
 import {
@@ -494,9 +494,8 @@ export function AddPlaceModal({
       return;
     }
 
-    const query = row.address.trim() || row.name.trim();
     try {
-      const result = await geocodePlace(query, destination);
+      const result = await geocodePlaceByAddressOrName(row, destination);
       if (result) {
         setPlaceCoords(placeId, { lat: result.lat, lng: result.lng }, "located");
         return;

@@ -896,9 +896,8 @@ struct AddPlaceSheet: View {
 
         let trimmedAddress = row.address.trimmingCharacters(in: .whitespaces)
         let trimmedName = row.name.trimmingCharacters(in: .whitespaces)
-        let query = trimmedAddress.isEmpty ? trimmedName : trimmedAddress
 
-        if let result = await GeocodingService.geocode(query: query, contextHint: trip.destination) {
+        if let result = await GeocodingService.geocode(name: trimmedName, address: trimmedAddress, contextHint: trip.destination) {
             place.latitude = result.latitude
             place.longitude = result.longitude
             place.geocodeStatus = .located
