@@ -66,14 +66,14 @@ export function TripsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Your boards</h1>
           <p className="mt-1 text-sm text-neutral-500">
             Save the places you find — from Instagram, photos, or a map — and visit them later.
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             to="/all-places"
             className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
@@ -85,13 +85,13 @@ export function TripsPage() {
             title="Add a board someone shared with you"
             className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
           >
-            ⬇️ Import board
+            ⬇️ Import
           </button>
           <button
             onClick={() => setShowCreate(true)}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
           >
-            + New board
+            + New
           </button>
         </div>
       </div>
