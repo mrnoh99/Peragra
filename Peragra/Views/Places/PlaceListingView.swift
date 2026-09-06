@@ -20,8 +20,8 @@ struct PlaceListingView: View {
     @State private var isSelecting = false
     @State private var selectedIDs: Set<UUID> = []
     @State private var placePendingDelete: Place?
-    @State private var shareMessage: String?
-    @State private var shareFileURL: URL?
+    @State private var exportMessage: String?
+    @State private var exportFileURL: URL?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -88,7 +88,7 @@ struct PlaceListingView: View {
                 }
             }
         }
-        .onChange(of: selectedIDs) { _, _ in refreshShareFile() }
+        .onChange(of: selectedIDs) { _, _ in refreshExportFile() }
         .safeAreaInset(edge: .bottom) {
             if isSelecting {
                 bulkActionBar
@@ -199,19 +199,19 @@ struct PlaceListingView: View {
                 } label: {
                     Label("Copy as Text", systemImage: "doc.on.doc")
                 }
-                if let shareFileURL {
-                    ShareLink(item: shareFileURL) {
+                if let exportFileURL {
+                    ShareLink(item: exportFileURL) {
                         Label("Share as File", systemImage: "doc")
                     }
                 }
             } label: {
-                Label("Share", systemImage: "square.and.arrow.up")
+                Label("Export", systemImage: "square.and.arrow.up")
                     .font(.subheadline.weight(.medium))
             }
             .disabled(selectedIDs.isEmpty)
 
-            if let shareMessage {
-                Text(shareMessage)
+            if let exportMessage {
+                Text(exportMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -223,26 +223,26 @@ struct PlaceListingView: View {
     /// render time rather than generated on tap the way a plain Button's
     /// action can, and ties the (cheap, small) JSON write to a real
     /// change instead of every unrelated re-render.
-    private func refreshShareFile() {
+    private func refreshExportFile() {
         guard !selectedIDs.isEmpty else {
-            shareFileURL = nil
+            exportFileURL = nil
             return
         }
         let selected = places.filter { selectedIDs.contains($0.id) }
-        shareFileURL = SharePlaces.writeTempFile(SharePlaces.buildPayload(from: selected))
+        exportFileURL = SharePlaces.writeTempFile(SharePlaces.buildPayload(from: selected))
     }
 
     private func copySelectedAsText() {
         let selected = places.filter { selectedIDs.contains($0.id) }
         guard let text = try? SharePlaces.toText(SharePlaces.buildPayload(from: selected)) else {
-            shareMessage = "Couldn't prepare that for copying."
+            exportMessage = "Couldn't prepare that for copying."
             return
         }
         UIPasteboard.general.string = text
-        shareMessage = "Copied \(selected.count) place\(selected.count == 1 ? "" : "s") — paste it anywhere to share."
+        exportMessage = "Copied \(selected.count) place\(selected.count == 1 ? "" : "s") — paste it anywhere to share."
         Task {
             try? await Task.sleep(for: .seconds(4))
-            shareMessage = nil
+            exportMessage = nil
         }
     }
 

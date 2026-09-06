@@ -398,7 +398,7 @@ struct TripDetailView: View {
     /// board's place count changes — ShareLink needs its item ready at
     /// render time rather than generated on tap the way a plain
     /// Button's action can. Exports every place currently on this
-    /// board (not a bulk selection — see PlaceListingView's own "Share"
+    /// board (not a bulk selection — see PlaceListingView's own "Export"
     /// for that), using the same place-card share format used
     /// elsewhere in the app: coordinates/visited/favorite/list
     /// membership are stripped, since this is for handing places to

@@ -85,7 +85,7 @@ export function TripDetailPage() {
   }
 
   // Exports every place currently on this board (not just a bulk
-  // selection — see ListingView's own "Share…" for that) as the same
+  // selection — see ListingView's own "Export…" for that) as the same
   // place-card share format used elsewhere in the app. Unlike exporting
   // the whole board (Export board, on the boards list page), this
   // strips coordinates/visited/favorite/list membership, since it's

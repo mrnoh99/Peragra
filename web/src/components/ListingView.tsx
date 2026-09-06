@@ -29,8 +29,8 @@ export function ListingView({
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showListPicker, setShowListPicker] = useState(false);
-  const [showSharePicker, setShowSharePicker] = useState(false);
-  const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [showExportPicker, setShowExportPicker] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
   const togglePlacesCollection = useStore((s) => s.togglePlacesCollection);
   const movePlacesToBoard = useStore((s) => s.movePlacesToBoard);
@@ -96,12 +96,12 @@ export function ListingView({
     const text = sharedPlacesToText(buildSharedPlacesPayload(selected));
     try {
       await navigator.clipboard.writeText(text);
-      setShareMessage(`Copied ${selected.length} place${selected.length === 1 ? "" : "s"} — paste it anywhere to share.`);
+      setExportMessage(`Copied ${selected.length} place${selected.length === 1 ? "" : "s"} — paste it anywhere to share.`);
     } catch {
-      setShareMessage("Couldn't copy to the clipboard.");
+      setExportMessage("Couldn't copy to the clipboard.");
     }
-    setShowSharePicker(false);
-    window.setTimeout(() => setShareMessage(null), 4000);
+    setShowExportPicker(false);
+    window.setTimeout(() => setExportMessage(null), 4000);
   }
 
   async function saveSelectedAsFile() {
@@ -109,14 +109,14 @@ export function ListingView({
     try {
       const result = await saveSharedPlacesFile(buildSharedPlacesPayload(selected));
       if (result !== "cancelled") {
-        setShareMessage(`Saved ${selected.length} place${selected.length === 1 ? "" : "s"} to a file.`);
-        window.setTimeout(() => setShareMessage(null), 4000);
+        setExportMessage(`Saved ${selected.length} place${selected.length === 1 ? "" : "s"} to a file.`);
+        window.setTimeout(() => setExportMessage(null), 4000);
       }
     } catch {
-      setShareMessage("Couldn't save the file.");
-      window.setTimeout(() => setShareMessage(null), 4000);
+      setExportMessage("Couldn't save the file.");
+      window.setTimeout(() => setExportMessage(null), 4000);
     }
-    setShowSharePicker(false);
+    setShowExportPicker(false);
   }
 
   return (
@@ -226,13 +226,13 @@ export function ListingView({
           <div className="relative">
             <button
               type="button"
-              onClick={() => setShowSharePicker((v) => !v)}
+              onClick={() => setShowExportPicker((v) => !v)}
               disabled={selectedIds.size === 0}
               className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
             >
-              📤 Share… {showSharePicker ? "▲" : "▼"}
+              📤 Export… {showExportPicker ? "▲" : "▼"}
             </button>
-            {showSharePicker && (
+            {showExportPicker && (
               <div className="absolute left-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
                 <button
                   type="button"
@@ -251,7 +251,7 @@ export function ListingView({
               </div>
             )}
           </div>
-          {shareMessage && <span className="text-xs text-neutral-500">{shareMessage}</span>}
+          {exportMessage && <span className="text-xs text-neutral-500">{exportMessage}</span>}
         </div>
       )}
 
