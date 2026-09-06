@@ -6,6 +6,7 @@ import { getCurrentLocation } from "../lib/currentLocation";
 import { geocodePlace, geocodePlaceByAddressOrName, reverseGeocode } from "../lib/geocode";
 import { searchNearbyPlaces, type NearbyPlaceCandidate } from "../lib/nearbyPlaces";
 import { isInstagramPostUrl, normalizeInstagramUrl } from "../lib/instagram";
+import { isInstagramLink, normalizeLinkHref } from "../lib/linkUrl";
 import {
   extractPlacesFromImage,
   extractPlacesFromImages,
@@ -226,6 +227,7 @@ export function AddPlaceModal({
       address: string | null;
       telephone?: string | null;
       notes?: string | null;
+      website?: string | null;
     }[],
   ) {
     const usable = places.filter((p) => p.name);
@@ -237,6 +239,7 @@ export function AddPlaceModal({
           address: p.address ?? "",
           phone: p.telephone ?? "",
           notes: p.notes ?? "",
+          link: p.website ?? "",
         }),
       );
       setRows(newRows);
@@ -424,6 +427,7 @@ export function AddPlaceModal({
               address: p.address ?? "",
               phone: p.telephone ?? "",
               notes: p.notes ?? "",
+              link: p.website ?? "",
               manualLat: location?.lat,
               manualLng: location?.lng,
               capturedAt: capturedAt ?? undefined,
@@ -872,6 +876,16 @@ export function AddPlaceModal({
                       placeholder="Instagram or website link (optional)"
                       className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
+                    {row.link.trim() && (
+                      <a
+                        href={normalizeLinkHref(row.link.trim())}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block text-xs font-medium text-brand-600 underline"
+                      >
+                        {isInstagramLink(row.link.trim()) ? "📷 Open in Instagram" : "🔗 Open webpage"}
+                      </a>
+                    )}
                     {row.manualLat !== undefined && (
                       <p className="text-xs text-neutral-400">📍 Using a captured location</p>
                     )}

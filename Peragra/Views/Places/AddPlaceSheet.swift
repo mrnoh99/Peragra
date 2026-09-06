@@ -79,6 +79,7 @@ struct AddPlaceSheet: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     @State private var instagramInput = ""
     @State private var notes = ""
@@ -483,6 +484,16 @@ struct AddPlaceSheet: View {
                     .font(.subheadline)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                if !row.wrappedValue.link.trimmingCharacters(in: .whitespaces).isEmpty,
+                   let url = LinkURL.normalize(row.wrappedValue.link.trimmingCharacters(in: .whitespaces)) {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        Text(LinkURL.isInstagram(row.wrappedValue.link) ? "📷 Open in Instagram" : "🔗 Open webpage")
+                            .font(.caption.weight(.medium))
+                    }
+                    .buttonStyle(.plain)
+                }
                 if row.wrappedValue.manualLatitude != nil {
                     Label("Using a captured location", systemImage: "location.fill")
                         .font(.caption2)
@@ -536,7 +547,7 @@ struct AddPlaceSheet: View {
     }
 
     private func replaceRows(
-        with places: [(name: String?, address: String?, telephone: String?, notes: String?)]
+        with places: [(name: String?, address: String?, telephone: String?, notes: String?, website: String?)]
     ) {
         let usable = places.filter { $0.name != nil }
         if !usable.isEmpty {
@@ -545,7 +556,8 @@ struct AddPlaceSheet: View {
                     name: place.name ?? "",
                     address: place.address ?? "",
                     phone: place.telephone ?? "",
-                    notes: place.notes ?? ""
+                    notes: place.notes ?? "",
+                    link: place.website ?? ""
                 )
             }
         }
@@ -626,7 +638,7 @@ struct AddPlaceSheet: View {
                 aiProgress = (current: index + 1, total: screenshotDatas.count)
             }
             replaceRows(
-                with: allResults.map { (name: $0.name as String?, address: $0.address, telephone: $0.telephone, notes: $0.notes) }
+                with: allResults.map { (name: $0.name as String?, address: $0.address, telephone: $0.telephone, notes: $0.notes, website: $0.website) }
             )
         } catch {
             extractResultMessage = nil
@@ -754,6 +766,7 @@ struct AddPlaceSheet: View {
                     address: place.address ?? "",
                     phone: place.telephone ?? "",
                     notes: place.notes ?? "",
+                    link: place.website ?? "",
                     manualLatitude: coordinate?.latitude,
                     manualLongitude: coordinate?.longitude,
                     capturedAt: capturedAt

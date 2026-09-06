@@ -34,6 +34,7 @@ struct EditPlaceSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openURL) private var openURL
     @Query(sort: \Trip.createdAt, order: .reverse) private var allTrips: [Trip]
 
     @State private var name: String
@@ -127,6 +128,16 @@ struct EditPlaceSheet: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
+                    if !link.trimmingCharacters(in: .whitespaces).isEmpty,
+                       let url = LinkURL.normalize(link.trimmingCharacters(in: .whitespaces)) {
+                        Button {
+                            openURL(url)
+                        } label: {
+                            Text(LinkURL.isInstagram(link) ? "📷 Open in Instagram" : "🔗 Open webpage")
+                                .font(.caption.weight(.medium))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
 
                 Section {
@@ -294,6 +305,11 @@ struct EditPlaceSheet: View {
                             }
                             if let telephone = mapScreenshotResult.telephone {
                                 Text(telephone)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let website = mapScreenshotResult.website {
+                                Text(website)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -619,6 +635,7 @@ struct EditPlaceSheet: View {
                 .filter { !$0.isEmpty }
                 .joined(separator: "\n\n")
         }
+        if let resultWebsite = mapScreenshotResult.website { link = resultWebsite }
         dismissMapScreenshotResult()
     }
 
@@ -700,6 +717,10 @@ struct EditPlaceSheet: View {
             if let foundNotes = found.notes {
                 let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
                 notes = trimmedNotes.isEmpty ? foundNotes : "\(trimmedNotes)\n\n\(foundNotes)"
+                filledSomething = true
+            }
+            if link.trimmingCharacters(in: .whitespaces).isEmpty, let foundWebsite = found.website {
+                link = foundWebsite
                 filledSomething = true
             }
         }

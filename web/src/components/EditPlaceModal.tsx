@@ -12,6 +12,7 @@ import { readPhotoExif } from "../lib/photoExif";
 import { getCurrentLocation } from "../lib/currentLocation";
 import { geocodePlace, geocodePlaceByAddressOrName, reverseGeocode } from "../lib/geocode";
 import { searchNearbyPlaces, type NearbyPlaceCandidate } from "../lib/nearbyPlaces";
+import { isInstagramLink, normalizeLinkHref } from "../lib/linkUrl";
 import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type Place, type PlaceCategory } from "../types";
@@ -168,6 +169,7 @@ export function EditPlaceModal({
     if (mapScreenshotResult.notes) {
       setNotes((prev) => [prev.trim(), mapScreenshotResult.notes].filter(Boolean).join("\n\n"));
     }
+    if (mapScreenshotResult.website) setLink(mapScreenshotResult.website);
     setMapScreenshotResult(null);
     setMapScreenshotFile(null);
   }
@@ -266,6 +268,10 @@ export function EditPlaceModal({
       }
       if (found.notes) {
         setNotes((prev) => [prev.trim(), found.notes].filter(Boolean).join("\n\n"));
+        filledSomething = true;
+      }
+      if (!link.trim() && found.website) {
+        setLink(found.website);
         filledSomething = true;
       }
     }
@@ -652,6 +658,9 @@ export function EditPlaceModal({
                 {mapScreenshotResult.telephone && (
                   <span className="block text-neutral-400">{mapScreenshotResult.telephone}</span>
                 )}
+                {mapScreenshotResult.website && (
+                  <span className="block text-neutral-400">{mapScreenshotResult.website}</span>
+                )}
               </div>
               <div className="flex gap-2">
                 <button
@@ -721,6 +730,16 @@ export function EditPlaceModal({
             placeholder="Instagram or website link"
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
+          {link.trim() && (
+            <a
+              href={normalizeLinkHref(link.trim())}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 inline-block text-xs font-medium text-brand-600 underline"
+            >
+              {isInstagramLink(link.trim()) ? "📷 Open in Instagram" : "🔗 Open webpage"}
+            </a>
+          )}
         </div>
 
         <div>

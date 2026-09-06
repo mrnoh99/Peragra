@@ -81,22 +81,19 @@ final class Place {
         instagramURLString.flatMap(URL.init(string:))
     }
 
-    /// The manually-entered link, normalized with a "https://" prefix if
-    /// the person typed one without a scheme (e.g. "instagram.com/x") —
-    /// otherwise URL(string:) treats it as a relative path rather than the
-    /// address it looks like.
+    /// The manually-entered/AI-extracted link, normalized with a
+    /// "https://" prefix if it was given without a scheme (e.g.
+    /// "instagram.com/x") — see LinkURL.
     var linkURL: URL? {
-        guard let linkURLString, !linkURLString.isEmpty else { return nil }
-        if linkURLString.range(of: "^[a-zA-Z][a-zA-Z0-9+.-]*://", options: .regularExpression) != nil {
-            return URL(string: linkURLString)
-        }
-        return URL(string: "https://\(linkURLString)")
+        guard let linkURLString else { return nil }
+        return LinkURL.normalize(linkURLString)
     }
 
-    /// Whether the manually-entered link points at Instagram — used to
-    /// label it "Instagram" instead of the generic "Website" in the UI.
+    /// Whether the link points at Instagram — used to label it
+    /// "Instagram" instead of the generic "Website" in the UI.
     var linkIsInstagram: Bool {
-        linkURL?.host?.replacingOccurrences(of: "^www\\.", with: "", options: .regularExpression) == "instagram.com"
+        guard let linkURLString else { return false }
+        return LinkURL.isInstagram(linkURLString)
     }
 
     var coordinate2D: (latitude: Double, longitude: Double)? {

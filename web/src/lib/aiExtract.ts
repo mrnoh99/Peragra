@@ -58,6 +58,13 @@ const PlacesSchema = z.object({
           "Any other detail about this specific place worth keeping (hours, price, a recommended " +
             "menu item, why it was recommended, a rating, etc.), as free text, or null if nothing else was said",
         ),
+      website: z
+        .string()
+        .nullable()
+        .describe(
+          "An Instagram profile/post URL or official website/homepage URL given for this specific " +
+            "place, exactly as written, or null if none was given",
+        ),
     }),
   ),
 });
@@ -67,6 +74,7 @@ export interface AIExtractedPlace {
   address: string | null;
   telephone: string | null;
   notes: string | null;
+  website: string | null;
 }
 
 export class AIExtractionError extends Error {}
@@ -83,12 +91,14 @@ const SYSTEM_PROMPT =
   "- notes: anything else relevant to that specific place — hours, price, a recommended " +
   "menu item, why it was recommended, a rating, and so on — as short free text, or null if " +
   "nothing else was said about it. Don't repeat the name/address/telephone here, and don't " +
-  "include generic caption text that isn't about this specific place (like unrelated hashtags).\n\n" +
+  "include generic caption text that isn't about this specific place (like unrelated hashtags).\n" +
+  "- website: an Instagram profile/post URL or official website/homepage URL given for this " +
+  "specific place, exactly as written, or null if none was given\n\n" +
   "Never guess or invent any of these — use null when something wasn't actually given. If " +
   "nothing in the text describes an actual place, return an empty list.\n\n" +
   "Respond with ONLY a single JSON object, no other text, no markdown code fence, matching " +
   'exactly this shape: {"places": [{"name": string, "address": string | null, ' +
-  '"telephone": string | null, "notes": string | null}]}';
+  '"telephone": string | null, "notes": string | null, "website": string | null}]}';
 
 /**
  * Appends a language instruction for the "notes" field to the extraction
@@ -106,7 +116,7 @@ function systemPromptForLanguage(basePrompt: string, languageCode: string): stri
   return (
     basePrompt +
     `\n\nWrite the "notes" field in ${language.label}, translating if the source text is in a ` +
-    'different language. Leave "name", "address", and "telephone" exactly as given in the source — never translate those.'
+    'different language. Leave "name", "address", "telephone", and "website" exactly as given in the source — never translate those.'
   );
 }
 
