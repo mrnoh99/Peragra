@@ -278,6 +278,14 @@ export function PlaceCard({
                   </div>
                 )}
               </div>
+              {place.phone && (
+                <a
+                  href={`tel:${place.phone.replace(/[^0-9+]/g, "")}`}
+                  className="inline-flex items-center gap-1 text-green-600 hover:underline"
+                >
+                  📞 Call
+                </a>
+              )}
               {place.instagramUrl && (
                 <a
                   href={place.instagramUrl}

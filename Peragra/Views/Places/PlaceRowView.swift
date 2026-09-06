@@ -127,6 +127,16 @@ struct PlaceRowView: View {
             }
 
             HStack(spacing: 14) {
+                if let phone = place.phone, !phone.isEmpty, let callURL = callURL(for: phone) {
+                    Button {
+                        openURL(callURL)
+                    } label: {
+                        Label("Call", systemImage: "phone")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.green)
+                    }
+                }
+
                 Menu {
                     if let mapsURL = GoogleMapsOpener.url(for: place, tripDestination: destination) {
                         Button {
@@ -248,6 +258,15 @@ struct PlaceRowView: View {
         return [place.address.isEmpty ? nil : place.address, phone]
             .compactMap { $0 }
             .joined(separator: " · ")
+    }
+
+    /// A "tel:" URL for calling this place's phone number — stripped down
+    /// to digits and a leading "+" first, since a URL can't contain the
+    /// spaces/parens/dashes a phone number is normally written with.
+    private func callURL(for phone: String) -> URL? {
+        let digits = phone.filter { $0.isNumber || $0 == "+" }
+        guard !digits.isEmpty else { return nil }
+        return URL(string: "tel:\(digits)")
     }
 
     /// Long-press copies "name, address" so it can be pasted straight into
