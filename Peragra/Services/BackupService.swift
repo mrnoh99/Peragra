@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 import UniformTypeIdentifiers
 
 /// Exports/restores the whole app's data (trips, places, lists) as one
