@@ -53,6 +53,7 @@
 		C2C9BD7BCF298521D33647B6 /* PlaceFilterBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB583D3A90CE85D33F3818BB /* PlaceFilterBar.swift */; };
 		4C81FABB20A2E8C839CCF11D /* PhotoMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */; };
 		D00C3A30175C411E81277965 /* BackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EAEE5772124F4FACF141F3 /* BackupService.swift */; };
+		D28E8F9727CD416E8196DB27 /* CloudBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BBBBCC2A0B34FCEADCDC732 /* CloudBackupService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -69,6 +70,7 @@
 		09344DE79832AE4337D0FDBA /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsSheet.swift; path = Peragra/Views/SettingsSheet.swift; sourceTree = "<group>"; };
 		15658DA193E448FF92443F65 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HelpView.swift; path = Peragra/Views/HelpView.swift; sourceTree = "<group>"; };
 		21B44480A4EA75D86D5BF876 /* PeragraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PeragraApp.swift; path = Peragra/App/PeragraApp.swift; sourceTree = "<group>"; };
+		9E6D1AFCE0734F87BD6B72B4 /* Peragra.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = Peragra.entitlements; path = Peragra/Peragra.entitlements; sourceTree = "<group>"; };
 		27B84F76ADB57E07BE44A068 /* TripsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TripsListView.swift; path = Peragra/Views/Trips/TripsListView.swift; sourceTree = "<group>"; };
 		028883BBF7824353869042DA /* AllPlacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AllPlacesView.swift; path = Peragra/Views/Trips/AllPlacesView.swift; sourceTree = "<group>"; };
 		38284761B40F598FFC15CD78 /* PlaceCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceCollection.swift; path = Peragra/Models/PlaceCollection.swift; sourceTree = "<group>"; };
@@ -103,6 +105,7 @@
 		EB583D3A90CE85D33F3818BB /* PlaceFilterBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceFilterBar.swift; path = Peragra/Views/Places/PlaceFilterBar.swift; sourceTree = "<group>"; };
 		B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PhotoMetadata.swift; path = Peragra/Services/PhotoMetadata.swift; sourceTree = "<group>"; };
 		A9EAEE5772124F4FACF141F3 /* BackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackupService.swift; path = Peragra/Services/BackupService.swift; sourceTree = "<group>"; };
+		6BBBBCC2A0B34FCEADCDC732 /* CloudBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CloudBackupService.swift; path = Peragra/Services/CloudBackupService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -132,6 +135,7 @@
 				B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */,
 				A9EAEE5772124F4FACF141F3 /* BackupService.swift */,
 				11E55049CCC51DDBE876FF2B /* AutoBackupService.swift */,
+				6BBBBCC2A0B34FCEADCDC732 /* CloudBackupService.swift */,
 				DDEC7178DEDD1F939938DFB8 /* LocationService.swift */,
 				5F07AD3AC900A5E9DEEC9127 /* KakaoMapOpener.swift */,
 				A46B7AEF579F0764C332223A /* KoreaRegion.swift */,
@@ -192,6 +196,7 @@
 			isa = PBXGroup;
 			children = (
 				21B44480A4EA75D86D5BF876 /* PeragraApp.swift */,
+				9E6D1AFCE0734F87BD6B72B4 /* Peragra.entitlements */,
 			);
 			name = App;
 			sourceTree = "<group>";
@@ -329,6 +334,7 @@
 				C2C9BD7BCF298521D33647B6 /* PlaceFilterBar.swift in Sources */,
 				4C81FABB20A2E8C839CCF11D /* PhotoMetadata.swift in Sources */,
 				D00C3A30175C411E81277965 /* BackupService.swift in Sources */,
+				D28E8F9727CD416E8196DB27 /* CloudBackupService.swift in Sources */,
 				B12C5E090088E25DEB914B9A /* LocationService.swift in Sources */,
 				C052B83134DFD7A8D22AA57A /* CameraCaptureView.swift in Sources */,
 				A9033BC47A48DEBA9EFF95A8 /* KakaoMapOpener.swift in Sources */,
@@ -368,6 +374,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Peragra/Peragra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -417,6 +424,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Peragra/Peragra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
 				GENERATE_INFOPLIST_FILE = YES;

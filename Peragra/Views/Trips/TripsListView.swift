@@ -10,6 +10,7 @@ struct TripsListView: View {
     @State private var showingSettings = false
     @State private var tripPendingDelete: Trip?
     @State private var tripPendingEdit: Trip?
+    @State private var showingCloudRestoreAlert = false
 
     var body: some View {
         NavigationStack {
@@ -105,18 +106,47 @@ struct TripsListView: View {
                 }
                 Button("Cancel", role: .cancel) { tripPendingDelete = nil }
             }
+            .alert("Restored From iCloud", isPresented: $showingCloudRestoreAlert) {
+                Button("OK") {}
+            } message: {
+                Text("Found a previous backup in iCloud and restored your boards and places automatically.")
+            }
         }
         // Checked on cold launch (.task, which .onChange alone wouldn't
         // catch — it only fires on a transition, not the initial value)
         // and every time the app returns to the foreground after that —
         // there's no reliable way to run this while the app isn't open
         // at all without a background-refresh entitlement this app
-        // doesn't have wired up.
-        .task { AutoBackupService.runIfDue(context: modelContext) }
+        // doesn't have wired up. The iCloud restore check runs first, so
+        // a legitimately empty fresh install doesn't get immediately
+        // overwritten by the backup call that follows it.
+        .task {
+            restoreFromCloudIfNeeded()
+            AutoBackupService.runIfDue(context: modelContext)
+            CloudBackupService.backup(context: modelContext)
+        }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 AutoBackupService.runIfDue(context: modelContext)
+                CloudBackupService.backup(context: modelContext)
+            } else if newPhase == .background {
+                // The most likely moment to be uninstalled next — worth
+                // one more up-to-date snapshot in iCloud right before
+                // that could happen.
+                CloudBackupService.backup(context: modelContext)
             }
+        }
+    }
+
+    /// If this device has no local data at all — most likely because the
+    /// app was just deleted and reinstalled — and a previous snapshot
+    /// exists in iCloud, restores it automatically rather than leaving
+    /// the person to notice everything is gone and dig through Settings
+    /// for the manual restore flow.
+    private func restoreFromCloudIfNeeded() {
+        guard trips.isEmpty, CloudBackupService.hasRestorableBackup() else { return }
+        if CloudBackupService.restoreIfAvailable(context: modelContext) {
+            showingCloudRestoreAlert = true
         }
     }
 
