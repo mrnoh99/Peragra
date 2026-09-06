@@ -1,0 +1,16 @@
+{
+  "name": "Peragra — Save What You Find",
+  "short_name": "Peragra",
+  "description": "Save the places you find on Instagram, in photos, or on a map, and actually visit them later.",
+  "start_url": "/Peragra/",
+  "scope": "/Peragra/",
+  "display": "standalone",
+  "background_color": "#f9532c",
+  "theme_color": "#f9532c",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/Peragra/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/Peragra/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/Peragra/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
