@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import CoreLocation
+import UIKit
 
 private enum DetailTab: String, CaseIterable {
     case listing = "Listing"
@@ -29,6 +30,8 @@ struct TripDetailView: View {
     @State private var showingImportPlaces = false
     @State private var showingAddList = false
     @State private var newListName = ""
+    @State private var shareBoardMessage: String?
+    @State private var shareBoardFileURL: URL?
     /// A place shows up while every currently-toggled-on list contains it
     /// (AND, not OR) — several lists can be active at once.
     @State private var activeCollectionIDs: Set<UUID> = []
@@ -262,11 +265,37 @@ struct TripDetailView: View {
                 Button { showingAddPlace = true } label: { Label("Add Places", systemImage: "plus") }
             }
             ToolbarItem(placement: .secondaryAction) {
+                Menu {
+                    Button {
+                        copyBoardAsText()
+                    } label: {
+                        Label("Copy as Text", systemImage: "doc.on.doc")
+                    }
+                    if let shareBoardFileURL {
+                        ShareLink(item: shareBoardFileURL) {
+                            Label("Share as File", systemImage: "doc")
+                        }
+                    }
+                } label: {
+                    Label("Share Board", systemImage: "square.and.arrow.up")
+                }
+            }
+            ToolbarItem(placement: .secondaryAction) {
                 Button { showingImportPlaces = true } label: { Label("Import Shared Places", systemImage: "square.and.arrow.down") }
             }
             ToolbarItem(placement: .secondaryAction) {
                 Button { showingAddList = true } label: { Label("New List", systemImage: "folder.badge.plus") }
             }
+        }
+        .task { refreshShareBoardFile() }
+        .onChange(of: places.count) { _, _ in refreshShareBoardFile() }
+        .alert("Board Shared", isPresented: Binding(
+            get: { shareBoardMessage != nil },
+            set: { if !$0 { shareBoardMessage = nil } }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(shareBoardMessage ?? "")
         }
         .sheet(isPresented: $showingAddPlace) {
             let defaultCollection = activeCollectionIDs.count == 1 ? collections.first(where: { activeCollectionIDs.contains($0.id) }) : nil
@@ -363,6 +392,29 @@ struct TripDetailView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             if highlightedPlaceID == placeID { highlightedPlaceID = nil }
         }
+    }
+
+    /// Regenerates the temp file ShareLink hands off whenever the
+    /// board's place count changes (a reasonable proxy for "something
+    /// about this board changed") — ShareLink needs its item ready at
+    /// render time rather than generated on tap the way a plain
+    /// Button's action can.
+    private func refreshShareBoardFile() {
+        guard let data = try? BackupService.exportBoard(trip) else {
+            shareBoardFileURL = nil
+            return
+        }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(BackupService.boardFilename(for: trip))
+        shareBoardFileURL = (try? data.write(to: url, options: .atomic)) != nil ? url : nil
+    }
+
+    private func copyBoardAsText() {
+        guard let data = try? BackupService.exportBoard(trip), let text = String(data: data, encoding: .utf8) else {
+            shareBoardMessage = "Couldn't prepare this board for copying."
+            return
+        }
+        UIPasteboard.general.string = text
+        shareBoardMessage = "Copied this board — paste it anywhere to share."
     }
 
     private func deleteCollection(_ collection: PlaceCollection) {

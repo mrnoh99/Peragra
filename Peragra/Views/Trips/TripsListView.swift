@@ -11,6 +11,7 @@ struct TripsListView: View {
     @State private var tripPendingDelete: Trip?
     @State private var tripPendingEdit: Trip?
     @State private var showingCloudRestoreAlert = false
+    @State private var showingImportBoard = false
 
     var body: some View {
         NavigationStack {
@@ -67,6 +68,13 @@ struct TripsListView: View {
                 }
                 ToolbarItem(placement: .secondaryAction) {
                     Button {
+                        showingImportBoard = true
+                    } label: {
+                        Label("Import Board", systemImage: "square.and.arrow.down.on.square")
+                    }
+                }
+                ToolbarItem(placement: .secondaryAction) {
+                    Button {
                         showingSettings = true
                     } label: {
                         Label("AI Settings", systemImage: "gearshape")
@@ -75,6 +83,9 @@ struct TripsListView: View {
             }
             .sheet(isPresented: $showingAddTrip) {
                 AddTripSheet()
+            }
+            .sheet(isPresented: $showingImportBoard) {
+                ImportBoardSheet()
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsSheet()

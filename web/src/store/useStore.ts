@@ -83,6 +83,14 @@ interface AppState {
    *  once on success never re-runs, so nothing else was ever going to
    *  trigger the sync for them. Safe/cheap to call on every app start. */
   syncAllPlaceCountries: () => void;
+
+  /** Adds board(s) from a parsed backup payload (see lib/backup.ts) as
+   *  new boards alongside whatever's already here — unlike restoring a
+   *  whole-app backup, which replaces everything, this generates fresh
+   *  ids for every trip/place/collection so it can't collide with
+   *  existing data (including re-importing the same shared board twice).
+   *  Returns the newly created trips. */
+  importBoardData: (data: { trips: Trip[]; places: Place[]; collections: Collection[] }) => Trip[];
 }
 
 export const useStore = create<AppState>()(
@@ -430,6 +438,40 @@ export const useStore = create<AppState>()(
 
       syncAllPlaceCountries: () => {
         for (const place of get().places) get().syncPlaceCountry(place.id);
+      },
+
+      importBoardData: (data) => {
+        const tripIdMap = new Map<string, string>();
+        const collectionIdMap = new Map<string, string>();
+
+        const newTrips: Trip[] = data.trips.map((t) => {
+          const id = makeId();
+          tripIdMap.set(t.id, id);
+          return { ...t, id };
+        });
+
+        const newCollections: Collection[] = data.collections.map((c) => {
+          const id = makeId();
+          collectionIdMap.set(c.id, id);
+          return { ...c, id, tripId: tripIdMap.get(c.tripId) ?? c.tripId };
+        });
+
+        const newPlaces: Place[] = data.places.map((p) => ({
+          ...p,
+          id: makeId(),
+          tripId: tripIdMap.get(p.tripId) ?? p.tripId,
+          collectionIds: p.collectionIds
+            .map((id) => collectionIdMap.get(id))
+            .filter((id): id is string => id !== undefined),
+        }));
+
+        set((state) => ({
+          trips: [...newTrips, ...state.trips],
+          collections: [...state.collections, ...newCollections],
+          places: [...newPlaces, ...state.places],
+        }));
+
+        return newTrips;
       },
     }),
     { name: "peragra-store" },

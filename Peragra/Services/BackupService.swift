@@ -118,6 +118,20 @@ enum BackupService {
         return "peragra_\(formatter.string(from: date))"
     }
 
+    /// Filename (with .json extension, unlike filename(at:) above which
+    /// is handed to .fileExporter and derives its own extension) for a
+    /// single board's export — see exportBoard below.
+    static func boardFilename(for trip: Trip, at date: Date = .now) -> String {
+        let slug = trip.name
+            .lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: "_")
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        return "peragra_board_\(slug.isEmpty ? "board" : slug)_\(formatter.string(from: date)).json"
+    }
+
     static func exportData(context: ModelContext) throws -> Data {
         let trips = try context.fetch(FetchDescriptor<Trip>())
         let places = try context.fetch(FetchDescriptor<Place>())
@@ -176,6 +190,137 @@ enum BackupService {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return try encoder.encode(backup)
+    }
+
+    /// Same BackupData shape as exportData, scoped to just one board —
+    /// its own places and lists, with real coordinates and visited/
+    /// favorite status intact (unlike sharing a handful of place cards,
+    /// which strips all of that as sender-board-specific). See
+    /// importBoard below for the receiving end.
+    static func exportBoard(_ trip: Trip) throws -> Data {
+        let backup = BackupData(
+            exportedAt: Date.now.timeIntervalSince1970 * 1000,
+            trips: [
+                BackupTrip(
+                    id: trip.id,
+                    name: trip.name,
+                    destination: trip.destination,
+                    coverEmoji: trip.coverEmoji,
+                    startDate: trip.startDate.map { dayFormatter.string(from: $0) },
+                    endDate: trip.endDate.map { dayFormatter.string(from: $0) },
+                    createdAt: trip.createdAt.timeIntervalSince1970 * 1000
+                ),
+            ],
+            places: trip.places.map { place in
+                BackupPlace(
+                    id: place.id,
+                    tripId: trip.id,
+                    name: place.name,
+                    category: place.categoryRaw,
+                    address: place.address,
+                    phone: place.phone,
+                    notes: place.notes,
+                    instagramUrl: place.instagramURLString,
+                    linkUrl: place.linkURLString,
+                    lat: place.latitude,
+                    lng: place.longitude,
+                    geocodeStatus: place.geocodeStatusRaw,
+                    visited: place.visited,
+                    visitedAt: place.visitedAt.map { $0.timeIntervalSince1970 * 1000 },
+                    favorite: place.favorite,
+                    collectionIds: place.collections.map(\.id),
+                    createdAt: place.createdAt.timeIntervalSince1970 * 1000
+                )
+            },
+            collections: trip.collections.map { collection in
+                BackupCollection(
+                    id: collection.id,
+                    tripId: trip.id,
+                    name: collection.name,
+                    isVisitedList: collection.isVisitedList,
+                    isFavoritesList: collection.isFavoritesList,
+                    isCountryList: collection.isCountryList,
+                    countryName: collection.countryName,
+                    createdAt: collection.createdAt.timeIntervalSince1970 * 1000
+                )
+            }
+        )
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(backup)
+    }
+
+    /// Adds board(s) from an already-parsed board/backup export as new
+    /// boards alongside whatever's already here — unlike restore, which
+    /// replaces everything and reuses the backup's own ids, this
+    /// generates a fresh id for every trip/place/list so it can't
+    /// collide with existing data (including re-importing the same
+    /// shared board twice). Takes the parsed struct rather than raw Data
+    /// since the caller (see ImportBoardSheet) already decoded it once
+    /// to show a preview before the person confirms. Returns the newly
+    /// created trips.
+    @discardableResult
+    static func importBoard(_ backup: BackupData, context: ModelContext) throws -> [Trip] {
+        guard backup.app == "peragra" else { throw BackupError.invalidFile }
+
+        var tripsByOldID: [UUID: Trip] = [:]
+        var newTrips: [Trip] = []
+        for backupTrip in backup.trips {
+            let trip = Trip(
+                name: backupTrip.name,
+                destination: backupTrip.destination,
+                coverEmoji: backupTrip.coverEmoji,
+                startDate: backupTrip.startDate.flatMap(dayFormatter.date(from:)),
+                endDate: backupTrip.endDate.flatMap(dayFormatter.date(from:))
+            )
+            trip.createdAt = Date(timeIntervalSince1970: backupTrip.createdAt / 1000)
+            context.insert(trip)
+            tripsByOldID[backupTrip.id] = trip
+            newTrips.append(trip)
+        }
+
+        var collectionsByOldID: [UUID: PlaceCollection] = [:]
+        for backupCollection in backup.collections {
+            guard let trip = tripsByOldID[backupCollection.tripId] else { continue }
+            let collection = PlaceCollection(
+                name: backupCollection.name,
+                trip: trip,
+                isVisitedList: backupCollection.isVisitedList,
+                isFavoritesList: backupCollection.isFavoritesList,
+                isCountryList: backupCollection.isCountryList,
+                countryName: backupCollection.countryName
+            )
+            collection.createdAt = Date(timeIntervalSince1970: backupCollection.createdAt / 1000)
+            context.insert(collection)
+            collectionsByOldID[backupCollection.id] = collection
+        }
+
+        for backupPlace in backup.places {
+            guard let trip = tripsByOldID[backupPlace.tripId] else { continue }
+            let place = Place(
+                name: backupPlace.name,
+                category: PlaceCategory(rawValue: backupPlace.category) ?? .other,
+                address: backupPlace.address,
+                phone: backupPlace.phone,
+                notes: backupPlace.notes,
+                instagramURLString: backupPlace.instagramUrl,
+                linkURLString: backupPlace.linkUrl,
+                trip: trip
+            )
+            place.latitude = backupPlace.lat
+            place.longitude = backupPlace.lng
+            place.geocodeStatusRaw = backupPlace.geocodeStatus
+            place.visited = backupPlace.visited
+            place.visitedAt = backupPlace.visitedAt.map { Date(timeIntervalSince1970: $0 / 1000) }
+            place.favorite = backupPlace.favorite
+            place.createdAt = Date(timeIntervalSince1970: backupPlace.createdAt / 1000)
+            place.collections = backupPlace.collectionIds.compactMap { collectionsByOldID[$0] }
+            context.insert(place)
+        }
+
+        try context.save()
+        return newTrips
     }
 
     /// Replaces every current trip/place/list with the backup's contents

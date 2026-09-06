@@ -19,10 +19,24 @@ export function buildBackup(trips: Trip[], places: Place[], collections: Collect
   return { app: "peragra", version: 1, exportedAt: Date.now(), trips, places, collections };
 }
 
-export function backupFilename(date = new Date()): string {
+function timestamp(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
-  const stamp = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
-  return `peragra_${stamp}.json`;
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+export function backupFilename(date = new Date()): string {
+  return `peragra_${timestamp(date)}.json`;
+}
+
+/** Same BackupData shape as the whole-app backup, just scoped to one
+ *  board — see useStore's importBoardData for the receiving end. */
+export function boardBackupFilename(tripName: string, date = new Date()): string {
+  const slug = tripName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return `peragra_board_${slug || "board"}_${timestamp(date)}.json`;
 }
 
 export function parseBackup(text: string): BackupData {
@@ -102,4 +116,10 @@ export async function saveJsonFile(
 /** Saves the whole-app backup — see saveJsonFile above. */
 export function saveBackupFile(data: BackupData): Promise<"saved" | "cancelled" | "downloaded"> {
   return saveJsonFile(data, backupFilename(), "Peragra backup");
+}
+
+/** Saves a single board's export — see saveJsonFile above and
+ *  useStore's importBoardData for the receiving end. */
+export function saveBoardFile(data: BackupData, tripName: string): Promise<"saved" | "cancelled" | "downloaded"> {
+  return saveJsonFile(data, boardBackupFilename(tripName), "Peragra board");
 }

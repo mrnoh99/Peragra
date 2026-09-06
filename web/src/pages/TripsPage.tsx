@@ -1,17 +1,20 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { EditBoardModal } from "../components/EditBoardModal";
+import { ImportBoardModal } from "../components/ImportBoardModal";
 import { Modal } from "../components/Modal";
 import { EMOJI_CHOICES } from "../lib/emojiChoices";
 import { useStore } from "../store/useStore";
 import type { Trip } from "../types";
 
 export function TripsPage() {
+  const navigate = useNavigate();
   const trips = useStore((s) => s.trips);
   const places = useStore((s) => s.places);
   const addTrip = useStore((s) => s.addTrip);
   const deleteTrip = useStore((s) => s.deleteTrip);
   const [showCreate, setShowCreate] = useState(false);
+  const [showImportBoard, setShowImportBoard] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
 
   const placeCountByTrip = useMemo(() => {
@@ -38,6 +41,13 @@ export function TripsPage() {
           >
             All places
           </Link>
+          <button
+            onClick={() => setShowImportBoard(true)}
+            title="Add a board someone shared with you"
+            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
+          >
+            ⬇️ Import board
+          </button>
           <button
             onClick={() => setShowCreate(true)}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
@@ -112,6 +122,16 @@ export function TripsPage() {
       )}
 
       {editingTrip && <EditBoardModal trip={editingTrip} onClose={() => setEditingTrip(null)} />}
+
+      {showImportBoard && (
+        <ImportBoardModal
+          onClose={() => setShowImportBoard(false)}
+          onImported={(tripId) => {
+            setShowImportBoard(false);
+            navigate(`/trips/${tripId}`);
+          }}
+        />
+      )}
     </div>
   );
 }
