@@ -58,6 +58,7 @@ export function PlaceCard({
   selected = false,
   onToggleSelect,
   distanceKm,
+  highlighted = false,
 }: {
   place: Place;
   collections: Collection[];
@@ -67,6 +68,9 @@ export function PlaceCard({
   onToggleSelect?: () => void;
   /** Shown as "N km away" when sorting by distance from a reference place. */
   distanceKm?: number;
+  /** Briefly outlined after being jumped to from a map marker's "View
+   *  place card" link — see ListingView's scroll-into-view effect. */
+  highlighted?: boolean;
 }) {
   const toggleVisited = useStore((s) => s.toggleVisited);
   const toggleFavorite = useStore((s) => s.toggleFavorite);
@@ -129,7 +133,10 @@ export function PlaceCard({
 
   return (
     <div
-      className="relative rounded-xl border border-black/5 bg-white p-4 shadow-sm"
+      id={`place-card-${place.id}`}
+      className={`relative rounded-xl border bg-white p-4 shadow-sm transition-shadow duration-500 ${
+        highlighted ? "border-brand-400 ring-2 ring-brand-400" : "border-black/5"
+      }`}
       onPointerDown={startLongPress}
       onPointerUp={cancelLongPress}
       onPointerLeave={cancelLongPress}

@@ -45,7 +45,17 @@ function FitBounds({ points }: { points: [number, number][] }) {
   return null;
 }
 
-export function LeafletMapView({ places, destination }: { places: Place[]; destination: string }) {
+export function LeafletMapView({
+  places,
+  destination,
+  onSelectPlace,
+}: {
+  places: Place[];
+  destination: string;
+  /** Called with a place's id when its marker's "View place card" link is
+   *  clicked — the parent switches to the Listing tab and scrolls to it. */
+  onSelectPlace: (placeId: string) => void;
+}) {
   const located = useMemo(
     () => places.filter((p): p is Place & { lat: number; lng: number } => p.lat !== null && p.lng !== null),
     [places],
@@ -93,6 +103,13 @@ export function LeafletMapView({ places, destination }: { places: Place[]; desti
                       {place.address && (
                         <p className="text-xs text-neutral-500">{place.address}</p>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => onSelectPlace(place.id)}
+                        className="mt-1 block text-xs font-medium text-brand-600 underline"
+                      >
+                        📋 View place card
+                      </button>
                       <div className="mt-1 flex flex-col items-start gap-0.5">
                         <a
                           href={googleMapsUrl(place, destination)}

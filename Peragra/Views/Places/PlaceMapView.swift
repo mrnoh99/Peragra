@@ -4,13 +4,17 @@ import MapKit
 struct PlaceMapView: View {
     let places: [Place]
     let destination: String
+    /// Called when a marker's "View Place Card" control is tapped —
+    /// switches to the Listing tab and scrolls to/highlights that place.
+    let onSelectPlace: (Place) -> Void
 
     // Explicit, so this view's access level never depends on Swift's
     // synthesized-memberwise-init rules around private stored properties
     // elsewhere in the type (bit us once already on AddPlaceSheet).
-    init(places: [Place], destination: String) {
+    init(places: [Place], destination: String, onSelectPlace: @escaping (Place) -> Void) {
         self.places = places
         self.destination = destination
+        self.onSelectPlace = onSelectPlace
     }
 
     @State private var cameraPosition: MapCameraPosition = .automatic
@@ -46,7 +50,16 @@ struct PlaceMapView: View {
                 )
                 .frame(maxHeight: .infinity)
             } else if mapSettings.isGoogleActive {
-                GoogleMapWebView(apiKey: mapSettings.effectiveGoogleMapsAPIKey, places: located.map(googleMarker), tripDestination: destination)
+                GoogleMapWebView(
+                    apiKey: mapSettings.effectiveGoogleMapsAPIKey,
+                    places: located.map(googleMarker),
+                    tripDestination: destination,
+                    onSelectPlace: { placeIDString in
+                        guard let uuid = UUID(uuidString: placeIDString),
+                              let place = located.first(where: { $0.id == uuid }) else { return }
+                        onSelectPlace(place)
+                    }
+                )
             } else {
                 Map(position: $cameraPosition, selection: $selectedPlace) {
                     ForEach(located) { place in
@@ -61,7 +74,7 @@ struct PlaceMapView: View {
                 }
                 .safeAreaInset(edge: .bottom) {
                     if let selectedPlace {
-                        SelectedPlaceCard(place: selectedPlace, destination: destination)
+                        SelectedPlaceCard(place: selectedPlace, destination: destination, onSelectPlace: onSelectPlace)
                             .padding()
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
@@ -118,6 +131,7 @@ struct PlaceMapView: View {
 private struct SelectedPlaceCard: View {
     let place: Place
     let destination: String
+    let onSelectPlace: (Place) -> Void
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -125,6 +139,13 @@ private struct SelectedPlaceCard: View {
             Text(place.name).font(.headline)
             if !place.address.isEmpty {
                 Text(place.address).font(.subheadline).foregroundStyle(.secondary)
+            }
+            Button {
+                onSelectPlace(place)
+            } label: {
+                Label("View Place Card", systemImage: "list.bullet.rectangle")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Color.accentColor)
             }
             Menu {
                 if let mapsURL = GoogleMapsOpener.url(for: place, tripDestination: destination) {

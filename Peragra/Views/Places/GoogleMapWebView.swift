@@ -38,15 +38,24 @@ struct GoogleMapWebView: UIViewRepresentable {
     /// The trip's destination city — used as a fallback qualifier for a
     /// marker's "Open in Google Maps" link when that place has no address.
     let tripDestination: String
+    /// Called with a place's id (its MarkerPlace.id) when a marker's
+    /// "View Place Card" button is tapped, via a JS -> Swift message
+    /// handler — switches to the Listing tab and scrolls to it.
+    let onSelectPlace: (String) -> Void
 
     func makeUIView(context: Context) -> WKWebView {
         let webView = WKWebView()
         webView.scrollView.isScrollEnabled = false
         webView.navigationDelegate = context.coordinator
+        webView.configuration.userContentController.add(context.coordinator, name: "selectPlace")
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        // Always kept current — updateUIView runs on every re-render, so
+        // this is cheap and means a stale closure (capturing an old
+        // `located` array, say) never lingers past this cycle.
+        context.coordinator.onSelectPlace = onSelectPlace
         // SwiftUI calls this on every body re-evaluation of whatever
         // contains this view (any filter/sort change, a place toggled
         // elsewhere, ...), not just when the map's own inputs change —
@@ -75,9 +84,17 @@ struct GoogleMapWebView: UIViewRepresentable {
     /// Sends taps on the "Open in Google Maps" link out to the system
     /// (Google Maps app or Safari) instead of navigating inside this
     /// WebView, which would just replace the map with a bare page and
-    /// leave no way back.
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    /// leave no way back. Also relays a marker's "View Place Card" button
+    /// (a JS -> Swift message, since a WKWebView can't call back into
+    /// SwiftUI any other way) to onSelectPlace.
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         fileprivate var loadedSignature: Signature?
+        fileprivate var onSelectPlace: ((String) -> Void)?
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard message.name == "selectPlace", let placeID = message.body as? String else { return }
+            onSelectPlace?(placeID)
+        }
 
         func webView(
             _ webView: WKWebView,
@@ -190,6 +207,20 @@ struct GoogleMapWebView: UIViewRepresentable {
                     linkEl.style.fontSize = "12px";
                     return linkEl;
                   };
+                  const viewCardEl = document.createElement("button");
+                  viewCardEl.type = "button";
+                  viewCardEl.textContent = "📋 View place card";
+                  viewCardEl.style.display = "block";
+                  viewCardEl.style.marginTop = "4px";
+                  viewCardEl.style.fontSize = "12px";
+                  viewCardEl.style.color = "#f9532c";
+                  viewCardEl.style.textDecoration = "underline";
+                  viewCardEl.style.background = "none";
+                  viewCardEl.style.border = "none";
+                  viewCardEl.style.padding = "0";
+                  viewCardEl.style.cursor = "pointer";
+                  viewCardEl.onclick = () => window.webkit.messageHandlers.selectPlace.postMessage(place.id);
+                  content.appendChild(viewCardEl);
                   content.appendChild(makeMapLink(mapsUrl, "Open in Google Maps"));
                   if (place.naverMapUrlString) content.appendChild(makeMapLink(place.naverMapUrlString, "Open in Naver Map"));
                   if (place.kakaoMapUrlString) content.appendChild(makeMapLink(place.kakaoMapUrlString, "Open in Kakao Map"));

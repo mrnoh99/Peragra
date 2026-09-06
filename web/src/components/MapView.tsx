@@ -15,7 +15,17 @@ import type { Place } from "../types";
  * specifically (to Google, or free) when this board has a place outside
  * Korea, since Naver has no useful data there at all.
  */
-export function MapView({ places, destination }: { places: Place[]; destination: string }) {
+export function MapView({
+  places,
+  destination,
+  onSelectPlace,
+}: {
+  places: Place[];
+  destination: string;
+  /** Called with a place's id when its marker's "View place card" link is
+   *  clicked — the parent switches to the Listing tab and scrolls to it. */
+  onSelectPlace: (placeId: string) => void;
+}) {
   const mapProvider = useMapSettingsStore((s) => s.mapProvider);
   const googleMapsApiKey = useMapSettingsStore((s) => s.googleMapsApiKey);
   const naverClientId = useMapSettingsStore((s) => s.naverClientId);
@@ -31,7 +41,7 @@ export function MapView({ places, destination }: { places: Place[]; destination:
   const usingNaver = effectiveProvider === "naver" && !!naverClientId;
 
   if (!usingGoogle && !usingNaver) {
-    return <LeafletMapView places={places} destination={destination} />;
+    return <LeafletMapView places={places} destination={destination} onSelectPlace={onSelectPlace} />;
   }
 
   return (
@@ -48,9 +58,9 @@ export function MapView({ places, destination }: { places: Place[]; destination:
             No located places yet — save a place with an address to see it here.
           </div>
         ) : usingGoogle ? (
-          <GoogleMapView places={places} apiKey={googleMapsApiKey!} destination={destination} />
+          <GoogleMapView places={places} apiKey={googleMapsApiKey!} destination={destination} onSelectPlace={onSelectPlace} />
         ) : (
-          <NaverMapView places={places} clientId={naverClientId!} destination={destination} />
+          <NaverMapView places={places} clientId={naverClientId!} destination={destination} onSelectPlace={onSelectPlace} />
         )}
       </div>
     </div>

@@ -26,10 +26,14 @@ export function NaverMapView({
   places,
   clientId,
   destination,
+  onSelectPlace,
 }: {
   places: Place[];
   clientId: string;
   destination: string;
+  /** Called with a place's id when its marker's "View place card" link is
+   *  clicked — the parent switches to the Listing tab and scrolls to it. */
+  onSelectPlace: (placeId: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
@@ -37,6 +41,14 @@ export function NaverMapView({
     () => places.filter((p): p is Place & { lat: number; lng: number } => p.lat !== null && p.lng !== null),
     [places],
   );
+  // A ref, not a dependency of the map-init effect below — same reasoning
+  // as GoogleMapView: onSelectPlace is typically a fresh closure every
+  // render, and rebuilding the whole map on every unrelated re-render
+  // would lose pan/zoom for nothing.
+  const onSelectPlaceRef = useRef(onSelectPlace);
+  useEffect(() => {
+    onSelectPlaceRef.current = onSelectPlace;
+  }, [onSelectPlace]);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,6 +139,20 @@ export function NaverMapView({
                 linkEl.style.color = color;
                 return linkEl;
               };
+              const viewCardEl = document.createElement("button");
+              viewCardEl.type = "button";
+              viewCardEl.textContent = "📋 View place card";
+              viewCardEl.style.display = "block";
+              viewCardEl.style.marginTop = "4px";
+              viewCardEl.style.fontSize = "12px";
+              viewCardEl.style.color = "#f9532c";
+              viewCardEl.style.textDecoration = "underline";
+              viewCardEl.style.background = "none";
+              viewCardEl.style.border = "none";
+              viewCardEl.style.padding = "0";
+              viewCardEl.style.cursor = "pointer";
+              viewCardEl.onclick = () => onSelectPlaceRef.current(place.id);
+              content.appendChild(viewCardEl);
               content.appendChild(makeMapLink(googleMapsUrl(place, destination), "Open in Google Maps", "#2563eb", true));
               const naverUrl = naverMapUrl(place);
               if (naverUrl) content.appendChild(makeMapLink(naverUrl, "Open in Naver Map", "#16a34a", false));

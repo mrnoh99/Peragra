@@ -68,6 +68,16 @@ export function TripDetailPage() {
   // just that selection instead of the full filtered listing — cleared
   // when the Map tab is opened directly instead.
   const [mapFilterIds, setMapFilterIds] = useState<string[] | null>(null);
+  // Set by a marker's "View place card" link, so the Listing tab can
+  // scroll to and briefly highlight that place — cleared a couple seconds
+  // later, same as PlaceCard's own transient "Copied" badge.
+  const [highlightedPlaceId, setHighlightedPlaceId] = useState<string | null>(null);
+
+  function viewPlaceInListing(placeId: string) {
+    setTab("listing");
+    setHighlightedPlaceId(placeId);
+    window.setTimeout(() => setHighlightedPlaceId((current) => (current === placeId ? null : current)), 2000);
+  }
 
   // Search/category/visited/favorites/sort — shared by the Listing and Map
   // tabs (via PlaceFilterBar below) so switching tabs doesn't reset what
@@ -397,6 +407,7 @@ export function TripDetailPage() {
                   destination={trip.destination}
                   distancesById={distancesById}
                   otherBoards={otherBoards}
+                  highlightedPlaceId={highlightedPlaceId}
                   onViewSelectedOnMap={(ids) => {
                     setMapFilterIds(ids);
                     setTab("map");
@@ -417,7 +428,7 @@ export function TripDetailPage() {
                       </button>
                     </div>
                   )}
-                  <MapView places={mapPlaces} destination={trip.destination} />
+                  <MapView places={mapPlaces} destination={trip.destination} onSelectPlace={viewPlaceInListing} />
                 </>
               )}
             </>

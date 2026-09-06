@@ -11,6 +11,9 @@ struct PlaceRowView: View {
     /// The trip's destination city — used as a fallback qualifier for the
     /// "Open in Google Maps" link when this place has no address.
     let destination: String
+    /// Briefly outlined after being jumped to from a map marker's "View
+    /// Place Card" control — see PlaceListingView's scroll-to-highlight.
+    var highlighted: Bool = false
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
@@ -210,6 +213,8 @@ struct PlaceRowView: View {
             .padding(.top, 2)
         }
         .padding(.vertical, 6)
+        .listRowBackground(highlighted ? Color.accentColor.opacity(0.15) : Color.clear)
+        .animation(.easeInOut(duration: 0.3), value: highlighted)
         .contentShape(Rectangle())
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.5).onEnded { _ in

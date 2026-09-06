@@ -21,6 +21,10 @@ struct TripDetailView: View {
     /// cleared whenever the Map tab is left, so a later manual switch to
     /// it starts from the full list again.
     @State private var mapFilterIDs: Set<UUID>?
+    /// Set by a map marker's "View Place Card" control, so the Listing tab
+    /// can scroll to and briefly highlight that place — cleared a couple
+    /// seconds later, same as PlaceRowView's own transient states.
+    @State private var highlightedPlaceID: UUID?
     @State private var showingAddPlace = false
     @State private var showingAddList = false
     @State private var newListName = ""
@@ -224,6 +228,7 @@ struct TripDetailView: View {
                         distancesByID: distancesByID,
                         destination: trip.destination,
                         otherBoards: otherBoards,
+                        highlightedPlaceID: highlightedPlaceID,
                         onViewSelectedOnMap: { ids in
                             mapFilterIDs = ids
                             tab = .map
@@ -243,7 +248,7 @@ struct TripDetailView: View {
                             .padding(.vertical, 8)
                             .background(Color.accentColor.opacity(0.1))
                         }
-                        PlaceMapView(places: mapPlaces, destination: trip.destination)
+                        PlaceMapView(places: mapPlaces, destination: trip.destination, onSelectPlace: viewPlaceInListing)
                     }
                 }
             }
@@ -339,6 +344,17 @@ struct TripDetailView: View {
             }
             .padding(.horizontal)
             .padding(.top, 8)
+        }
+    }
+
+    /// Switches to the Listing tab and briefly highlights the given place
+    /// — called from a map marker's "View Place Card" control.
+    private func viewPlaceInListing(_ place: Place) {
+        tab = .listing
+        let placeID = place.id
+        highlightedPlaceID = placeID
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            if highlightedPlaceID == placeID { highlightedPlaceID = nil }
         }
     }
 

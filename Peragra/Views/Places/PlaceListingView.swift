@@ -9,6 +9,9 @@ struct PlaceListingView: View {
     let destination: String
     /// Every board except this one, for the bulk "Move to Board" menu.
     let otherBoards: [Trip]
+    /// Set by a map marker's "View Place Card" control — scrolls to and
+    /// briefly highlights that place's row.
+    let highlightedPlaceID: UUID?
     /// Switches to the Map tab, narrowed to just these place ids.
     let onViewSelectedOnMap: (Set<UUID>) -> Void
 
@@ -37,34 +40,49 @@ struct PlaceListingView: View {
                 )
                 .frame(maxHeight: .infinity)
             } else {
-                List {
-                    ForEach(places) { place in
-                        HStack(alignment: .top, spacing: 8) {
-                            if isSelecting {
-                                Button {
-                                    toggleSelection(place)
-                                } label: {
-                                    Image(systemName: selectedIDs.contains(place.id) ? "checkmark.circle.fill" : "circle")
-                                        .font(.title3)
-                                        .foregroundStyle(selectedIDs.contains(place.id) ? Color.accentColor : .secondary)
+                ScrollViewReader { proxy in
+                    List {
+                        ForEach(places) { place in
+                            HStack(alignment: .top, spacing: 8) {
+                                if isSelecting {
+                                    Button {
+                                        toggleSelection(place)
+                                    } label: {
+                                        Image(systemName: selectedIDs.contains(place.id) ? "checkmark.circle.fill" : "circle")
+                                            .font(.title3)
+                                            .foregroundStyle(selectedIDs.contains(place.id) ? Color.accentColor : .secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.top, 6)
                                 }
-                                .buttonStyle(.plain)
-                                .padding(.top, 6)
+                                PlaceRowView(
+                                    place: place,
+                                    allCollections: allCollections,
+                                    distanceMeters: distancesByID[place.id],
+                                    destination: destination,
+                                    highlighted: place.id == highlightedPlaceID
+                                )
                             }
-                            PlaceRowView(place: place, allCollections: allCollections, distanceMeters: distancesByID[place.id], destination: destination)
-                        }
-                        .swipeActions(edge: .trailing) {
-                            if !isSelecting {
-                                Button(role: .destructive) {
-                                    placePendingDelete = place
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+                            .id(place.id)
+                            .swipeActions(edge: .trailing) {
+                                if !isSelecting {
+                                    Button(role: .destructive) {
+                                        placePendingDelete = place
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
                             }
                         }
                     }
+                    .listStyle(.plain)
+                    .onChange(of: highlightedPlaceID) { _, newValue in
+                        guard let newValue else { return }
+                        withAnimation {
+                            proxy.scrollTo(newValue, anchor: .center)
+                        }
+                    }
                 }
-                .listStyle(.plain)
             }
         }
         .safeAreaInset(edge: .bottom) {

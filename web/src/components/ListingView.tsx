@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory, type Trip } from "../types";
 import { useStore } from "../store/useStore";
 import { PlaceCard } from "./PlaceCard";
@@ -9,6 +9,7 @@ export function ListingView({
   destination,
   distancesById,
   otherBoards,
+  highlightedPlaceId,
   onViewSelectedOnMap,
 }: {
   /** Already filtered and sorted by the parent (shared with the Map tab). */
@@ -18,6 +19,9 @@ export function ListingView({
   distancesById: Map<string, number>;
   /** Every board except this one, for the bulk "Move to board" picker. */
   otherBoards: Trip[];
+  /** Set by a map marker's "View place card" link — scrolls to and
+   *  briefly highlights that place's card. */
+  highlightedPlaceId?: string | null;
   /** Switches to the Map tab, narrowed to just these place ids. */
   onViewSelectedOnMap: (placeIds: string[]) => void;
 }) {
@@ -27,6 +31,14 @@ export function ListingView({
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
   const togglePlacesCollection = useStore((s) => s.togglePlacesCollection);
   const movePlacesToBoard = useStore((s) => s.movePlacesToBoard);
+
+  useEffect(() => {
+    if (!highlightedPlaceId) return;
+    document.getElementById(`place-card-${highlightedPlaceId}`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, [highlightedPlaceId]);
 
   function toggleSelecting() {
     setIsSelecting((v) => !v);
@@ -199,6 +211,7 @@ export function ListingView({
               selected={selectedIds.has(place.id)}
               onToggleSelect={() => toggleSelected(place.id)}
               distanceKm={distancesById.get(place.id)}
+              highlighted={place.id === highlightedPlaceId}
             />
           ))}
         </div>
