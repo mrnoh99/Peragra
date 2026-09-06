@@ -85,7 +85,7 @@ export function TripsPage() {
             title="Add a board someone shared with you"
             className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
           >
-            ⬇️ Import
+            📥 Import
           </button>
           <button
             onClick={() => setShowCreate(true)}

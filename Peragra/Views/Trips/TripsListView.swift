@@ -72,7 +72,7 @@ struct TripsListView: View {
                     Button {
                         showingImportBoard = true
                     } label: {
-                        Label("Import", systemImage: "square.and.arrow.down.on.square")
+                        Label("Import", systemImage: "square.and.arrow.down")
                     }
                 }
                 ToolbarItem(placement: .secondaryAction) {
