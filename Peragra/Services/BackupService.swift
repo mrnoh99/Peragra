@@ -72,16 +72,20 @@ enum BackupService {
             self.createdAt = createdAt
         }
 
-        // Backups made before the auto country-list feature existed won't
-        // have isCountryList/countryName at all — default to "not a
-        // country list" rather than failing to restore the whole file.
+        // The web app's Collection type marks isVisitedList/isFavoritesList/
+        // isCountryList all optional and only ever sets the one flag that
+        // actually applies to a given list (or none, for a plain
+        // user-created list) — so a web-exported board's JSON is routinely
+        // missing one or more of these keys entirely, not just old backups
+        // predating the country-list feature. Default every one of them to
+        // false when absent rather than failing to decode the whole file.
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             id = try container.decode(UUID.self, forKey: .id)
             tripId = try container.decode(UUID.self, forKey: .tripId)
             name = try container.decode(String.self, forKey: .name)
-            isVisitedList = try container.decode(Bool.self, forKey: .isVisitedList)
-            isFavoritesList = try container.decode(Bool.self, forKey: .isFavoritesList)
+            isVisitedList = try container.decodeIfPresent(Bool.self, forKey: .isVisitedList) ?? false
+            isFavoritesList = try container.decodeIfPresent(Bool.self, forKey: .isFavoritesList) ?? false
             isCountryList = try container.decodeIfPresent(Bool.self, forKey: .isCountryList) ?? false
             countryName = try container.decodeIfPresent(String.self, forKey: .countryName)
             createdAt = try container.decode(Double.self, forKey: .createdAt)
