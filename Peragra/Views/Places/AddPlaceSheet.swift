@@ -896,8 +896,11 @@ struct AddPlaceSheet: View {
 
         let trimmedAddress = row.address.trimmingCharacters(in: .whitespaces)
         let trimmedName = row.name.trimmingCharacters(in: .whitespaces)
+        let siblingPlaces = trip.places.map {
+            MapProviderPolicy.PlaceLike(latitude: $0.latitude, longitude: $0.longitude, name: $0.name, address: $0.address)
+        }
 
-        if let result = await GeocodingService.geocode(name: trimmedName, address: trimmedAddress, contextHint: trip.destination) {
+        if let result = await GeocodingService.geocode(name: trimmedName, address: trimmedAddress, contextHint: trip.destination, siblingPlaces: siblingPlaces) {
             place.latitude = result.latitude
             place.longitude = result.longitude
             place.geocodeStatus = .located

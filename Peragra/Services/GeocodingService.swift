@@ -29,7 +29,12 @@ enum GeocodingService {
     /// otherwise Italian address), and that one mixed-script token can be
     /// enough to make a geocoder fail on an address it would otherwise
     /// handle fine.
-    static func geocode(query: String, contextHint: String?) async -> Result? {
+    ///
+    /// `providerOverride`, when given, is used in place of the globally
+    /// configured provider — set by geocode(name:address:contextHint:)
+    /// when this board has a non-Korean place and Naver (which has no
+    /// useful data outside Korea at all) is the global setting.
+    static func geocode(query: String, contextHint: String?, providerOverride: MapProvider? = nil) async -> Result? {
         let trimmed = CountryNames.normalizeTrailingCountryName(query.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !trimmed.isEmpty else { return nil }
 
@@ -40,7 +45,9 @@ enum GeocodingService {
             fullQuery = trimmed
         }
 
-        if MapSettings.shared.isGoogleActive {
+        let effectiveProvider = providerOverride ?? MapSettings.shared.provider
+
+        if effectiveProvider == .google {
             let apiKey = MapSettings.shared.effectiveGoogleMapsAPIKey
             guard let result = await GoogleGeocodingService.geocode(query: fullQuery, apiKey: apiKey) else {
                 return nil
@@ -48,7 +55,7 @@ enum GeocodingService {
             return Result(latitude: result.latitude, longitude: result.longitude)
         }
 
-        if MapSettings.shared.isNaverActive,
+        if effectiveProvider == .naver,
            let clientId = MapSettings.shared.naverClientId,
            let clientSecret = MapSettings.shared.naverClientSecret {
             guard let result = await NaverGeocodingService.geocode(query: fullQuery, clientId: clientId, clientSecret: clientSecret) else {
@@ -75,15 +82,29 @@ enum GeocodingService {
     /// no real street address of its own, which the interactive Google
     /// Maps app still finds by name even though the Geocoding API
     /// rejects its address text outright.
-    static func geocode(name: String, address: String, contextHint: String?) async -> Result? {
+    ///
+    /// `siblingPlaces` — this board's other places — is checked alongside
+    /// this place's own name/address for a non-Korean signal (see
+    /// MapProviderPolicy), so one confirmed non-Korean place is enough to
+    /// switch the whole board off Naver, not just places that happen to
+    /// name a country themselves.
+    static func geocode(
+        name: String,
+        address: String,
+        contextHint: String?,
+        siblingPlaces: [MapProviderPolicy.PlaceLike] = []
+    ) async -> Result? {
         let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if !trimmedAddress.isEmpty, let result = await geocode(query: trimmedAddress, contextHint: contextHint) {
+        let places = [MapProviderPolicy.PlaceLike(latitude: nil, longitude: nil, name: trimmedName, address: trimmedAddress)] + siblingPlaces
+        let providerOverride = MapProviderPolicy.pickProvider(MapSettings.shared.provider, places: places)
+
+        if !trimmedAddress.isEmpty, let result = await geocode(query: trimmedAddress, contextHint: contextHint, providerOverride: providerOverride) {
             return result
         }
         if !trimmedName.isEmpty {
-            return await geocode(query: trimmedName, contextHint: contextHint)
+            return await geocode(query: trimmedName, contextHint: contextHint, providerOverride: providerOverride)
         }
         return nil
     }

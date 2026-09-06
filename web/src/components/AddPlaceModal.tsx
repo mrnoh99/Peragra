@@ -85,7 +85,13 @@ export function AddPlaceModal({
   const updatePlace = useStore((s) => s.updatePlace);
   const markVisitedAt = useStore((s) => s.markVisitedAt);
   const setPlaceCoords = useStore((s) => s.setPlaceCoords);
+  const allPlaces = useStore((s) => s.places);
   const apiKey = useAISettingsStore(selectActiveApiKey);
+
+  // This board's other places — checked for a non-Korean signal alongside
+  // whatever's being geocoded, so Naver gets skipped for the whole board
+  // once any one place in it is (or looks like) outside Korea.
+  const siblingPlaces = useMemo(() => allPlaces.filter((p) => p.tripId === tripId), [allPlaces, tripId]);
 
   const [instagramInput, setInstagramInput] = useState("");
   const [notes, setNotes] = useState("");
@@ -495,7 +501,7 @@ export function AddPlaceModal({
     }
 
     try {
-      const result = await geocodePlaceByAddressOrName(row, destination);
+      const result = await geocodePlaceByAddressOrName(row, destination, siblingPlaces);
       if (result) {
         setPlaceCoords(placeId, { lat: result.lat, lng: result.lng }, "located");
         return;

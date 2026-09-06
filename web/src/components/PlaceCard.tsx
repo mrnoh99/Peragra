@@ -55,6 +55,7 @@ export function PlaceCard({
   const deletePlace = useStore((s) => s.deletePlace);
   const togglePlaceCollection = useStore((s) => s.togglePlaceCollection);
   const setPlaceCoords = useStore((s) => s.setPlaceCoords);
+  const allPlaces = useStore((s) => s.places);
   const [showCollections, setShowCollections] = useState(false);
   const [showMapMenu, setShowMapMenu] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -70,7 +71,8 @@ export function PlaceCard({
   async function retryGeocode() {
     setIsRetryingGeocode(true);
     try {
-      const result = await geocodePlaceByAddressOrName(place, destination);
+      const siblingPlaces = allPlaces.filter((p) => p.tripId === place.tripId && p.id !== place.id);
+      const result = await geocodePlaceByAddressOrName(place, destination, siblingPlaces);
       setPlaceCoords(place.id, result, result ? "located" : "failed");
     } catch {
       setPlaceCoords(place.id, null, "failed");

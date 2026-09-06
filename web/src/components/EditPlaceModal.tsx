@@ -38,6 +38,7 @@ export function EditPlaceModal({
   const setPlaceCoords = useStore((s) => s.setPlaceCoords);
   const movePlaceToBoard = useStore((s) => s.movePlaceToBoard);
   const trips = useStore((s) => s.trips);
+  const allPlaces = useStore((s) => s.places);
   const apiKey = useAISettingsStore(selectActiveApiKey);
 
   const [name, setName] = useState(place.name);
@@ -383,9 +384,11 @@ export function EditPlaceModal({
       // differently once it's disambiguated against a new destination.
       let located = false;
       try {
+        const siblingPlaces = allPlaces.filter((p) => p.tripId === boardId && p.id !== place.id);
         const result = await geocodePlaceByAddressOrName(
           { name: trimmedName, address: trimmedAddress },
           effectiveDestination,
+          siblingPlaces,
         );
         if (result) {
           setPlaceCoords(place.id, { lat: result.lat, lng: result.lng }, "located");

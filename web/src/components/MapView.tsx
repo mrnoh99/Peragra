@@ -3,6 +3,7 @@ import { GoogleMapView } from "./GoogleMapView";
 import { LeafletMapView } from "./LeafletMapView";
 import { NaverMapView } from "./NaverMapView";
 import { useMapSettingsStore } from "../store/useMapSettingsStore";
+import { pickMapProvider } from "../lib/mapProviderPolicy";
 import type { Place } from "../types";
 
 /**
@@ -10,18 +11,24 @@ import type { Place } from "../types";
  * (Leaflet/OpenStreetMap, the default, no API key), Google Maps, or Naver
  * Maps (both opt-in, each needing the user's own key/Client ID). Falls
  * back to free automatically if Google or Naver is selected but no
- * key/Client ID is set.
+ * key/Client ID is set — and, per pickMapProvider, away from Naver
+ * specifically (to Google, or free) when this board has a place outside
+ * Korea, since Naver has no useful data there at all.
  */
 export function MapView({ places, destination }: { places: Place[]; destination: string }) {
   const mapProvider = useMapSettingsStore((s) => s.mapProvider);
   const googleMapsApiKey = useMapSettingsStore((s) => s.googleMapsApiKey);
   const naverClientId = useMapSettingsStore((s) => s.naverClientId);
+  const effectiveProvider = useMemo(
+    () => pickMapProvider(mapProvider, googleMapsApiKey, places),
+    [mapProvider, googleMapsApiKey, places],
+  );
 
   const locatedCount = useMemo(() => places.filter((p) => p.lat !== null && p.lng !== null).length, [places]);
   const unlocated = places.length - locatedCount;
 
-  const usingGoogle = mapProvider === "google" && !!googleMapsApiKey;
-  const usingNaver = mapProvider === "naver" && !!naverClientId;
+  const usingGoogle = effectiveProvider === "google" && !!googleMapsApiKey;
+  const usingNaver = effectiveProvider === "naver" && !!naverClientId;
 
   if (!usingGoogle && !usingNaver) {
     return <LeafletMapView places={places} destination={destination} />;

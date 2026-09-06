@@ -491,8 +491,11 @@ struct EditPlaceSheet: View {
     /// estimate come up empty (or there's no API key to try at all).
     private func geocodeAndStore(name: String, address: String, phone: String, notes: String) async {
         let destination = place.trip?.destination
+        let siblingPlaces = (place.trip?.places ?? []).filter { $0.id != place.id }.map {
+            MapProviderPolicy.PlaceLike(latitude: $0.latitude, longitude: $0.longitude, name: $0.name, address: $0.address)
+        }
 
-        if let result = await GeocodingService.geocode(name: name, address: address, contextHint: destination) {
+        if let result = await GeocodingService.geocode(name: name, address: address, contextHint: destination, siblingPlaces: siblingPlaces) {
             place.latitude = result.latitude
             place.longitude = result.longitude
             place.geocodeStatus = .located

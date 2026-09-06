@@ -253,7 +253,10 @@ struct PlaceRowView: View {
     private func retryGeocode() async {
         isRetryingGeocode = true
         defer { isRetryingGeocode = false }
-        if let result = await GeocodingService.geocode(name: place.name, address: place.address, contextHint: destination) {
+        let siblingPlaces = (place.trip?.places ?? []).filter { $0.id != place.id }.map {
+            MapProviderPolicy.PlaceLike(latitude: $0.latitude, longitude: $0.longitude, name: $0.name, address: $0.address)
+        }
+        if let result = await GeocodingService.geocode(name: place.name, address: place.address, contextHint: destination, siblingPlaces: siblingPlaces) {
             place.latitude = result.latitude
             place.longitude = result.longitude
             place.geocodeStatus = .located

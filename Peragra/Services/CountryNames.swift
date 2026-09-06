@@ -164,4 +164,15 @@ enum CountryNames {
 
         return trimmed
     }
+
+    /// Whether a piece of text (an address or a place name) mentions a
+    /// known non-Korean country by its Korean name, anywhere in the
+    /// string — used to tell whether a place is outside Korea before it
+    /// has any geocoded coordinate yet (see MapProviderPolicy), unlike
+    /// normalizeTrailingCountryName's stricter "own trailing token" match.
+    static func mentionsNonKoreanCountry(_ text: String) -> Bool {
+        sortedEntries.contains { entry in
+            entry.english != "South Korea" && text.contains(entry.korean)
+        }
+    }
 }

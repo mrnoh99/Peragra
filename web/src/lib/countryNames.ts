@@ -161,3 +161,16 @@ export function normalizeTrailingCountryName(address: string): string {
 
   return trimmed;
 }
+
+/**
+ * Whether a piece of text (an address or a place name) mentions a known
+ * non-Korean country by its Korean name, anywhere in the string — used to
+ * tell whether a place is outside Korea before it has any geocoded
+ * coordinate yet (see mapProviderPolicy.ts), unlike
+ * normalizeTrailingCountryName's stricter "own trailing token" match.
+ */
+export function mentionsNonKoreanCountry(text: string): boolean {
+  return SORTED_ENTRIES.some(
+    ([korean, english]) => english !== "South Korea" && text.includes(korean),
+  );
+}

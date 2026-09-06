@@ -1,8 +1,9 @@
-import { useMapSettingsStore } from "../store/useMapSettingsStore";
+import { useMapSettingsStore, type MapProvider } from "../store/useMapSettingsStore";
 import { normalizeTrailingCountryName } from "./countryNames";
 import { geocodeWithGoogle, reverseGeocodeWithGoogle } from "./googleGeocode";
 import { geocodeWithNaver, reverseGeocodeWithNaver } from "./naverGeocode";
 import { isInKorea } from "./koreaRegion";
+import { pickMapProvider } from "./mapProviderPolicy";
 
 export interface GeocodeResult {
   lat: number;
@@ -79,21 +80,28 @@ async function geocodeWithNominatim(
  * otherwise Italian address), and that one mixed-script token is enough
  * to make Nominatim in particular fail to resolve an address it would
  * otherwise handle fine.
+ *
+ * `providerOverride`, when given, is used in place of the globally
+ * configured provider — set by geocodePlaceByAddressOrName when this
+ * board has a non-Korean place and Naver (which has no useful data
+ * outside Korea at all) is the global setting.
  */
 export async function geocodePlace(
   query: string,
   contextHint?: string,
+  providerOverride?: MapProvider,
 ): Promise<GeocodeResult | null> {
   const trimmed = normalizeTrailingCountryName(query.trim());
   if (!trimmed) return null;
   const fullQuery = contextHint ? `${trimmed}, ${contextHint}` : trimmed;
 
   const { mapProvider, googleMapsApiKey, naverClientId } = useMapSettingsStore.getState();
-  if (mapProvider === "google" && googleMapsApiKey) {
+  const effectiveProvider = providerOverride ?? mapProvider;
+  if (effectiveProvider === "google" && googleMapsApiKey) {
     const result = await geocodeWithGoogle(fullQuery, googleMapsApiKey);
     return result ? { ...result, displayName: fullQuery } : null;
   }
-  if (mapProvider === "naver" && naverClientId) {
+  if (effectiveProvider === "naver" && naverClientId) {
     return geocodeWithNaver(fullQuery, naverClientId);
   }
 
@@ -114,16 +122,27 @@ export async function geocodePlace(
 export async function geocodePlaceByAddressOrName(
   place: { name: string; address: string },
   contextHint?: string,
+  // The board's other places (this one need not be included) — checked
+  // alongside this place's own name/address for a non-Korean signal, so
+  // one confirmed non-Korean place is enough to switch the whole board
+  // off Naver, not just places that happen to name a country themselves.
+  siblingPlaces: Array<{ lat: number | null; lng: number | null; name: string; address: string }> = [],
 ): Promise<GeocodeResult | null> {
   const address = place.address.trim();
   const name = place.name.trim();
 
+  const { mapProvider, googleMapsApiKey } = useMapSettingsStore.getState();
+  const providerOverride = pickMapProvider(mapProvider, googleMapsApiKey, [
+    { lat: null, lng: null, name, address },
+    ...siblingPlaces,
+  ]);
+
   if (address) {
-    const result = await geocodePlace(address, contextHint);
+    const result = await geocodePlace(address, contextHint, providerOverride);
     if (result) return result;
   }
   if (name) {
-    return geocodePlace(name, contextHint);
+    return geocodePlace(name, contextHint, providerOverride);
   }
   return null;
 }
