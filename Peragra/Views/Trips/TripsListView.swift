@@ -121,19 +121,19 @@ struct TripsListView: View {
         // a legitimately empty fresh install doesn't get immediately
         // overwritten by the backup call that follows it.
         .task {
-            restoreFromCloudIfNeeded()
             AutoBackupService.runIfDue(context: modelContext)
-            CloudBackupService.backup(context: modelContext)
+            await restoreFromCloudIfNeeded()
+            await CloudBackupService.backup(context: modelContext)
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 AutoBackupService.runIfDue(context: modelContext)
-                CloudBackupService.backup(context: modelContext)
+                Task { await CloudBackupService.backup(context: modelContext) }
             } else if newPhase == .background {
                 // The most likely moment to be uninstalled next — worth
                 // one more up-to-date snapshot in iCloud right before
                 // that could happen.
-                CloudBackupService.backup(context: modelContext)
+                Task { await CloudBackupService.backup(context: modelContext) }
             }
         }
     }
@@ -143,9 +143,9 @@ struct TripsListView: View {
     /// exists in iCloud, restores it automatically rather than leaving
     /// the person to notice everything is gone and dig through Settings
     /// for the manual restore flow.
-    private func restoreFromCloudIfNeeded() {
-        guard trips.isEmpty, CloudBackupService.hasRestorableBackup() else { return }
-        if CloudBackupService.restoreIfAvailable(context: modelContext) {
+    private func restoreFromCloudIfNeeded() async {
+        guard trips.isEmpty, await CloudBackupService.hasRestorableBackup() else { return }
+        if await CloudBackupService.restoreIfAvailable(context: modelContext) {
             showingCloudRestoreAlert = true
         }
     }

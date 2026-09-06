@@ -18,33 +18,50 @@ import SwiftData
 enum CloudBackupService {
     private static let filename = "peragra_auto_backup.json"
 
-    private static var containerDocumentsURL: URL? {
-        guard let container = FileManager.default.url(forUbiquityContainerIdentifier: nil) else { return nil }
-        let documents = container.appendingPathComponent("Documents", isDirectory: true)
-        try? FileManager.default.createDirectory(at: documents, withIntermediateDirectories: true)
-        return documents
-    }
+    /// `FileManager.url(forUbiquityContainerIdentifier:)` talks to the
+    /// iCloud daemon and, per Apple's own docs, can block for a long time
+    /// on its first call — calling it on the main thread was freezing the
+    /// whole app (including unrelated UI like the "New Board" sheet) right
+    /// at launch. Resolved once off the main actor and cached, since the
+    /// container URL doesn't change while the app is running.
+    private static var cachedContainerDocumentsURL: URL??
 
-    private static var backupFileURL: URL? {
-        containerDocumentsURL?.appendingPathComponent(filename)
+    private static func resolveContainerDocumentsURL() async -> URL? {
+        if let cached = cachedContainerDocumentsURL { return cached }
+        let resolved = await Task.detached(priority: .utility) { () -> URL? in
+            guard let container = FileManager.default.url(forUbiquityContainerIdentifier: nil) else { return nil }
+            let documents = container.appendingPathComponent("Documents", isDirectory: true)
+            try? FileManager.default.createDirectory(at: documents, withIntermediateDirectories: true)
+            return documents
+        }.value
+        cachedContainerDocumentsURL = resolved
+        return resolved
     }
 
     /// Writes the current data to iCloud, overwriting any previous
-    /// snapshot. Cheap and safe to call often (app launch, foreground,
-    /// background) — it's a plain file write, not a network round trip;
-    /// iOS itself handles actually syncing the file to iCloud afterward.
-    static func backup(context: ModelContext) {
-        guard let fileURL = backupFileURL, let data = try? BackupService.exportData(context: context) else { return }
-        try? data.write(to: fileURL, options: .atomic)
+    /// snapshot. Safe to call often (app launch, foreground, background) —
+    /// exporting reads the model context on the caller's actor, then the
+    /// actual file write happens off the main thread.
+    static func backup(context: ModelContext) async {
+        guard let documentsURL = await resolveContainerDocumentsURL(),
+              let data = try? BackupService.exportData(context: context) else { return }
+        let fileURL = documentsURL.appendingPathComponent(filename)
+        await Task.detached(priority: .utility) {
+            try? data.write(to: fileURL, options: .atomic)
+        }.value
     }
 
     /// True only when the iCloud snapshot exists and actually contains at
     /// least one trip — an empty or unwritten snapshot isn't worth
     /// restoring over a legitimately empty fresh install.
-    static func hasRestorableBackup() -> Bool {
-        guard let fileURL = backupFileURL, let data = try? Data(contentsOf: fileURL) else { return false }
-        guard let decoded = try? JSONDecoder().decode(BackupService.BackupData.self, from: data) else { return false }
-        return !decoded.trips.isEmpty
+    static func hasRestorableBackup() async -> Bool {
+        guard let documentsURL = await resolveContainerDocumentsURL() else { return false }
+        let fileURL = documentsURL.appendingPathComponent(filename)
+        return await Task.detached(priority: .utility) { () -> Bool in
+            guard let data = try? Data(contentsOf: fileURL) else { return false }
+            guard let decoded = try? JSONDecoder().decode(BackupService.BackupData.self, from: data) else { return false }
+            return !decoded.trips.isEmpty
+        }.value
     }
 
     /// Restores from the iCloud snapshot into `context`. Only meant to be
@@ -52,8 +69,10 @@ enum CloudBackupService {
     /// check) — restore's own "replace everything" semantics would
     /// otherwise clobber data the person already has on this device.
     @discardableResult
-    static func restoreIfAvailable(context: ModelContext) -> Bool {
-        guard let fileURL = backupFileURL, let data = try? Data(contentsOf: fileURL) else { return false }
+    static func restoreIfAvailable(context: ModelContext) async -> Bool {
+        guard let documentsURL = await resolveContainerDocumentsURL() else { return false }
+        let fileURL = documentsURL.appendingPathComponent(filename)
+        guard let data = try? Data(contentsOf: fileURL) else { return false }
         return (try? BackupService.restore(from: data, context: context)) != nil
     }
 }
