@@ -8,6 +8,7 @@ struct AddTripSheet: View {
     @State private var name = ""
     @State private var destination = ""
     @State private var coverEmoji = Trip.coverEmojiChoices[0]
+    @State private var saveErrorMessage: String?
 
     private var canSubmit: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
@@ -58,6 +59,14 @@ struct AddTripSheet: View {
                 }
             }
         }
+        .alert("Couldn't Create This Board", isPresented: Binding(
+            get: { saveErrorMessage != nil },
+            set: { if !$0 { saveErrorMessage = nil } }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(saveErrorMessage ?? "")
+        }
     }
 
     private func createTrip() {
@@ -69,7 +78,17 @@ struct AddTripSheet: View {
         modelContext.insert(trip)
         _ = PlaceCollection.ensureFavoritesList(for: trip, context: modelContext)
         _ = PlaceCollection.ensureVisitedList(for: trip, context: modelContext)
-        dismiss()
+        // Saved explicitly (rather than left to autosave) so the new board
+        // is guaranteed committed and visible before the sheet dismisses —
+        // and so a failure here surfaces as an alert instead of the sheet
+        // just closing with nothing to show for it.
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            modelContext.delete(trip)
+            saveErrorMessage = "Something went wrong while saving this board. Nothing was created — try again."
+        }
     }
 }
 
