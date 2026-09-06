@@ -207,7 +207,7 @@ struct TripDetailView: View {
                 } description: {
                     Text("Paste a link from a post you saved on Instagram, or add a place by hand, to start building your \(trip.destination) itinerary.")
                 } actions: {
-                    Button("Add Places") { showingAddPlace = true }
+                    Button("Add") { showingAddPlace = true }
                         .buttonStyle(.borderedProminent)
                     Button("Delete This Board", role: .destructive) {
                         isConfirmingDeleteBoard = true
@@ -262,10 +262,10 @@ struct TripDetailView: View {
         .searchable(text: $search, prompt: "Search saved places")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showingAddPlace = true } label: { Label("Add Places", systemImage: "plus") }
+                Button { showingAddPlace = true } label: { Label("Add", systemImage: "plus") }
             }
             ToolbarItem(placement: .secondaryAction) {
-                Button { showingImportPlaces = true } label: { Label("Import Places", systemImage: "square.and.arrow.down") }
+                Button { showingImportPlaces = true } label: { Label("Import", systemImage: "square.and.arrow.down") }
             }
             ToolbarItem(placement: .secondaryAction) {
                 Menu {
@@ -280,7 +280,7 @@ struct TripDetailView: View {
                         }
                     }
                 } label: {
-                    Label("Export Places", systemImage: "square.and.arrow.up")
+                    Label("Export", systemImage: "square.and.arrow.up")
                 }
             }
             ToolbarItem(placement: .secondaryAction) {

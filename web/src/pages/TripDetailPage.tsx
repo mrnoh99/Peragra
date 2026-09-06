@@ -267,7 +267,7 @@ export function TripDetailPage() {
             title="Add places someone shared with you"
             className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
           >
-            ⬇️ Import places
+            ⬇️ Import
           </button>
           <div className="relative">
             <button
@@ -275,7 +275,7 @@ export function TripDetailPage() {
               title="Share this board's places with someone"
               className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
             >
-              📤 Export places {showExportPlaces ? "▲" : "▼"}
+              📤 Export {showExportPlaces ? "▲" : "▼"}
             </button>
             {showExportPlaces && (
               <div className="absolute right-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
@@ -300,7 +300,7 @@ export function TripDetailPage() {
             onClick={() => setShowAddPlace(true)}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
           >
-            + Add places
+            + Add
           </button>
           {exportPlacesMessage && (
             <span className="basis-full text-right text-xs text-neutral-500">{exportPlacesMessage}</span>
