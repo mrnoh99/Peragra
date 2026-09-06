@@ -15,6 +15,7 @@ struct ImportBoardSheet: View {
     @State private var preview: BackupService.BackupData?
     @State private var parseError: String?
     @State private var isImportingFile = false
+    @State private var importFailureMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -44,6 +45,29 @@ struct ImportBoardSheet: View {
             pastedText = text
             tryParse(text)
         }
+        // Parses as soon as something's pasted in, rather than making the
+        // person also find and tap a separate "Parse Text" button — a
+        // paste delivers the whole share text in one change event, so this
+        // moves straight from the paste box to the board preview/confirm
+        // screen on its own. Guarded on non-empty so the error message
+        // doesn't flash before anything's been pasted at all.
+        .onChange(of: pastedText) { _, newValue in
+            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                parseError = nil
+                preview = nil
+                return
+            }
+            tryParse(newValue)
+        }
+        .alert("Couldn't Add This Board", isPresented: Binding(
+            get: { importFailureMessage != nil },
+            set: { if !$0 { importFailureMessage = nil } }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(importFailureMessage ?? "")
+        }
     }
 
     private var pasteForm: some View {
@@ -62,8 +86,6 @@ struct ImportBoardSheet: View {
                 }
             }
             Section {
-                Button("Parse Text") { tryParse(pastedText) }
-                    .disabled(pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 Button("Choose File…") { isImportingFile = true }
             }
         }
@@ -103,18 +125,32 @@ struct ImportBoardSheet: View {
             preview = nil
             return
         }
-        guard let decoded = try? JSONDecoder().decode(BackupService.BackupData.self, from: data),
-              decoded.app == "peragra", !decoded.trips.isEmpty else {
+        do {
+            let decoded = try JSONDecoder().decode(BackupService.BackupData.self, from: data)
+            guard decoded.app == "peragra", !decoded.trips.isEmpty else {
+                parseError = "That doesn't look like a Peragra board export."
+                preview = nil
+                return
+            }
+            parseError = nil
+            preview = decoded
+        } catch {
+            // Printed rather than shown, since the person can't act on a
+            // raw decoding error — but it's worth having in the console
+            // the next time an export/import schema mismatch like this
+            // slips through.
+            print("ImportBoardSheet: failed to decode pasted board — \(error)")
             parseError = "That doesn't look like a Peragra board export."
             preview = nil
-            return
         }
-        parseError = nil
-        preview = decoded
     }
 
     private func importBoard(_ preview: BackupService.BackupData) {
-        try? BackupService.importBoard(preview, context: modelContext)
-        dismiss()
+        do {
+            try BackupService.importBoard(preview, context: modelContext)
+            dismiss()
+        } catch {
+            importFailureMessage = "Something went wrong while adding this board. Nothing was added — try again."
+        }
     }
 }

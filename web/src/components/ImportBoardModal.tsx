@@ -60,20 +60,16 @@ export function ImportBoardModal({ onClose, onImported }: { onClose: () => void;
           <textarea
             value={pastedText}
             onChange={(e) => setPastedText(e.target.value)}
+            onPaste={(e) => {
+              const text = e.clipboardData.getData("text");
+              if (text.trim()) tryParse(text);
+            }}
             rows={6}
             placeholder="Paste the shared board text here…"
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 font-mono text-xs focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
           {parseError && <p className="text-xs text-amber-600">{parseError}</p>}
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => tryParse(pastedText)}
-              disabled={!pastedText.trim()}
-              className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Parse text
-            </button>
             <input
               ref={fileInputRef}
               type="file"
