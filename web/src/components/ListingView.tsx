@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory, type Trip } from "../types";
 import { useStore } from "../store/useStore";
+import { buildSharedPlacesPayload, saveSharedPlacesFile, sharedPlacesToText } from "../lib/sharePlaces";
 import { PlaceCard } from "./PlaceCard";
 
 export function ListingView({
@@ -28,6 +29,8 @@ export function ListingView({
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showListPicker, setShowListPicker] = useState(false);
+  const [showSharePicker, setShowSharePicker] = useState(false);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
   const togglePlacesCollection = useStore((s) => s.togglePlacesCollection);
   const movePlacesToBoard = useStore((s) => s.movePlacesToBoard);
@@ -86,6 +89,34 @@ export function ListingView({
 
   function viewSelectedOnMap() {
     onViewSelectedOnMap([...selectedIds]);
+  }
+
+  async function copySelectedAsText() {
+    const selected = places.filter((p) => selectedIds.has(p.id));
+    const text = sharedPlacesToText(buildSharedPlacesPayload(selected));
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareMessage(`Copied ${selected.length} place${selected.length === 1 ? "" : "s"} — paste it anywhere to share.`);
+    } catch {
+      setShareMessage("Couldn't copy to the clipboard.");
+    }
+    setShowSharePicker(false);
+    window.setTimeout(() => setShareMessage(null), 4000);
+  }
+
+  async function saveSelectedAsFile() {
+    const selected = places.filter((p) => selectedIds.has(p.id));
+    try {
+      const result = await saveSharedPlacesFile(buildSharedPlacesPayload(selected));
+      if (result !== "cancelled") {
+        setShareMessage(`Saved ${selected.length} place${selected.length === 1 ? "" : "s"} to a file.`);
+        window.setTimeout(() => setShareMessage(null), 4000);
+      }
+    } catch {
+      setShareMessage("Couldn't save the file.");
+      window.setTimeout(() => setShareMessage(null), 4000);
+    }
+    setShowSharePicker(false);
   }
 
   return (
@@ -192,6 +223,35 @@ export function ListingView({
           >
             🗺️ Show on Map
           </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowSharePicker((v) => !v)}
+              disabled={selectedIds.size === 0}
+              className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+            >
+              📤 Share… {showSharePicker ? "▲" : "▼"}
+            </button>
+            {showSharePicker && (
+              <div className="absolute left-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
+                <button
+                  type="button"
+                  onClick={copySelectedAsText}
+                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                >
+                  📋 Copy as text
+                </button>
+                <button
+                  type="button"
+                  onClick={saveSelectedAsFile}
+                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                >
+                  💾 Save as file
+                </button>
+              </div>
+            )}
+          </div>
+          {shareMessage && <span className="text-xs text-neutral-500">{shareMessage}</span>}
         </div>
       )}
 

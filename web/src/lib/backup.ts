@@ -46,14 +46,18 @@ export function parseBackup(text: string): BackupData {
 }
 
 /**
- * Saves the backup to a location the person picks, via the File System
- * Access API where the browser supports it (Chrome/Edge); falls back to
- * a plain download (the browser's default downloads location) elsewhere
- * — notably Safari, which has no such picker.
+ * Saves arbitrary JSON data to a location the person picks, via the File
+ * System Access API where the browser supports it (Chrome/Edge); falls
+ * back to a plain download (the browser's default downloads location)
+ * elsewhere — notably Safari, which has no such picker. Shared by the
+ * whole-app backup below and by the "share selected places" export.
  */
-export async function saveBackupFile(data: BackupData): Promise<"saved" | "cancelled" | "downloaded"> {
+export async function saveJsonFile(
+  data: unknown,
+  filename: string,
+  description: string,
+): Promise<"saved" | "cancelled" | "downloaded"> {
   const json = JSON.stringify(data, null, 2);
-  const filename = backupFilename();
 
   const showSaveFilePicker = (
     window as unknown as {
@@ -68,7 +72,7 @@ export async function saveBackupFile(data: BackupData): Promise<"saved" | "cance
     try {
       const handle = await showSaveFilePicker({
         suggestedName: filename,
-        types: [{ description: "Peragra backup", accept: { "application/json": [".json"] } }],
+        types: [{ description, accept: { "application/json": [".json"] } }],
       });
       const writable = await handle.createWritable();
       await writable.write(json);
@@ -93,4 +97,9 @@ export async function saveBackupFile(data: BackupData): Promise<"saved" | "cance
   link.remove();
   URL.revokeObjectURL(url);
   return "downloaded";
+}
+
+/** Saves the whole-app backup — see saveJsonFile above. */
+export function saveBackupFile(data: BackupData): Promise<"saved" | "cancelled" | "downloaded"> {
+  return saveJsonFile(data, backupFilename(), "Peragra backup");
 }

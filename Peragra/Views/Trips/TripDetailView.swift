@@ -26,6 +26,7 @@ struct TripDetailView: View {
     /// seconds later, same as PlaceRowView's own transient states.
     @State private var highlightedPlaceID: UUID?
     @State private var showingAddPlace = false
+    @State private var showingImportPlaces = false
     @State private var showingAddList = false
     @State private var newListName = ""
     /// A place shows up while every currently-toggled-on list contains it
@@ -261,12 +262,18 @@ struct TripDetailView: View {
                 Button { showingAddPlace = true } label: { Label("Add Places", systemImage: "plus") }
             }
             ToolbarItem(placement: .secondaryAction) {
+                Button { showingImportPlaces = true } label: { Label("Import Shared Places", systemImage: "square.and.arrow.down") }
+            }
+            ToolbarItem(placement: .secondaryAction) {
                 Button { showingAddList = true } label: { Label("New List", systemImage: "folder.badge.plus") }
             }
         }
         .sheet(isPresented: $showingAddPlace) {
             let defaultCollection = activeCollectionIDs.count == 1 ? collections.first(where: { activeCollectionIDs.contains($0.id) }) : nil
             AddPlaceSheet(trip: trip, defaultCollection: defaultCollection)
+        }
+        .sheet(isPresented: $showingImportPlaces) {
+            ImportPlacesSheet(trip: trip)
         }
         .alert("New List", isPresented: $showingAddList) {
             TextField("List name", text: $newListName)

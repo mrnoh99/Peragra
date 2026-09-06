@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AddPlaceModal } from "../components/AddPlaceModal";
+import { ImportPlacesModal } from "../components/ImportPlacesModal";
 import { ListingView } from "../components/ListingView";
 import { MapView } from "../components/MapView";
 import { PlaceFilterBar, type SortMode } from "../components/PlaceFilterBar";
@@ -60,6 +61,7 @@ export function TripDetailPage() {
 
   const [tab, setTab] = useState<Tab>("listing");
   const [showAddPlace, setShowAddPlace] = useState(false);
+  const [showImportPlaces, setShowImportPlaces] = useState(false);
   // A place shows up while every currently-toggled-on list contains it
   // (AND, not OR) — several lists can be active at once.
   const [activeCollectionIds, setActiveCollectionIds] = useState<Set<string>>(new Set());
@@ -224,6 +226,13 @@ export function TripDetailPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => setShowImportPlaces(true)}
+            title="Add places someone shared with you"
+            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
+          >
+            ⬇️ Import
+          </button>
           <button
             onClick={() => setShowAddPlace(true)}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
@@ -442,6 +451,14 @@ export function TripDetailPage() {
           destination={trip.destination}
           defaultCollectionId={activeCollectionIds.size === 1 ? [...activeCollectionIds][0] : undefined}
           onClose={() => setShowAddPlace(false)}
+        />
+      )}
+
+      {showImportPlaces && (
+        <ImportPlacesModal
+          tripId={tripId}
+          destination={trip.destination}
+          onClose={() => setShowImportPlaces(false)}
         />
       )}
 

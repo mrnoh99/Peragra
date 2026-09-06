@@ -54,6 +54,8 @@
 		4C81FABB20A2E8C839CCF11D /* PhotoMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */; };
 		D00C3A30175C411E81277965 /* BackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EAEE5772124F4FACF141F3 /* BackupService.swift */; };
 		D28E8F9727CD416E8196DB27 /* CloudBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BBBBCC2A0B34FCEADCDC732 /* CloudBackupService.swift */; };
+		10510ADAF26E4309AD1B04DB /* SharePlaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09753ADB4CA948D1B185D28C /* SharePlaces.swift */; };
+		D899874C72004F4ABA74DC77 /* ImportPlacesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ECEA13D01644CFB117C110 /* ImportPlacesSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -106,6 +108,8 @@
 		B1FA52886D8B18396D31FA5D /* PhotoMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PhotoMetadata.swift; path = Peragra/Services/PhotoMetadata.swift; sourceTree = "<group>"; };
 		A9EAEE5772124F4FACF141F3 /* BackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackupService.swift; path = Peragra/Services/BackupService.swift; sourceTree = "<group>"; };
 		6BBBBCC2A0B34FCEADCDC732 /* CloudBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CloudBackupService.swift; path = Peragra/Services/CloudBackupService.swift; sourceTree = "<group>"; };
+		09753ADB4CA948D1B185D28C /* SharePlaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharePlaces.swift; path = Peragra/Services/SharePlaces.swift; sourceTree = "<group>"; };
+		D0ECEA13D01644CFB117C110 /* ImportPlacesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImportPlacesSheet.swift; path = Peragra/Views/Places/ImportPlacesSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -136,6 +140,7 @@
 				A9EAEE5772124F4FACF141F3 /* BackupService.swift */,
 				11E55049CCC51DDBE876FF2B /* AutoBackupService.swift */,
 				6BBBBCC2A0B34FCEADCDC732 /* CloudBackupService.swift */,
+				09753ADB4CA948D1B185D28C /* SharePlaces.swift */,
 				DDEC7178DEDD1F939938DFB8 /* LocationService.swift */,
 				5F07AD3AC900A5E9DEEC9127 /* KakaoMapOpener.swift */,
 				A46B7AEF579F0764C332223A /* KoreaRegion.swift */,
@@ -149,6 +154,7 @@
 			isa = PBXGroup;
 			children = (
 				EBA04DC7BF07B250AF95A74F /* PlaceRowView.swift */,
+				D0ECEA13D01644CFB117C110 /* ImportPlacesSheet.swift */,
 				9A724FCCA820579F5A284A7A /* InstagramEmbedView.swift */,
 				AB844760848B91E7946DB225 /* PlaceMapView.swift */,
 				C0D74B1688389732B5CD38E3 /* AddPlaceSheet.swift */,
@@ -300,6 +306,7 @@
 				194D42A5880CB7E18B3B3E73 /* Place.swift in Sources */,
 				A9F241E1917F88AE05BFC62B /* PlaceCollection.swift in Sources */,
 				9EA0447484A2AF2E5C69ADF7 /* PlaceRowView.swift in Sources */,
+				D899874C72004F4ABA74DC77 /* ImportPlacesSheet.swift in Sources */,
 				58BF451C8ED81EBA0F79972F /* InstagramEmbedView.swift in Sources */,
 				37844E01AA604E5535516219 /* PlaceMapView.swift in Sources */,
 				70F14B7899E319410C055906 /* AddPlaceSheet.swift in Sources */,
@@ -335,6 +342,7 @@
 				4C81FABB20A2E8C839CCF11D /* PhotoMetadata.swift in Sources */,
 				D00C3A30175C411E81277965 /* BackupService.swift in Sources */,
 				D28E8F9727CD416E8196DB27 /* CloudBackupService.swift in Sources */,
+				10510ADAF26E4309AD1B04DB /* SharePlaces.swift in Sources */,
 				B12C5E090088E25DEB914B9A /* LocationService.swift in Sources */,
 				C052B83134DFD7A8D22AA57A /* CameraCaptureView.swift in Sources */,
 				A9033BC47A48DEBA9EFF95A8 /* KakaoMapOpener.swift in Sources */,

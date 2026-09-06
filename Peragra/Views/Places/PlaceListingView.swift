@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct PlaceListingView: View {
     /// Already filtered and sorted by the parent (shared with the Map tab).
@@ -19,6 +20,8 @@ struct PlaceListingView: View {
     @State private var isSelecting = false
     @State private var selectedIDs: Set<UUID> = []
     @State private var placePendingDelete: Place?
+    @State private var shareMessage: String?
+    @State private var shareFileURL: URL?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -85,6 +88,7 @@ struct PlaceListingView: View {
                 }
             }
         }
+        .onChange(of: selectedIDs) { _, _ in refreshShareFile() }
         .safeAreaInset(edge: .bottom) {
             if isSelecting {
                 bulkActionBar
@@ -188,6 +192,57 @@ struct PlaceListingView: View {
                     .font(.subheadline.weight(.medium))
             }
             .disabled(selectedIDs.isEmpty)
+
+            Menu {
+                Button {
+                    copySelectedAsText()
+                } label: {
+                    Label("Copy as Text", systemImage: "doc.on.doc")
+                }
+                if let shareFileURL {
+                    ShareLink(item: shareFileURL) {
+                        Label("Share as File", systemImage: "doc")
+                    }
+                }
+            } label: {
+                Label("Share", systemImage: "square.and.arrow.up")
+                    .font(.subheadline.weight(.medium))
+            }
+            .disabled(selectedIDs.isEmpty)
+
+            if let shareMessage {
+                Text(shareMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// Regenerates the temp file ShareLink hands off whenever the
+    /// selection actually changes — ShareLink needs its item ready at
+    /// render time rather than generated on tap the way a plain Button's
+    /// action can, and ties the (cheap, small) JSON write to a real
+    /// change instead of every unrelated re-render.
+    private func refreshShareFile() {
+        guard !selectedIDs.isEmpty else {
+            shareFileURL = nil
+            return
+        }
+        let selected = places.filter { selectedIDs.contains($0.id) }
+        shareFileURL = SharePlaces.writeTempFile(SharePlaces.buildPayload(from: selected))
+    }
+
+    private func copySelectedAsText() {
+        let selected = places.filter { selectedIDs.contains($0.id) }
+        guard let text = try? SharePlaces.toText(SharePlaces.buildPayload(from: selected)) else {
+            shareMessage = "Couldn't prepare that for copying."
+            return
+        }
+        UIPasteboard.general.string = text
+        shareMessage = "Copied \(selected.count) place\(selected.count == 1 ? "" : "s") — paste it anywhere to share."
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            shareMessage = nil
         }
     }
 
