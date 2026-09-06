@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import CoreLocation
 
 struct PlaceListingView: View {
     /// Already filtered and sorted by the parent (shared with the Map tab).
@@ -10,13 +9,12 @@ struct PlaceListingView: View {
     let destination: String
     /// Every board except this one, for the bulk "Move to Board" menu.
     let otherBoards: [Trip]
+    /// Switches to the Map tab, narrowed to just these place ids.
+    let onViewSelectedOnMap: (Set<UUID>) -> Void
 
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.openURL) private var openURL
     @State private var isSelecting = false
     @State private var selectedIDs: Set<UUID> = []
-    @State private var isSendingToMap = false
-    @State private var mapErrorMessage: String?
     @State private var placePendingDelete: Place?
 
     var body: some View {
@@ -94,11 +92,6 @@ struct PlaceListingView: View {
 
     private var bulkActionBar: some View {
         VStack(alignment: .leading, spacing: 4) {
-            if let mapErrorMessage {
-                Text(mapErrorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
             bulkActionBarControls
         }
         .padding(.horizontal)
@@ -170,36 +163,13 @@ struct PlaceListingView: View {
                 .disabled(selectedIDs.isEmpty)
             }
 
-            Menu {
-                Button {
-                    sendSelectedToGoogleMaps()
-                } label: {
-                    Label("Google Maps", systemImage: "map")
-                }
-                Button {
-                    Task { await sendSelectedToNaverMap() }
-                } label: {
-                    Label("Naver Map", systemImage: "map")
-                }
-                Button {
-                    Task { await sendSelectedToKakaoMap() }
-                } label: {
-                    Label("Kakao Map", systemImage: "map")
-                }
-                Button {
-                    sendSelectedToTmap()
-                } label: {
-                    Label("Tmap", systemImage: "map")
-                }
+            Button {
+                onViewSelectedOnMap(selectedIDs)
             } label: {
-                if isSendingToMap {
-                    ProgressView()
-                } else {
-                    Label("Open in Map", systemImage: "map")
-                        .font(.subheadline.weight(.medium))
-                }
+                Label("Show on Map", systemImage: "map")
+                    .font(.subheadline.weight(.medium))
             }
-            .disabled(selectedIDs.isEmpty || isSendingToMap)
+            .disabled(selectedIDs.isEmpty)
         }
     }
 
@@ -297,65 +267,4 @@ struct PlaceListingView: View {
         return selected.allSatisfy { place in place.collections.contains(where: { $0.id == collection.id }) }
     }
 
-    private func sendSelectedToGoogleMaps() {
-        // Keep the current list order (not selection-tap order) so the
-        // resulting route reads top-to-bottom the way the list does.
-        let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
-        guard let url = GoogleMapsOpener.directionsURL(for: selectedPlaces, tripDestination: destination) else { return }
-        openURL(url)
-    }
-
-    private func sendSelectedToKakaoMap() async {
-        mapErrorMessage = nil
-        isSendingToMap = true
-        defer { isSendingToMap = false }
-
-        // Kakao's route scheme, unlike Google's, requires an explicit
-        // starting coordinate rather than defaulting to wherever the user
-        // currently is.
-        guard let origin = await LocationService.currentLocation() else {
-            mapErrorMessage = "Couldn't get your current location — check Location permission for Peragra in Settings."
-            return
-        }
-
-        let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
-        guard let url = KakaoMapOpener.directionsURL(for: selectedPlaces, from: origin) else {
-            mapErrorMessage = "None of the selected places have a located position yet."
-            return
-        }
-        openURL(url)
-    }
-
-    private func sendSelectedToNaverMap() async {
-        mapErrorMessage = nil
-        isSendingToMap = true
-        defer { isSendingToMap = false }
-
-        // Naver's route scheme, like Kakao's, requires an explicit
-        // starting coordinate rather than defaulting to wherever the user
-        // currently is.
-        guard let origin = await LocationService.currentLocation() else {
-            mapErrorMessage = "Couldn't get your current location — check Location permission for Peragra in Settings."
-            return
-        }
-
-        let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
-        guard let url = NaverMapOpener.directionsURL(for: selectedPlaces, from: origin) else {
-            mapErrorMessage = "None of the selected places have a located position yet."
-            return
-        }
-        openURL(url)
-    }
-
-    private func sendSelectedToTmap() {
-        mapErrorMessage = nil
-        // Unlike Kakao/Naver, Tmap needs no explicit starting coordinate,
-        // so this needs no LocationService lookup.
-        let selectedPlaces = places.filter { selectedIDs.contains($0.id) }
-        guard let url = TmapOpener.directionsURL(for: selectedPlaces) else {
-            mapErrorMessage = "None of the selected places have a located position yet."
-            return
-        }
-        openURL(url)
-    }
 }

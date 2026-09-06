@@ -55,6 +55,10 @@ export function TripDetailPage() {
   const [showAddPlace, setShowAddPlace] = useState(false);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState("");
+  // Set by ListingView's bulk "Show on Map", so the Map tab can narrow to
+  // just that selection instead of the full filtered listing — cleared
+  // when the Map tab is opened directly instead.
+  const [mapFilterIds, setMapFilterIds] = useState<string[] | null>(null);
 
   // Search/category/visited/favorites/sort — shared by the Listing and Map
   // tabs (via PlaceFilterBar below) so switching tabs doesn't reset what
@@ -155,6 +159,11 @@ export function TripDetailPage() {
   const locatablePlaces = useMemo(
     () => visiblePlaces.filter((p): p is Place & { lat: number; lng: number } => p.lat !== null && p.lng !== null),
     [visiblePlaces],
+  );
+
+  const mapPlaces = useMemo(
+    () => (mapFilterIds ? sorted.filter((p) => mapFilterIds.includes(p.id)) : sorted),
+    [sorted, mapFilterIds],
   );
 
   const visitedCount = useMemo(() => places.filter((p) => p.visited).length, [places]);
@@ -297,7 +306,10 @@ export function TripDetailPage() {
               Listing
             </button>
             <button
-              onClick={() => setTab("map")}
+              onClick={() => {
+                setTab("map");
+                setMapFilterIds(null);
+              }}
               className={`rounded-md px-4 py-1.5 font-medium ${
                 tab === "map" ? "bg-brand-500 text-white" : "text-neutral-600"
               }`}
@@ -363,9 +375,28 @@ export function TripDetailPage() {
                   destination={trip.destination}
                   distancesById={distancesById}
                   otherBoards={otherBoards}
+                  onViewSelectedOnMap={(ids) => {
+                    setMapFilterIds(ids);
+                    setTab("map");
+                  }}
                 />
               ) : (
-                <MapView places={sorted} destination={trip.destination} />
+                <>
+                  {mapFilterIds && (
+                    <div className="mb-3 flex items-center justify-between rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-700">
+                      <span>
+                        Showing {mapPlaces.length} selected place{mapPlaces.length === 1 ? "" : "s"}
+                      </span>
+                      <button
+                        onClick={() => setMapFilterIds(null)}
+                        className="font-medium underline hover:no-underline"
+                      >
+                        Show all
+                      </button>
+                    </div>
+                  )}
+                  <MapView places={mapPlaces} destination={trip.destination} />
+                </>
               )}
             </>
           )}

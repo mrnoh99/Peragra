@@ -17,6 +17,12 @@ struct PlaceRowView: View {
     @State private var showingCollectionPicker = false
     @State private var showingEdit = false
     @State private var showingCopiedBadge = false
+    @State private var notesExpanded = false
+
+    /// Notes past this length get a "Show more" toggle instead of always
+    /// stretching the row to fit — long enough that a short one-line note
+    /// never shows the toggle at all.
+    private static let notesCollapseThreshold = 140
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -72,9 +78,19 @@ struct PlaceRowView: View {
             }
 
             if !place.notes.isEmpty {
-                Text(place.notes)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(place.notes)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(notesExpanded ? nil : 3)
+                    if place.notes.count > Self.notesCollapseThreshold {
+                        Button(notesExpanded ? "Show less" : "Show more") {
+                            notesExpanded.toggle()
+                        }
+                        .font(.caption.weight(.medium))
+                        .buttonStyle(.plain)
+                    }
+                }
             }
 
             if place.geocodeStatus == .failed {

@@ -2,11 +2,6 @@ import { useState } from "react";
 import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory, type Trip } from "../types";
 import { useStore } from "../store/useStore";
 import { PlaceCard } from "./PlaceCard";
-import { googleMapsDirectionsUrl } from "../lib/googleMapsUrl";
-import { kakaoMapDirectionsUrl } from "../lib/kakaoMapUrl";
-import { naverMapDirectionsUrl } from "../lib/naverMapUrl";
-import { tmapDirectionsUrl } from "../lib/tmapUrl";
-import { openCustomSchemeUrl } from "../lib/customSchemeUrl";
 
 export function ListingView({
   places,
@@ -14,6 +9,7 @@ export function ListingView({
   destination,
   distancesById,
   otherBoards,
+  onViewSelectedOnMap,
 }: {
   /** Already filtered and sorted by the parent (shared with the Map tab). */
   places: Place[];
@@ -22,13 +18,12 @@ export function ListingView({
   distancesById: Map<string, number>;
   /** Every board except this one, for the bulk "Move to board" picker. */
   otherBoards: Trip[];
+  /** Switches to the Map tab, narrowed to just these place ids. */
+  onViewSelectedOnMap: (placeIds: string[]) => void;
 }) {
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showListPicker, setShowListPicker] = useState(false);
-  const [isSendingToMap, setIsSendingToMap] = useState(false);
-  const [mapError, setMapError] = useState<string | null>(null);
-  const [showMapMenu, setShowMapMenu] = useState(false);
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
   const togglePlacesCollection = useStore((s) => s.togglePlacesCollection);
   const movePlacesToBoard = useStore((s) => s.movePlacesToBoard);
@@ -77,60 +72,8 @@ export function ListingView({
     return selected.length > 0 && selected.every((p) => p.collectionIds.includes(collectionId));
   }
 
-  function sendSelectedToGoogleMaps() {
-    setShowMapMenu(false);
-    // Keep the current list order (not selection-click order) so the
-    // resulting route reads top-to-bottom the way the list does.
-    const selectedPlaces = places.filter((p) => selectedIds.has(p.id));
-    window.open(googleMapsDirectionsUrl(selectedPlaces, destination), "_blank", "noreferrer");
-  }
-
-  async function sendSelectedToKakaoMap() {
-    setShowMapMenu(false);
-    setMapError(null);
-    setIsSendingToMap(true);
-    try {
-      const selectedPlaces = places.filter((p) => selectedIds.has(p.id));
-      const url = await kakaoMapDirectionsUrl(selectedPlaces);
-      if (!url) {
-        setMapError("Couldn't get your current location — allow location access for this site and try again.");
-        return;
-      }
-      window.open(url, "_blank", "noreferrer");
-    } finally {
-      setIsSendingToMap(false);
-    }
-  }
-
-  async function sendSelectedToNaverMap() {
-    setShowMapMenu(false);
-    setMapError(null);
-    setIsSendingToMap(true);
-    try {
-      const selectedPlaces = places.filter((p) => selectedIds.has(p.id));
-      const url = await naverMapDirectionsUrl(selectedPlaces);
-      if (!url) {
-        setMapError("Couldn't get your current location — allow location access for this site and try again.");
-        return;
-      }
-      openCustomSchemeUrl(url);
-    } finally {
-      setIsSendingToMap(false);
-    }
-  }
-
-  function sendSelectedToTmap() {
-    setShowMapMenu(false);
-    setMapError(null);
-    // Unlike Kakao/Naver, Tmap needs no explicit starting coordinate, so
-    // this needs no location lookup and isn't async.
-    const selectedPlaces = places.filter((p) => selectedIds.has(p.id));
-    const url = tmapDirectionsUrl(selectedPlaces);
-    if (!url) {
-      setMapError("None of the selected places have a located position yet.");
-      return;
-    }
-    openCustomSchemeUrl(url);
+  function viewSelectedOnMap() {
+    onViewSelectedOnMap([...selectedIds]);
   }
 
   return (
@@ -229,52 +172,15 @@ export function ListingView({
               )}
             </div>
           )}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowMapMenu((v) => !v)}
-              disabled={selectedIds.size === 0 || isSendingToMap}
-              className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
-            >
-              {isSendingToMap ? "Locating…" : `🗺️ Open in Map ${showMapMenu ? "▲" : "▼"}`}
-            </button>
-            {showMapMenu && (
-              <div className="absolute left-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
-                <button
-                  type="button"
-                  onClick={sendSelectedToGoogleMaps}
-                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
-                >
-                  Google Maps
-                </button>
-                <button
-                  type="button"
-                  onClick={sendSelectedToNaverMap}
-                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
-                >
-                  Naver Map
-                </button>
-                <button
-                  type="button"
-                  onClick={sendSelectedToKakaoMap}
-                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
-                >
-                  Kakao Map
-                </button>
-                <button
-                  type="button"
-                  onClick={sendSelectedToTmap}
-                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
-                >
-                  Tmap
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={viewSelectedOnMap}
+            disabled={selectedIds.size === 0}
+            className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+          >
+            🗺️ Show on Map
+          </button>
         </div>
-      )}
-      {mapError && (
-        <p className="-mt-2 mb-4 text-xs text-amber-600">{mapError}</p>
       )}
 
       {places.length === 0 ? (

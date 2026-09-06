@@ -29,43 +29,4 @@ enum NaverMapOpener {
         ]
         return components?.url
     }
-
-    /// A directions link visiting several places in order, via Naver
-    /// Map's own car-route scheme — like Kakao's, this requires an
-    /// explicit starting coordinate (no "start from wherever I am"
-    /// default) and supports a destination plus up to 5 waypoints
-    /// (v1lat/v1lng/v1name … v5lat/v5lng/v5name), so anything past 6
-    /// places is silently dropped.
-    static func directionsURL(for places: [Place], from origin: CLLocationCoordinate2D) -> URL? {
-        // Places outside Korea are dropped rather than failing the whole
-        // route — this also naturally hides the button for a trip that
-        // isn't in Korea at all, since `inKorea` ends up empty.
-        let inKorea = places.filter { place in
-            guard let coordinate = place.coordinate2D else { return false }
-            return KoreaRegion.contains(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        }
-        guard let destination = inKorea.last, let destinationCoordinate = destination.coordinate2D else { return nil }
-        let waypoints = inKorea.dropLast().prefix(5)
-
-        var queryItems = [
-            URLQueryItem(name: "slat", value: "\(origin.latitude)"),
-            URLQueryItem(name: "slng", value: "\(origin.longitude)"),
-            URLQueryItem(name: "sname", value: "현재 위치"),
-            URLQueryItem(name: "dlat", value: "\(destinationCoordinate.latitude)"),
-            URLQueryItem(name: "dlng", value: "\(destinationCoordinate.longitude)"),
-            URLQueryItem(name: "dname", value: destination.name),
-            URLQueryItem(name: "appname", value: appName),
-        ]
-        for (index, waypoint) in waypoints.enumerated() {
-            guard let coordinate = waypoint.coordinate2D else { continue }
-            let n = index + 1
-            queryItems.append(URLQueryItem(name: "v\(n)lat", value: "\(coordinate.latitude)"))
-            queryItems.append(URLQueryItem(name: "v\(n)lng", value: "\(coordinate.longitude)"))
-            queryItems.append(URLQueryItem(name: "v\(n)name", value: waypoint.name))
-        }
-
-        var components = URLComponents(string: "nmap://route/car")
-        components?.queryItems = queryItems
-        return components?.url
-    }
 }

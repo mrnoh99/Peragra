@@ -16,6 +16,11 @@ function formatVisitedDate(timestamp: number): string {
   });
 }
 
+/** Notes past this length get a "Show more" toggle instead of always
+ *  stretching the card to fit — long enough that a short one-line note
+ *  never shows the toggle at all. */
+const NOTES_COLLAPSE_THRESHOLD = 140;
+
 const CATEGORY_ICON: Record<string, string> = {
   restaurant: "🍽️",
   cafe: "☕",
@@ -52,6 +57,7 @@ export function PlaceCard({
   const [showMapMenu, setShowMapMenu] = useState(false);
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
   const longPressTimer = useRef<number | null>(null);
 
   const categoryLabel =
@@ -141,7 +147,22 @@ export function PlaceCard({
                 {place.phone && `☎ ${place.phone}`}
               </p>
             )}
-            {place.notes && <p className="mt-1 text-sm text-neutral-600">{place.notes}</p>}
+            {place.notes && (
+              <div className="mt-1">
+                <p className={`text-sm text-neutral-600 ${notesExpanded ? "" : "line-clamp-3"}`}>
+                  {place.notes}
+                </p>
+                {place.notes.length > NOTES_COLLAPSE_THRESHOLD && (
+                  <button
+                    type="button"
+                    onClick={() => setNotesExpanded((v) => !v)}
+                    className="mt-0.5 text-xs font-medium text-brand-600 hover:underline"
+                  >
+                    {notesExpanded ? "Show less" : "Show more"}
+                  </button>
+                )}
+              </div>
+            )}
             {place.geocodeStatus === "failed" && (
               <p className="mt-1 text-xs text-amber-600">
                 Couldn't locate this on the map — try adding a more specific address.

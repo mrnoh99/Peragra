@@ -16,6 +16,11 @@ struct TripDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isConfirmingDeleteBoard = false
     @State private var tab: DetailTab = .listing
+    /// Set by PlaceListingView's bulk "Show on Map", so the Map tab can
+    /// narrow to just that selection instead of the full filtered listing —
+    /// cleared whenever the Map tab is left, so a later manual switch to
+    /// it starts from the full list again.
+    @State private var mapFilterIDs: Set<UUID>?
     @State private var showingAddPlace = false
     @State private var showingAddList = false
     @State private var newListName = ""
@@ -116,6 +121,11 @@ struct TripDetailView: View {
     /// Filtered (search, category, visited, favorites) and sorted — the
     /// exact set both the Listing and Map tabs render, and what Export
     /// writes out.
+    private var mapPlaces: [Place] {
+        guard let mapFilterIDs else { return sortedPlaces }
+        return sortedPlaces.filter { mapFilterIDs.contains($0.id) }
+    }
+
     private var sortedPlaces: [Place] {
         // Favorited places float to the top no matter which sort mode is
         // active — the mode only decides ordering within/below that.
@@ -167,6 +177,9 @@ struct TripDetailView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.vertical, 8)
+            .onChange(of: tab) { _, newValue in
+                if newValue == .listing { mapFilterIDs = nil }
+            }
 
             if places.isEmpty {
                 ContentUnavailableView {
@@ -193,9 +206,33 @@ struct TripDetailView: View {
                     locatablePlaces: locatablePlaces
                 )
                 if tab == .listing {
-                    PlaceListingView(places: sortedPlaces, allCollections: collections, distancesByID: distancesByID, destination: trip.destination, otherBoards: otherBoards)
+                    PlaceListingView(
+                        places: sortedPlaces,
+                        allCollections: collections,
+                        distancesByID: distancesByID,
+                        destination: trip.destination,
+                        otherBoards: otherBoards,
+                        onViewSelectedOnMap: { ids in
+                            mapFilterIDs = ids
+                            tab = .map
+                        }
+                    )
                 } else {
-                    PlaceMapView(places: sortedPlaces, destination: trip.destination)
+                    VStack(spacing: 0) {
+                        if mapFilterIDs != nil {
+                            HStack {
+                                Text("Showing \(mapPlaces.count) selected place\(mapPlaces.count == 1 ? "" : "s")")
+                                Spacer()
+                                Button("Show All") { self.mapFilterIDs = nil }
+                            }
+                            .font(.subheadline)
+                            .foregroundStyle(Color.accentColor)
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                            .background(Color.accentColor.opacity(0.1))
+                        }
+                        PlaceMapView(places: mapPlaces, destination: trip.destination)
+                    }
                 }
             }
         }

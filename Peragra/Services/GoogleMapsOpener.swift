@@ -16,26 +16,6 @@ enum GoogleMapsOpener {
         return components?.url
     }
 
-    /// A directions link visiting several places in order — the last one
-    /// as the destination, everything before it as waypoints. Origin is
-    /// left unset so Google Maps starts from wherever the user currently is.
-    static func directionsURL(for places: [Place], tripDestination: String? = nil) -> URL? {
-        let queries = places.compactMap { query(for: $0, tripDestination: tripDestination) }
-        guard let destination = queries.last else { return nil }
-        let waypoints = queries.dropLast()
-
-        var components = URLComponents(string: "https://www.google.com/maps/dir/")
-        var queryItems = [
-            URLQueryItem(name: "api", value: "1"),
-            URLQueryItem(name: "destination", value: destination),
-        ]
-        if !waypoints.isEmpty {
-            queryItems.append(URLQueryItem(name: "waypoints", value: waypoints.joined(separator: "|")))
-        }
-        components?.queryItems = queryItems
-        return components?.url
-    }
-
     /// A search/route query for one place. Prefers "name, address" — but
     /// only when this app's own geocoding actually resolved that address
     /// (`.located`); for anything else (no address, or a `.failed`/

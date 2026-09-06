@@ -21,43 +21,4 @@ enum KakaoMapOpener {
         components?.path = "/link/to/\(place.name),\(coordinate.latitude),\(coordinate.longitude)"
         return components?.url
     }
-
-    /// A directions link visiting several places in order, via Kakao Map's
-    /// mobile route scheme — unlike `url(for:)` above, this scheme has no
-    /// "start from wherever I am" default, so it requires an explicit
-    /// starting coordinate (resolve one via LocationService before calling
-    /// this). Only a destination and up to 5 waypoints are supported, so
-    /// anything past 6 places is silently dropped.
-    ///
-    /// This route scheme is far less documented than the single-place link
-    /// above and untested against a real Kakao Map install — if it turns
-    /// out to be wrong, the single-place "Kakao Map" button on each place
-    /// is the verified fallback.
-    static func directionsURL(for places: [Place], from origin: CLLocationCoordinate2D) -> URL? {
-        // Places outside Korea are dropped rather than failing the whole
-        // route — this also naturally hides the button for a trip that
-        // isn't in Korea at all, since `coordinates` ends up empty.
-        let coordinates = places.compactMap { place -> String? in
-            guard
-                let coordinate = place.coordinate2D,
-                KoreaRegion.contains(latitude: coordinate.latitude, longitude: coordinate.longitude)
-            else { return nil }
-            return "\(coordinate.latitude),\(coordinate.longitude)"
-        }
-        guard let destination = coordinates.last else { return nil }
-        let waypoints = coordinates.dropLast().prefix(5)
-
-        var queryItems = [
-            URLQueryItem(name: "sp", value: "\(origin.latitude),\(origin.longitude)"),
-            URLQueryItem(name: "ep", value: destination),
-            URLQueryItem(name: "by", value: "car"),
-        ]
-        for (index, waypoint) in waypoints.enumerated() {
-            queryItems.append(URLQueryItem(name: index == 0 ? "vp" : "vp\(index + 1)", value: waypoint))
-        }
-
-        var components = URLComponents(string: "http://m.map.kakao.com/scheme/route")
-        components?.queryItems = queryItems
-        return components?.url
-    }
 }
