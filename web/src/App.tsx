@@ -9,6 +9,13 @@ import { useStore } from "./store/useStore";
 
 function App() {
   useEffect(() => {
+    // Backfills country-list membership for every place, not just ones
+    // that go through an add/edit/geocode/board-move from here on —
+    // syncPlaceCountry only ever ran on those events, so a place that
+    // was already geocoded before country lists existed (or before its
+    // own last edit) was never going to get classified on its own.
+    useStore.getState().syncAllPlaceCountries();
+
     // Checked once per app open (a web page has no true background
     // schedule) — writes a fresh backup to the chosen folder if
     // automatic backups are on and the configured interval has elapsed.

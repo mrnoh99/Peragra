@@ -123,6 +123,13 @@ struct TripsListView: View {
         .task {
             AutoBackupService.runIfDue(context: modelContext)
             await restoreFromCloudIfNeeded()
+            // Backfills country-list membership for every place, not just
+            // ones that go through an add/edit/geocode/board-move from here
+            // on — syncCountryList only ever ran on those events, so a
+            // place already geocoded before country lists existed (or
+            // before its own last edit) was never going to get classified
+            // on its own.
+            Place.syncAllCountryLists(context: modelContext)
             await CloudBackupService.backup(context: modelContext)
         }
         .onChange(of: scenePhase) { _, newPhase in

@@ -77,6 +77,12 @@ interface AppState {
    *  country's list the first time a place needs it, and deletes an auto
    *  country list that's lost its last member. */
   syncPlaceCountry: (placeId: string) => void;
+  /** Backfills every place's country-list membership at once — for
+   *  places that existed before country lists did, or before this
+   *  place last happened to go through syncPlaceCountry, geocoding
+   *  once on success never re-runs, so nothing else was ever going to
+   *  trigger the sync for them. Safe/cheap to call on every app start. */
+  syncAllPlaceCountries: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -420,6 +426,10 @@ export const useStore = create<AppState>()(
           const collections = state.collections.filter((c) => !c.isCountryList || stillUsed.has(c.id));
           return collections.length === state.collections.length ? {} : { collections };
         });
+      },
+
+      syncAllPlaceCountries: () => {
+        for (const place of get().places) get().syncPlaceCountry(place.id);
       },
     }),
     { name: "peragra-store" },

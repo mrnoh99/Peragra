@@ -189,6 +189,18 @@ final class Place {
         Self.pruneEmptyCountryLists(context: context)
     }
 
+    /// Backfills country-list membership for every place at once — for
+    /// ones that existed before country lists did, or before their own
+    /// last add/edit/geocode/board-move (the only events that ever call
+    /// syncCountryList on a single place), nothing else was going to
+    /// classify them on its own. Safe/cheap to call on every app launch.
+    static func syncAllCountryLists(context: ModelContext) {
+        guard let places = try? context.fetch(FetchDescriptor<Place>()) else { return }
+        for place in places {
+            place.syncCountryList(context: context)
+        }
+    }
+
     /// Auto country lists are fully derived from place data, so any that
     /// lost its last member (e.g. after a board move away from it) is
     /// deleted rather than left behind as clutter.
