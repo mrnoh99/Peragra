@@ -20,6 +20,7 @@ struct PlaceListingView: View {
     @State private var isSelecting = false
     @State private var selectedIDs: Set<UUID> = []
     @State private var placePendingDelete: Place?
+    @State private var isConfirmingBulkDelete = false
     @State private var exportMessage: String?
     @State private var exportFileURL: URL?
 
@@ -110,6 +111,24 @@ struct PlaceListingView: View {
             }
             Button("Cancel", role: .cancel) { placePendingDelete = nil }
         }
+        .confirmationDialog(
+            "Remove \(selectedIDs.count) place\(selectedIDs.count == 1 ? "" : "s")? This can't be undone.",
+            isPresented: $isConfirmingBulkDelete,
+            titleVisibility: .visible
+        ) {
+            Button("Delete \(selectedIDs.count) Place\(selectedIDs.count == 1 ? "" : "s")", role: .destructive) {
+                deleteSelected()
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private func deleteSelected() {
+        for place in places where selectedIDs.contains(place.id) {
+            modelContext.delete(place)
+        }
+        selectedIDs.removeAll()
+        isSelecting = false
     }
 
     private var bulkActionBar: some View {
@@ -134,6 +153,13 @@ struct PlaceListingView: View {
                     .font(.subheadline.weight(.medium))
             }
             .disabled(places.isEmpty)
+            Button(role: .destructive) {
+                isConfirmingBulkDelete = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+                    .font(.subheadline.weight(.medium))
+            }
+            .disabled(selectedIDs.isEmpty)
             Menu {
                 ForEach(PlaceCategory.allCases) { category in
                     Button {

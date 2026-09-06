@@ -38,6 +38,8 @@ interface AppState {
   updatePlace: (placeId: string, patch: Partial<Place>) => void;
   updatePlacesCategory: (placeIds: string[], category: PlaceCategory) => void;
   deletePlace: (placeId: string) => void;
+  /** Same as deletePlace, for a bulk selection at once. */
+  deletePlaces: (placeIds: string[]) => void;
   /** Moves a place to a different board. Custom-list membership doesn't
    *  carry over (those lists belong to the old board), but visited/
    *  favorite status is preserved and re-synced against the new board's
@@ -185,6 +187,11 @@ export const useStore = create<AppState>()(
 
       deletePlace: (placeId) => {
         set((state) => ({ places: state.places.filter((p) => p.id !== placeId) }));
+      },
+
+      deletePlaces: (placeIds) => {
+        const idSet = new Set(placeIds);
+        set((state) => ({ places: state.places.filter((p) => !idSet.has(p.id)) }));
       },
 
       movePlaceToBoard: (placeId, newTripId) => {

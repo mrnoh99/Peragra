@@ -34,6 +34,7 @@ export function ListingView({
   const updatePlacesCategory = useStore((s) => s.updatePlacesCategory);
   const togglePlacesCollection = useStore((s) => s.togglePlacesCollection);
   const movePlacesToBoard = useStore((s) => s.movePlacesToBoard);
+  const deletePlaces = useStore((s) => s.deletePlaces);
 
   useEffect(() => {
     if (!highlightedPlaceId) return;
@@ -66,6 +67,14 @@ export function ListingView({
 
   function applyBulkMoveToBoard(newTripId: string) {
     movePlacesToBoard([...selectedIds], newTripId);
+    setSelectedIds(new Set());
+    setIsSelecting(false);
+  }
+
+  function applyBulkDelete() {
+    const count = selectedIds.size;
+    if (!confirm(`Remove ${count} place${count === 1 ? "" : "s"}? This can't be undone.`)) return;
+    deletePlaces([...selectedIds]);
     setSelectedIds(new Set());
     setIsSelecting(false);
   }
@@ -146,6 +155,14 @@ export function ListingView({
             className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
           >
             {selectedIds.size === places.length ? "Deselect all" : "Select all"}
+          </button>
+          <button
+            type="button"
+            onClick={applyBulkDelete}
+            disabled={selectedIds.size === 0}
+            className="rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            🗑 Delete
           </button>
           <select
             disabled={selectedIds.size === 0}
