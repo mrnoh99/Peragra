@@ -30,6 +30,7 @@ enum BackupService {
         let phone: String?
         let notes: String
         let instagramUrl: String?
+        let linkUrl: String?
         let lat: Double?
         let lng: Double?
         let geocodeStatus: String
@@ -145,6 +146,7 @@ enum BackupService {
                     phone: place.phone,
                     notes: place.notes,
                     instagramUrl: place.instagramURLString,
+                    linkUrl: place.linkURLString,
                     lat: place.latitude,
                     lng: place.longitude,
                     geocodeStatus: place.geocodeStatusRaw,
@@ -232,6 +234,7 @@ enum BackupService {
                 phone: backupPlace.phone,
                 notes: backupPlace.notes,
                 instagramURLString: backupPlace.instagramUrl,
+                linkURLString: backupPlace.linkUrl,
                 trip: trip
             )
             place.id = backupPlace.id

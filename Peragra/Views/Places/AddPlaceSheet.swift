@@ -15,6 +15,10 @@ private struct CandidateRow: Identifiable {
     // recommended item, why it was recommended, ...) — combined with the
     // form's own manual notes field at save time, not a replacement for it.
     var notes = ""
+    // A manually-entered reference link (Instagram profile/post or any
+    // other webpage) — distinct from the shared source-post Instagram
+    // link every row from one caption paste gets automatically.
+    var link = ""
     var category: PlaceCategory = .restaurant
     // Set when this row came from the on-site photo flow rather than
     // AI-extracted address text — geocodeAndStore uses these directly
@@ -475,6 +479,10 @@ struct AddPlaceSheet: View {
                 TextField("Other details (hours, menu, why recommended, ...)", text: row.notes)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                TextField("Instagram or website link (optional)", text: row.link)
+                    .font(.subheadline)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
                 if row.wrappedValue.manualLatitude != nil {
                     Label("Using a captured location", systemImage: "location.fill")
                         .font(.caption2)
@@ -840,6 +848,7 @@ struct AddPlaceSheet: View {
             .filter { !$0.isEmpty }
             .joined(separator: "\n\n")
 
+            let trimmedLink = row.link.trimmingCharacters(in: .whitespaces)
             let place = Place(
                 name: row.name.trimmingCharacters(in: .whitespaces),
                 category: row.category,
@@ -847,6 +856,7 @@ struct AddPlaceSheet: View {
                 phone: trimmedPhone.isEmpty ? nil : trimmedPhone,
                 notes: combinedNotes,
                 instagramURLString: normalizedInstagramURL?.absoluteString,
+                linkURLString: trimmedLink.isEmpty ? nil : trimmedLink,
                 trip: trip
             )
             modelContext.insert(place)

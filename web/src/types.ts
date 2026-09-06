@@ -33,6 +33,11 @@ export interface Place {
   phone: string | null;
   notes: string;
   instagramUrl: string | null;
+  // A manually-entered reference link — an Instagram profile/post or any
+  // other webpage — distinct from instagramUrl, which is the source post
+  // a place was imported from (shared by every place from one caption
+  // paste, not editable per place).
+  linkUrl: string | null;
   lat: number | null;
   lng: number | null;
   geocodeStatus: GeocodeStatus;

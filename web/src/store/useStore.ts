@@ -15,6 +15,7 @@ interface NewPlaceInput {
   phone: string | null;
   notes: string;
   instagramUrl: string | null;
+  linkUrl: string | null;
   collectionIds: string[];
 }
 
@@ -140,6 +141,7 @@ export const useStore = create<AppState>()(
           phone: input.phone,
           notes: input.notes,
           instagramUrl: input.instagramUrl,
+          linkUrl: input.linkUrl,
           lat: null,
           lng: null,
           geocodeStatus: "pending",

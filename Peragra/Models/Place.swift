@@ -10,6 +10,11 @@ final class Place {
     var phone: String?
     var notes: String
     var instagramURLString: String?
+    // A manually-entered reference link — an Instagram profile/post or any
+    // other webpage — distinct from instagramURLString, which is the
+    // source post a place was imported from (shared by every place from
+    // one caption paste, not editable per place).
+    var linkURLString: String?
     var latitude: Double?
     var longitude: Double?
     var geocodeStatusRaw: String
@@ -41,6 +46,7 @@ final class Place {
         phone: String? = nil,
         notes: String,
         instagramURLString: String?,
+        linkURLString: String? = nil,
         trip: Trip?
     ) {
         self.id = UUID()
@@ -50,6 +56,7 @@ final class Place {
         self.phone = phone
         self.notes = notes
         self.instagramURLString = instagramURLString
+        self.linkURLString = linkURLString
         self.latitude = nil
         self.longitude = nil
         self.geocodeStatusRaw = GeocodeStatus.pending.rawValue
@@ -72,6 +79,24 @@ final class Place {
 
     var instagramURL: URL? {
         instagramURLString.flatMap(URL.init(string:))
+    }
+
+    /// The manually-entered link, normalized with a "https://" prefix if
+    /// the person typed one without a scheme (e.g. "instagram.com/x") —
+    /// otherwise URL(string:) treats it as a relative path rather than the
+    /// address it looks like.
+    var linkURL: URL? {
+        guard let linkURLString, !linkURLString.isEmpty else { return nil }
+        if linkURLString.range(of: "^[a-zA-Z][a-zA-Z0-9+.-]*://", options: .regularExpression) != nil {
+            return URL(string: linkURLString)
+        }
+        return URL(string: "https://\(linkURLString)")
+    }
+
+    /// Whether the manually-entered link points at Instagram — used to
+    /// label it "Instagram" instead of the generic "Website" in the UI.
+    var linkIsInstagram: Bool {
+        linkURL?.host?.replacingOccurrences(of: "^www\\.", with: "", options: .regularExpression) == "instagram.com"
     }
 
     var coordinate2D: (latitude: Double, longitude: Double)? {

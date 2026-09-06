@@ -9,6 +9,24 @@ import { naverMapUrl } from "../lib/naverMapUrl";
 import { tmapUrl } from "../lib/tmapUrl";
 import { openCustomSchemeUrl } from "../lib/customSchemeUrl";
 
+/** A manually-typed link often has no "https://" — this adds one so it's
+ *  actually clickable (browsers resolve a bare "instagram.com/..." href
+ *  as a relative path, not the address it looks like) and so hostname
+ *  parsing below actually works. */
+function normalizeLinkHref(url: string): string {
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `https://${url}`;
+}
+
+/** Whether a manually-entered link points at Instagram — used to label it
+ *  "Instagram" instead of the generic "Website" on the card. */
+function isInstagramLink(url: string): boolean {
+  try {
+    return new URL(normalizeLinkHref(url)).hostname.replace(/^www\./, "") === "instagram.com";
+  } catch {
+    return false;
+  }
+}
+
 function formatVisitedDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString(undefined, {
     year: "numeric",
@@ -278,6 +296,16 @@ export function PlaceCard({
                   className="inline-flex items-center gap-1 text-pink-600 hover:underline"
                 >
                   📷 Instagram
+                </a>
+              )}
+              {place.linkUrl && (
+                <a
+                  href={normalizeLinkHref(place.linkUrl)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-brand-600 hover:underline"
+                >
+                  {isInstagramLink(place.linkUrl) ? "📷 Instagram" : "🔗 Website"}
                 </a>
               )}
             </div>

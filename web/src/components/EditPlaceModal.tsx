@@ -47,6 +47,7 @@ export function EditPlaceModal({
   const [address, setAddress] = useState(place.address);
   const [phone, setPhone] = useState(place.phone ?? "");
   const [notes, setNotes] = useState(place.notes);
+  const [link, setLink] = useState(place.linkUrl ?? "");
   const [saving, setSaving] = useState(false);
   // The inline Notes textarea is deliberately small (it sits in an
   // already-tall form) — this opens the same text in a full-size modal
@@ -366,6 +367,7 @@ export function EditPlaceModal({
       address: trimmedAddress,
       phone: trimmedPhone || null,
       notes: notes.trim(),
+      linkUrl: link.trim() || null,
     });
     if (boardId !== place.tripId) movePlaceToBoard(place.id, boardId);
 
@@ -705,6 +707,18 @@ export function EditPlaceModal({
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="Phone number"
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-neutral-700">
+            Link <span className="font-normal text-neutral-400">(optional)</span>
+          </label>
+          <input
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            placeholder="Instagram or website link"
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
         </div>

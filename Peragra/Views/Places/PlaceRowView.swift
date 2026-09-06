@@ -169,6 +169,20 @@ struct PlaceRowView: View {
                     }
                     .buttonStyle(.plain)
                 }
+
+                if let url = place.linkURL {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        Label(
+                            place.linkIsInstagram ? "Instagram" : "Website",
+                            systemImage: place.linkIsInstagram ? "camera" : "link"
+                        )
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(place.linkIsInstagram ? .pink : Color.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
             HStack(spacing: 12) {

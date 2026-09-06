@@ -30,6 +30,10 @@ interface CandidateRow {
   // recommended item, why it was recommended, ...) — combined with the
   // form's own manual Notes field at save time, not a replacement for it.
   notes: string;
+  // A manually-entered reference link (Instagram profile/post or any
+  // other webpage) — distinct from the shared source-post instagramUrl
+  // below, which every row from one caption paste gets automatically.
+  link: string;
   category: PlaceCategory;
   // Set when this row came from the on-site photo flow rather than
   // AI-extracted address text — geocodeAndStore uses these directly
@@ -65,6 +69,7 @@ function makeRow(partial?: Partial<CandidateRow>): CandidateRow {
     address: "",
     phone: "",
     notes: "",
+    link: "",
     category: "restaurant",
     ...partial,
   };
@@ -549,6 +554,7 @@ export function AddPlaceModal({
         phone: row.phone.trim() || null,
         notes: combinedNotes,
         instagramUrl,
+        linkUrl: row.link.trim() || null,
         collectionIds: defaultCollectionId ? [defaultCollectionId] : [],
       });
       if (row.capturedAt !== undefined) {
@@ -859,6 +865,12 @@ export function AddPlaceModal({
                       onChange={(e) => updateRow(row.id, { notes: e.target.value })}
                       placeholder="Other details (hours, menu, why recommended, ...)"
                       className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm text-neutral-600 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    />
+                    <input
+                      value={row.link}
+                      onChange={(e) => updateRow(row.id, { link: e.target.value })}
+                      placeholder="Instagram or website link (optional)"
+                      className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
                     {row.manualLat !== undefined && (
                       <p className="text-xs text-neutral-400">📍 Using a captured location</p>

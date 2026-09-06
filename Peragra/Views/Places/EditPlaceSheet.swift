@@ -41,6 +41,7 @@ struct EditPlaceSheet: View {
     @State private var address: String
     @State private var phone: String
     @State private var notes: String
+    @State private var link: String
     @State private var selectedTrip: Trip?
     @State private var isSaving = false
 
@@ -94,6 +95,7 @@ struct EditPlaceSheet: View {
         _address = State(initialValue: place.address)
         _phone = State(initialValue: place.phone ?? "")
         _notes = State(initialValue: place.notes)
+        _link = State(initialValue: place.linkURLString ?? "")
         _selectedTrip = State(initialValue: place.trip)
     }
 
@@ -121,6 +123,10 @@ struct EditPlaceSheet: View {
                     }
                     TextField("Phone (optional)", text: $phone)
                         .keyboardType(.phonePad)
+                    TextField("Instagram or website link (optional)", text: $link)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
                 }
 
                 Section {
@@ -425,6 +431,7 @@ struct EditPlaceSheet: View {
         let trimmedAddress = address.trimmingCharacters(in: .whitespaces)
         let trimmedPhone = phone.trimmingCharacters(in: .whitespaces)
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedLink = link.trimmingCharacters(in: .whitespaces)
         let addressChanged = trimmedAddress != place.address
         let boardChanged = selectedTrip?.id != place.trip?.id
 
@@ -433,6 +440,7 @@ struct EditPlaceSheet: View {
         place.address = trimmedAddress
         place.phone = trimmedPhone.isEmpty ? nil : trimmedPhone
         place.notes = trimmedNotes
+        place.linkURLString = trimmedLink.isEmpty ? nil : trimmedLink
 
         if boardChanged, let newTrip = selectedTrip {
             // Custom-list membership doesn't carry over (those lists
