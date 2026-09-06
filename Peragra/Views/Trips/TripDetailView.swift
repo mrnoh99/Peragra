@@ -24,7 +24,9 @@ struct TripDetailView: View {
     @State private var showingAddPlace = false
     @State private var showingAddList = false
     @State private var newListName = ""
-    @State private var activeCollection: PlaceCollection?
+    /// A place shows up while every currently-toggled-on list contains it
+    /// (AND, not OR) — several lists can be active at once.
+    @State private var activeCollectionIDs: Set<UUID> = []
 
     // Filter/sort state shared by the Listing and Map tabs, so switching
     // tabs doesn't reset what you were looking at and the map can be
@@ -59,16 +61,10 @@ struct TripDetailView: View {
         allTrips.filter { $0.id != trip.id }
     }
 
-    /// Where the user's own lists start, so the chip bar can draw a
-    /// divider separating them from the default Favorites/Visited lists.
-    private var firstCustomListIndex: Int? {
-        collections.firstIndex { !$0.isFavoritesList && !$0.isVisitedList }
-    }
-
     private var visiblePlaces: [Place] {
-        guard let activeCollection else { return places }
+        guard !activeCollectionIDs.isEmpty else { return places }
         return places.filter { place in
-            place.collections.contains(where: { $0.id == activeCollection.id })
+            activeCollectionIDs.allSatisfy { id in place.collections.contains(where: { $0.id == id }) }
         }
     }
 
@@ -247,7 +243,10 @@ struct TripDetailView: View {
                 Button { showingAddList = true } label: { Label("New List", systemImage: "folder.badge.plus") }
             }
         }
-        .sheet(isPresented: $showingAddPlace) { AddPlaceSheet(trip: trip, defaultCollection: activeCollection) }
+        .sheet(isPresented: $showingAddPlace) {
+            let defaultCollection = activeCollectionIDs.count == 1 ? collections.first(where: { activeCollectionIDs.contains($0.id) }) : nil
+            AddPlaceSheet(trip: trip, defaultCollection: defaultCollection)
+        }
         .alert("New List", isPresented: $showingAddList) {
             TextField("List name", text: $newListName)
             Button("Add") {
@@ -294,16 +293,17 @@ struct TripDetailView: View {
     private var collectionFilterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                chip(title: "All places", isSelected: activeCollection == nil) { activeCollection = nil }
-                ForEach(Array(collections.enumerated()), id: \.element.id) { index, collection in
-                    if index > 0, index == firstCustomListIndex {
-                        Divider().frame(height: 20)
-                    }
+                chip(title: "All places", isSelected: activeCollectionIDs.isEmpty) { activeCollectionIDs.removeAll() }
+                ForEach(collections) { collection in
                     let collectionChip = chip(
                         title: chipTitle(for: collection),
-                        isSelected: activeCollection?.id == collection.id
+                        isSelected: activeCollectionIDs.contains(collection.id)
                     ) {
-                        activeCollection = (activeCollection?.id == collection.id) ? nil : collection
+                        if activeCollectionIDs.contains(collection.id) {
+                            activeCollectionIDs.remove(collection.id)
+                        } else {
+                            activeCollectionIDs.insert(collection.id)
+                        }
                     }
                     // The default Favorites/Visited lists aren't
                     // deletable, so they get no long-press menu at all.
@@ -327,9 +327,7 @@ struct TripDetailView: View {
 
     private func deleteCollection(_ collection: PlaceCollection) {
         guard !collection.isFavoritesList, !collection.isVisitedList else { return }
-        if activeCollection?.id == collection.id {
-            activeCollection = nil
-        }
+        activeCollectionIDs.remove(collection.id)
         modelContext.delete(collection)
     }
 

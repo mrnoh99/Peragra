@@ -38,9 +38,6 @@ export function TripDetailPage() {
     const tripCollections = allCollections.filter((c) => c.tripId === tripId);
     return [...tripCollections].sort((a, b) => defaultListRank(a) - defaultListRank(b));
   }, [allCollections, tripId]);
-  // Where the user's own lists start, so the sidebar can draw a divider
-  // separating them from the default Favorites/Visited lists above.
-  const firstCustomListIndex = collections.findIndex((c) => !c.isFavoritesList && !c.isVisitedList);
 
   // Trips created before the Visited/Favorites-list feature don't have
   // them yet — back-fill lazily so they always show in the sidebar, not
@@ -53,7 +50,9 @@ export function TripDetailPage() {
 
   const [tab, setTab] = useState<Tab>("listing");
   const [showAddPlace, setShowAddPlace] = useState(false);
-  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
+  // A place shows up while every currently-toggled-on list contains it
+  // (AND, not OR) — several lists can be active at once.
+  const [activeCollectionIds, setActiveCollectionIds] = useState<Set<string>>(new Set());
   const [newListName, setNewListName] = useState("");
   // Set by ListingView's bulk "Show on Map", so the Map tab can narrow to
   // just that selection instead of the full filtered listing — cleared
@@ -74,10 +73,10 @@ export function TripDetailPage() {
   // as the Map tab already did.
   const visiblePlaces = useMemo(
     () =>
-      activeCollectionId
-        ? places.filter((p) => p.collectionIds.includes(activeCollectionId))
-        : places,
-    [places, activeCollectionId],
+      activeCollectionIds.size === 0
+        ? places
+        : places.filter((p) => [...activeCollectionIds].every((id) => p.collectionIds.includes(id))),
+    [places, activeCollectionIds],
   );
 
   // Everything except the category filter itself — used both to build the
@@ -221,54 +220,62 @@ export function TripDetailPage() {
           </h2>
           <div className="space-y-1">
             <button
-              onClick={() => setActiveCollectionId(null)}
+              onClick={() => setActiveCollectionIds(new Set())}
               className={`block w-full rounded-lg px-3 py-1.5 text-left text-sm ${
-                activeCollectionId === null
+                activeCollectionIds.size === 0
                   ? "bg-brand-50 font-medium text-brand-700"
                   : "text-neutral-600 hover:bg-neutral-100"
               }`}
             >
               All places
             </button>
-            {collections.map((c, i) => (
-              <div key={c.id}>
-                {i > 0 && i === firstCustomListIndex && (
-                  <div className="my-2 border-t border-neutral-200" />
-                )}
-                <div className="group flex items-center gap-1">
-                <button
-                  onClick={() => setActiveCollectionId(c.id)}
-                  className={`block w-full truncate rounded-lg px-3 py-1.5 text-left text-sm ${
-                    activeCollectionId === c.id
-                      ? "bg-brand-50 font-medium text-brand-700"
-                      : "text-neutral-600 hover:bg-neutral-100"
-                  }`}
-                >
-                  {c.isFavoritesList ? "⭐ " : c.isVisitedList ? "✅ " : ""}
-                  {c.name}
-                  {c.isFavoritesList && (
-                    <span className="ml-1 text-xs text-neutral-400">({favoritesCount})</span>
-                  )}
-                  {c.isVisitedList && (
-                    <span className="ml-1 text-xs text-neutral-400">({visitedCount})</span>
-                  )}
-                </button>
-                {!c.isVisitedList && !c.isFavoritesList && (
+            {collections.map((c) => {
+              const active = activeCollectionIds.has(c.id);
+              return (
+                <div key={c.id} className="group flex items-center gap-1">
                   <button
-                    onClick={() => {
-                      if (!confirm(`Delete the list "${c.name}"?`)) return;
-                      if (activeCollectionId === c.id) setActiveCollectionId(null);
-                      deleteCollection(c.id);
-                    }}
-                    className="shrink-0 pr-1 text-xs text-neutral-400 hover:text-red-500"
-                    aria-label={`Delete ${c.name}`}
+                    onClick={() =>
+                      setActiveCollectionIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(c.id)) next.delete(c.id);
+                        else next.add(c.id);
+                        return next;
+                      })
+                    }
+                    className={`block w-full truncate rounded-lg px-3 py-1.5 text-left text-sm ${
+                      active ? "bg-brand-50 font-medium text-brand-700" : "text-neutral-600 hover:bg-neutral-100"
+                    }`}
                   >
-                    ✕
+                    {active ? "✓ " : ""}
+                    {c.isFavoritesList ? "⭐ " : c.isVisitedList ? "✅ " : ""}
+                    {c.name}
+                    {c.isFavoritesList && (
+                      <span className="ml-1 text-xs text-neutral-400">({favoritesCount})</span>
+                    )}
+                    {c.isVisitedList && (
+                      <span className="ml-1 text-xs text-neutral-400">({visitedCount})</span>
+                    )}
                   </button>
-                )}
+                  {!c.isVisitedList && !c.isFavoritesList && (
+                    <button
+                      onClick={() => {
+                        if (!confirm(`Delete the list "${c.name}"?`)) return;
+                        setActiveCollectionIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(c.id);
+                          return next;
+                        });
+                        deleteCollection(c.id);
+                      }}
+                      className="shrink-0 pr-1 text-xs text-neutral-400 hover:text-red-500"
+                      aria-label={`Delete ${c.name}`}
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <form
             onSubmit={(e) => {
@@ -407,7 +414,7 @@ export function TripDetailPage() {
         <AddPlaceModal
           tripId={tripId}
           destination={trip.destination}
-          defaultCollectionId={activeCollectionId ?? undefined}
+          defaultCollectionId={activeCollectionIds.size === 1 ? [...activeCollectionIds][0] : undefined}
           onClose={() => setShowAddPlace(false)}
         />
       )}
