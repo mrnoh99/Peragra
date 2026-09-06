@@ -211,4 +211,58 @@ final class Place {
             context.delete(list)
         }
     }
+
+    /// Folds one or more duplicate places (found by DuplicatePlaces) into
+    /// this place, then deletes them. This place keeps its own
+    /// name/category/coordinates, but picks up whichever of
+    /// phone/notes/links/address the duplicates have that it's missing,
+    /// unions visited/favorite (true if any of them was) and collection
+    /// membership, so merging never silently drops something only a
+    /// duplicate had recorded. Mirrors mergePlaces in web/src/store/useStore.ts.
+    func merge(with duplicates: [Place], context: ModelContext) {
+        guard !duplicates.isEmpty else { return }
+
+        if phone == nil { phone = duplicates.compactMap(\.phone).first }
+        if linkURLString == nil { linkURLString = duplicates.compactMap(\.linkURLString).first }
+        if instagramURLString == nil { instagramURLString = duplicates.compactMap(\.instagramURLString).first }
+
+        var notesTexts: [String] = []
+        for text in [notes] + duplicates.map(\.notes) {
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty, !notesTexts.contains(trimmed) { notesTexts.append(trimmed) }
+        }
+        notes = notesTexts.joined(separator: "\n\n")
+
+        if address.trimmingCharacters(in: .whitespaces).isEmpty {
+            if let borrowed = duplicates.first(where: { !$0.address.trimmingCharacters(in: .whitespaces).isEmpty }) {
+                address = borrowed.address
+            }
+        }
+
+        if coordinate2D == nil, let donor = duplicates.first(where: { $0.coordinate2D != nil }) {
+            latitude = donor.latitude
+            longitude = donor.longitude
+            geocodeStatusRaw = donor.geocodeStatusRaw
+        }
+
+        if duplicates.contains(where: \.visited) { visited = true }
+        if visited {
+            let earliestDuplicateVisit = duplicates.compactMap(\.visitedAt).min()
+            if visitedAt == nil { visitedAt = earliestDuplicateVisit }
+        }
+        if duplicates.contains(where: \.favorite) { favorite = true }
+
+        var mergedCollections = collections
+        for duplicate in duplicates {
+            for collection in duplicate.collections where !mergedCollections.contains(where: { $0.id == collection.id }) {
+                mergedCollections.append(collection)
+            }
+        }
+        collections = mergedCollections
+
+        for duplicate in duplicates {
+            context.delete(duplicate)
+        }
+        syncCountryList(context: context)
+    }
 }

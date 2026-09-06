@@ -57,6 +57,8 @@
 		D28E8F9727CD416E8196DB27 /* CloudBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BBBBCC2A0B34FCEADCDC732 /* CloudBackupService.swift */; };
 		10510ADAF26E4309AD1B04DB /* SharePlaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09753ADB4CA948D1B185D28C /* SharePlaces.swift */; };
 		D899874C72004F4ABA74DC77 /* ImportPlacesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ECEA13D01644CFB117C110 /* ImportPlacesSheet.swift */; };
+		300F05A9BE2E4EE4540304E7 /* DuplicatePlaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74D8BAE8F441ACAC57975902 /* DuplicatePlaces.swift */; };
+		6E45F5C7D66D08A66256EA24 /* FindDuplicatesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D61E6108C9AC74FFDCF6056C /* FindDuplicatesSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -112,6 +114,8 @@
 		6BBBBCC2A0B34FCEADCDC732 /* CloudBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CloudBackupService.swift; path = Peragra/Services/CloudBackupService.swift; sourceTree = "<group>"; };
 		09753ADB4CA948D1B185D28C /* SharePlaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharePlaces.swift; path = Peragra/Services/SharePlaces.swift; sourceTree = "<group>"; };
 		D0ECEA13D01644CFB117C110 /* ImportPlacesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImportPlacesSheet.swift; path = Peragra/Views/Places/ImportPlacesSheet.swift; sourceTree = "<group>"; };
+		74D8BAE8F441ACAC57975902 /* DuplicatePlaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DuplicatePlaces.swift; path = Peragra/Services/DuplicatePlaces.swift; sourceTree = "<group>"; };
+		D61E6108C9AC74FFDCF6056C /* FindDuplicatesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FindDuplicatesSheet.swift; path = Peragra/Views/Trips/FindDuplicatesSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -143,6 +147,7 @@
 				11E55049CCC51DDBE876FF2B /* AutoBackupService.swift */,
 				6BBBBCC2A0B34FCEADCDC732 /* CloudBackupService.swift */,
 				09753ADB4CA948D1B185D28C /* SharePlaces.swift */,
+				74D8BAE8F441ACAC57975902 /* DuplicatePlaces.swift */,
 				DDEC7178DEDD1F939938DFB8 /* LocationService.swift */,
 				5F07AD3AC900A5E9DEEC9127 /* KakaoMapOpener.swift */,
 				A46B7AEF579F0764C332223A /* KoreaRegion.swift */,
@@ -232,6 +237,7 @@
 				C0EC4AE3B322246DAA168D68 /* TripDetailView.swift */,
 				605D4129B5F1C6F46B096297 /* AddTripSheet.swift */,
 				86B270ACA2734471A5922752 /* ImportBoardSheet.swift */,
+				D61E6108C9AC74FFDCF6056C /* FindDuplicatesSheet.swift */,
 				0DEE61C9F8E071F4EDCCF704 /* EditTripSheet.swift */,
 			);
 			name = Trips;
@@ -347,6 +353,8 @@
 				D00C3A30175C411E81277965 /* BackupService.swift in Sources */,
 				D28E8F9727CD416E8196DB27 /* CloudBackupService.swift in Sources */,
 				10510ADAF26E4309AD1B04DB /* SharePlaces.swift in Sources */,
+				300F05A9BE2E4EE4540304E7 /* DuplicatePlaces.swift in Sources */,
+				6E45F5C7D66D08A66256EA24 /* FindDuplicatesSheet.swift in Sources */,
 				B12C5E090088E25DEB914B9A /* LocationService.swift in Sources */,
 				C052B83134DFD7A8D22AA57A /* CameraCaptureView.swift in Sources */,
 				A9033BC47A48DEBA9EFF95A8 /* KakaoMapOpener.swift in Sources */,

@@ -40,6 +40,14 @@ interface AppState {
   deletePlace: (placeId: string) => void;
   /** Same as deletePlace, for a bulk selection at once. */
   deletePlaces: (placeIds: string[]) => void;
+  /** Folds one or more duplicate places into `primaryId`, then deletes
+   *  them — for places found by lib/duplicatePlaces.ts's same-board
+   *  duplicate detection. The primary keeps its own name/category/
+   *  coordinates, but picks up whichever of phone/notes/links/address
+   *  the duplicates have that it's missing, unions visited/favorite
+   *  (true if any of them was) and collection membership, so merging
+   *  never silently drops something only a duplicate had recorded. */
+  mergePlaces: (primaryId: string, duplicateIds: string[]) => void;
   /** Moves a place to a different board. Custom-list membership doesn't
    *  carry over (those lists belong to the old board), but visited/
    *  favorite status is preserved and re-synced against the new board's
@@ -192,6 +200,49 @@ export const useStore = create<AppState>()(
       deletePlaces: (placeIds) => {
         const idSet = new Set(placeIds);
         set((state) => ({ places: state.places.filter((p) => !idSet.has(p.id)) }));
+      },
+
+      mergePlaces: (primaryId, duplicateIds) => {
+        const primary = get().places.find((p) => p.id === primaryId);
+        const duplicates = get().places.filter((p) => duplicateIds.includes(p.id));
+        if (!primary || duplicates.length === 0) return;
+
+        const notesTexts = [primary.notes, ...duplicates.map((d) => d.notes)]
+          .map((n) => n.trim())
+          .filter((n, i, arr) => n.length > 0 && arr.indexOf(n) === i);
+
+        const hasCoords = primary.lat !== null && primary.lng !== null;
+        const coordDonor = hasCoords ? null : duplicates.find((d) => d.lat !== null && d.lng !== null);
+
+        const merged: Place = {
+          ...primary,
+          phone: primary.phone ?? duplicates.find((d) => d.phone)?.phone ?? null,
+          notes: notesTexts.join("\n\n"),
+          linkUrl: primary.linkUrl ?? duplicates.find((d) => d.linkUrl)?.linkUrl ?? null,
+          instagramUrl: primary.instagramUrl ?? duplicates.find((d) => d.instagramUrl)?.instagramUrl ?? null,
+          address: primary.address.trim() ? primary.address : (duplicates.find((d) => d.address.trim())?.address ?? primary.address),
+          lat: coordDonor ? coordDonor.lat : primary.lat,
+          lng: coordDonor ? coordDonor.lng : primary.lng,
+          geocodeStatus: coordDonor ? coordDonor.geocodeStatus : primary.geocodeStatus,
+          visited: primary.visited || duplicates.some((d) => d.visited),
+          visitedAt:
+            primary.visitedAt ??
+            duplicates
+              .map((d) => d.visitedAt)
+              .filter((t): t is number => t !== null)
+              .sort((a, b) => a - b)[0] ??
+            null,
+          favorite: primary.favorite || duplicates.some((d) => d.favorite),
+          collectionIds: [...new Set([primary.collectionIds, ...duplicates.map((d) => d.collectionIds)].flat())],
+        };
+
+        const idSet = new Set(duplicateIds);
+        set((state) => ({
+          places: state.places
+            .filter((p) => !idSet.has(p.id))
+            .map((p) => (p.id === primaryId ? merged : p)),
+        }));
+        get().syncPlaceCountry(primaryId);
       },
 
       movePlaceToBoard: (placeId, newTripId) => {

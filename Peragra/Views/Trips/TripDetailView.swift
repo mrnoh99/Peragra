@@ -28,6 +28,7 @@ struct TripDetailView: View {
     @State private var highlightedPlaceID: UUID?
     @State private var showingAddPlace = false
     @State private var showingImportPlaces = false
+    @State private var showingFindDuplicates = false
     @State private var showingAddList = false
     @State private var newListName = ""
     @State private var exportPlacesFileURL: URL?
@@ -284,6 +285,9 @@ struct TripDetailView: View {
                 }
             }
             ToolbarItem(placement: .secondaryAction) {
+                Button { showingFindDuplicates = true } label: { Label("Find Duplicates", systemImage: "arrow.triangle.merge") }
+            }
+            ToolbarItem(placement: .secondaryAction) {
                 Button { showingAddList = true } label: { Label("New List", systemImage: "folder.badge.plus") }
             }
         }
@@ -303,6 +307,9 @@ struct TripDetailView: View {
         }
         .sheet(isPresented: $showingImportPlaces) {
             ImportPlacesSheet(trip: trip)
+        }
+        .sheet(isPresented: $showingFindDuplicates) {
+            FindDuplicatesSheet(trip: trip)
         }
         .alert("New List", isPresented: $showingAddList) {
             TextField("List name", text: $newListName)

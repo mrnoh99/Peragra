@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AddPlaceModal } from "../components/AddPlaceModal";
+import { FindDuplicatesModal } from "../components/FindDuplicatesModal";
 import { ImportPlacesModal } from "../components/ImportPlacesModal";
 import { ListingView } from "../components/ListingView";
 import { MapView } from "../components/MapView";
@@ -65,6 +66,7 @@ export function TripDetailPage() {
   const [showImportPlaces, setShowImportPlaces] = useState(false);
   const [showExportPlaces, setShowExportPlaces] = useState(false);
   const [exportPlacesMessage, setExportPlacesMessage] = useState<string | null>(null);
+  const [showFindDuplicates, setShowFindDuplicates] = useState(false);
   // A place shows up while every currently-toggled-on list contains it
   // (AND, not OR) — several lists can be active at once.
   const [activeCollectionIds, setActiveCollectionIds] = useState<Set<string>>(new Set());
@@ -297,6 +299,13 @@ export function TripDetailPage() {
             )}
           </div>
           <button
+            onClick={() => setShowFindDuplicates(true)}
+            title="Find places that may have been saved twice on this board"
+            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
+          >
+            🔎 Duplicates
+          </button>
+          <button
             onClick={() => setShowAddPlace(true)}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
           >
@@ -526,6 +535,10 @@ export function TripDetailPage() {
           destination={trip.destination}
           onClose={() => setShowImportPlaces(false)}
         />
+      )}
+
+      {showFindDuplicates && (
+        <FindDuplicatesModal places={places} onClose={() => setShowFindDuplicates(false)} />
       )}
 
     </div>
