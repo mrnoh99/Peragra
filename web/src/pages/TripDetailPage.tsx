@@ -5,8 +5,8 @@ import { ImportPlacesModal } from "../components/ImportPlacesModal";
 import { ListingView } from "../components/ListingView";
 import { MapView } from "../components/MapView";
 import { PlaceFilterBar, type SortMode } from "../components/PlaceFilterBar";
-import { buildBackup, saveBoardFile } from "../lib/backup";
 import { distanceKm } from "../lib/distance";
+import { buildSharedPlacesPayload, saveSharedPlacesFile, sharedPlacesToText } from "../lib/sharePlaces";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory } from "../types";
 
@@ -63,8 +63,8 @@ export function TripDetailPage() {
   const [tab, setTab] = useState<Tab>("listing");
   const [showAddPlace, setShowAddPlace] = useState(false);
   const [showImportPlaces, setShowImportPlaces] = useState(false);
-  const [showShareBoard, setShowShareBoard] = useState(false);
-  const [shareBoardMessage, setShareBoardMessage] = useState<string | null>(null);
+  const [showExportPlaces, setShowExportPlaces] = useState(false);
+  const [exportPlacesMessage, setExportPlacesMessage] = useState<string | null>(null);
   // A place shows up while every currently-toggled-on list contains it
   // (AND, not OR) — several lists can be active at once.
   const [activeCollectionIds, setActiveCollectionIds] = useState<Set<string>>(new Set());
@@ -84,40 +84,37 @@ export function TripDetailPage() {
     window.setTimeout(() => setHighlightedPlaceId((current) => (current === placeId ? null : current)), 2000);
   }
 
-  // Exports this whole board — every place and list, with real
-  // coordinates and visited/favorite status intact (unlike sharing a
-  // handful of place cards, which strips all of that as
-  // sender-board-specific) — as the same JSON shape the whole-app
-  // backup uses, just scoped to this one trip. See useStore's
-  // importBoardData for how the receiving end turns it back into a new
-  // board rather than replacing everything the way a full restore does.
-  async function copyBoardAsText() {
-    if (!trip) return;
-    const data = buildBackup([trip], places, collections);
+  // Exports every place currently on this board (not just a bulk
+  // selection — see ListingView's own "Share…" for that) as the same
+  // place-card share format used elsewhere in the app. Unlike exporting
+  // the whole board (Export board, on the boards list page), this
+  // strips coordinates/visited/favorite/list membership, since it's
+  // meant for handing places to someone else rather than moving/backing
+  // up the board itself.
+  async function copyPlacesAsText() {
+    const text = sharedPlacesToText(buildSharedPlacesPayload(places));
     try {
-      await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-      setShareBoardMessage("Copied this board — paste it anywhere to share.");
+      await navigator.clipboard.writeText(text);
+      setExportPlacesMessage(`Copied ${places.length} place${places.length === 1 ? "" : "s"} — paste it anywhere to share.`);
     } catch {
-      setShareBoardMessage("Couldn't copy to the clipboard.");
+      setExportPlacesMessage("Couldn't copy to the clipboard.");
     }
-    setShowShareBoard(false);
-    window.setTimeout(() => setShareBoardMessage(null), 4000);
+    setShowExportPlaces(false);
+    window.setTimeout(() => setExportPlacesMessage(null), 4000);
   }
 
-  async function saveBoardAsFile() {
-    if (!trip) return;
-    const data = buildBackup([trip], places, collections);
+  async function savePlacesAsFile() {
     try {
-      const result = await saveBoardFile(data, trip.name);
+      const result = await saveSharedPlacesFile(buildSharedPlacesPayload(places));
       if (result !== "cancelled") {
-        setShareBoardMessage("Saved this board to a file.");
-        window.setTimeout(() => setShareBoardMessage(null), 4000);
+        setExportPlacesMessage(`Saved ${places.length} place${places.length === 1 ? "" : "s"} to a file.`);
+        window.setTimeout(() => setExportPlacesMessage(null), 4000);
       }
     } catch {
-      setShareBoardMessage("Couldn't save the file.");
-      window.setTimeout(() => setShareBoardMessage(null), 4000);
+      setExportPlacesMessage("Couldn't save the file.");
+      window.setTimeout(() => setExportPlacesMessage(null), 4000);
     }
-    setShowShareBoard(false);
+    setShowExportPlaces(false);
   }
 
   // Search/category/visited/favorites/sort — shared by the Listing and Map
@@ -265,26 +262,33 @@ export function TripDetailPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <button
+            onClick={() => setShowImportPlaces(true)}
+            title="Add places someone shared with you"
+            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
+          >
+            ⬇️ Import places
+          </button>
           <div className="relative">
             <button
-              onClick={() => setShowShareBoard((v) => !v)}
-              title="Export this whole board to share with someone, or back it up"
+              onClick={() => setShowExportPlaces((v) => !v)}
+              title="Share this board's places with someone"
               className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
             >
-              📤 Share board {showShareBoard ? "▲" : "▼"}
+              📤 Export places {showExportPlaces ? "▲" : "▼"}
             </button>
-            {showShareBoard && (
+            {showExportPlaces && (
               <div className="absolute right-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
                 <button
                   type="button"
-                  onClick={copyBoardAsText}
+                  onClick={copyPlacesAsText}
                   className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
                 >
                   📋 Copy as text
                 </button>
                 <button
                   type="button"
-                  onClick={saveBoardAsFile}
+                  onClick={savePlacesAsFile}
                   className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
                 >
                   💾 Save as file
@@ -293,20 +297,13 @@ export function TripDetailPage() {
             )}
           </div>
           <button
-            onClick={() => setShowImportPlaces(true)}
-            title="Add places someone shared with you"
-            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
-          >
-            ⬇️ Import
-          </button>
-          <button
             onClick={() => setShowAddPlace(true)}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
           >
             + Add places
           </button>
-          {shareBoardMessage && (
-            <span className="basis-full text-right text-xs text-neutral-500">{shareBoardMessage}</span>
+          {exportPlacesMessage && (
+            <span className="basis-full text-right text-xs text-neutral-500">{exportPlacesMessage}</span>
           )}
         </div>
       </div>

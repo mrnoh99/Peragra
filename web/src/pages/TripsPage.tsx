@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { EditBoardModal } from "../components/EditBoardModal";
 import { ImportBoardModal } from "../components/ImportBoardModal";
 import { Modal } from "../components/Modal";
+import { buildBackup, saveBoardFile } from "../lib/backup";
 import { EMOJI_CHOICES } from "../lib/emojiChoices";
 import { useStore } from "../store/useStore";
 import type { Trip } from "../types";
@@ -11,11 +12,49 @@ export function TripsPage() {
   const navigate = useNavigate();
   const trips = useStore((s) => s.trips);
   const places = useStore((s) => s.places);
+  const collections = useStore((s) => s.collections);
   const addTrip = useStore((s) => s.addTrip);
   const deleteTrip = useStore((s) => s.deleteTrip);
   const [showCreate, setShowCreate] = useState(false);
   const [showImportBoard, setShowImportBoard] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+  const [exportMenuTripId, setExportMenuTripId] = useState<string | null>(null);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+
+  async function copyBoardAsText(trip: Trip) {
+    const data = buildBackup(
+      [trip],
+      places.filter((p) => p.tripId === trip.id),
+      collections.filter((c) => c.tripId === trip.id),
+    );
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+      setExportMessage(`Copied "${trip.name}" — paste it anywhere to share.`);
+    } catch {
+      setExportMessage("Couldn't copy to the clipboard.");
+    }
+    setExportMenuTripId(null);
+    window.setTimeout(() => setExportMessage(null), 4000);
+  }
+
+  async function saveBoardAsFile(trip: Trip) {
+    const data = buildBackup(
+      [trip],
+      places.filter((p) => p.tripId === trip.id),
+      collections.filter((c) => c.tripId === trip.id),
+    );
+    try {
+      const result = await saveBoardFile(data, trip.name);
+      if (result !== "cancelled") {
+        setExportMessage(`Saved "${trip.name}" to a file.`);
+        window.setTimeout(() => setExportMessage(null), 4000);
+      }
+    } catch {
+      setExportMessage("Couldn't save the file.");
+      window.setTimeout(() => setExportMessage(null), 4000);
+    }
+    setExportMenuTripId(null);
+  }
 
   const placeCountByTrip = useMemo(() => {
     const counts = new Map<string, number>();
@@ -57,6 +96,8 @@ export function TripsPage() {
         </div>
       </div>
 
+      {exportMessage && <p className="mb-4 text-right text-xs text-neutral-500">{exportMessage}</p>}
+
       {trips.length === 0 ? (
         <EmptyState onCreate={() => setShowCreate(true)} />
       ) : (
@@ -78,6 +119,46 @@ export function TripsPage() {
                   </p>
                 </Link>
                 <div className="absolute right-3 top-3 flex gap-1">
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setExportMenuTripId((current) => (current === trip.id ? null : trip.id));
+                      }}
+                      className="grid h-7 w-7 place-items-center rounded-full border border-neutral-200 bg-white text-neutral-400 hover:text-brand-600"
+                      aria-label="Export board"
+                      title="Export board"
+                    >
+                      📤
+                    </button>
+                    {exportMenuTripId === trip.id && (
+                      <div
+                        onClick={(e) => e.preventDefault()}
+                        className="absolute right-0 top-full z-10 mt-1 flex min-w-[9rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg"
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            copyBoardAsText(trip);
+                          }}
+                          className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                        >
+                          📋 Copy as text
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            saveBoardAsFile(trip);
+                          }}
+                          className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                        >
+                          💾 Save as file
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <button
                     onClick={(e) => {
                       e.preventDefault();

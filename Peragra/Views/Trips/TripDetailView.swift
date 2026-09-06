@@ -30,8 +30,8 @@ struct TripDetailView: View {
     @State private var showingImportPlaces = false
     @State private var showingAddList = false
     @State private var newListName = ""
-    @State private var shareBoardMessage: String?
-    @State private var shareBoardFileURL: URL?
+    @State private var exportPlacesFileURL: URL?
+    @State private var exportPlacesMessage: String?
     /// A place shows up while every currently-toggled-on list contains it
     /// (AND, not OR) — several lists can be active at once.
     @State private var activeCollectionIDs: Set<UUID> = []
@@ -265,37 +265,37 @@ struct TripDetailView: View {
                 Button { showingAddPlace = true } label: { Label("Add Places", systemImage: "plus") }
             }
             ToolbarItem(placement: .secondaryAction) {
+                Button { showingImportPlaces = true } label: { Label("Import Places", systemImage: "square.and.arrow.down") }
+            }
+            ToolbarItem(placement: .secondaryAction) {
                 Menu {
                     Button {
-                        copyBoardAsText()
+                        copyPlacesAsText()
                     } label: {
                         Label("Copy as Text", systemImage: "doc.on.doc")
                     }
-                    if let shareBoardFileURL {
-                        ShareLink(item: shareBoardFileURL) {
+                    if let exportPlacesFileURL {
+                        ShareLink(item: exportPlacesFileURL) {
                             Label("Share as File", systemImage: "doc")
                         }
                     }
                 } label: {
-                    Label("Share Board", systemImage: "square.and.arrow.up")
+                    Label("Export Places", systemImage: "square.and.arrow.up")
                 }
-            }
-            ToolbarItem(placement: .secondaryAction) {
-                Button { showingImportPlaces = true } label: { Label("Import Shared Places", systemImage: "square.and.arrow.down") }
             }
             ToolbarItem(placement: .secondaryAction) {
                 Button { showingAddList = true } label: { Label("New List", systemImage: "folder.badge.plus") }
             }
         }
-        .task { refreshShareBoardFile() }
-        .onChange(of: places.count) { _, _ in refreshShareBoardFile() }
-        .alert("Board Shared", isPresented: Binding(
-            get: { shareBoardMessage != nil },
-            set: { if !$0 { shareBoardMessage = nil } }
+        .task { refreshExportPlacesFile() }
+        .onChange(of: places.count) { _, _ in refreshExportPlacesFile() }
+        .alert("Places Shared", isPresented: Binding(
+            get: { exportPlacesMessage != nil },
+            set: { if !$0 { exportPlacesMessage = nil } }
         )) {
             Button("OK") {}
         } message: {
-            Text(shareBoardMessage ?? "")
+            Text(exportPlacesMessage ?? "")
         }
         .sheet(isPresented: $showingAddPlace) {
             let defaultCollection = activeCollectionIDs.count == 1 ? collections.first(where: { activeCollectionIDs.contains($0.id) }) : nil
@@ -394,27 +394,27 @@ struct TripDetailView: View {
         }
     }
 
-    /// Regenerates the temp file ShareLink hands off whenever the
-    /// board's place count changes (a reasonable proxy for "something
-    /// about this board changed") — ShareLink needs its item ready at
+    /// Regenerates the temp file ShareLink hands off whenever this
+    /// board's place count changes — ShareLink needs its item ready at
     /// render time rather than generated on tap the way a plain
-    /// Button's action can.
-    private func refreshShareBoardFile() {
-        guard let data = try? BackupService.exportBoard(trip) else {
-            shareBoardFileURL = nil
-            return
-        }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(BackupService.boardFilename(for: trip))
-        shareBoardFileURL = (try? data.write(to: url, options: .atomic)) != nil ? url : nil
+    /// Button's action can. Exports every place currently on this
+    /// board (not a bulk selection — see PlaceListingView's own "Share"
+    /// for that), using the same place-card share format used
+    /// elsewhere in the app: coordinates/visited/favorite/list
+    /// membership are stripped, since this is for handing places to
+    /// someone else rather than moving/backing up the board itself
+    /// (see TripsListView's "Export Board" for that).
+    private func refreshExportPlacesFile() {
+        exportPlacesFileURL = SharePlaces.writeTempFile(SharePlaces.buildPayload(from: places))
     }
 
-    private func copyBoardAsText() {
-        guard let data = try? BackupService.exportBoard(trip), let text = String(data: data, encoding: .utf8) else {
-            shareBoardMessage = "Couldn't prepare this board for copying."
+    private func copyPlacesAsText() {
+        guard let text = try? SharePlaces.toText(SharePlaces.buildPayload(from: places)) else {
+            exportPlacesMessage = "Couldn't prepare these places for copying."
             return
         }
         UIPasteboard.general.string = text
-        shareBoardMessage = "Copied this board — paste it anywhere to share."
+        exportPlacesMessage = "Copied \(places.count) place\(places.count == 1 ? "" : "s") — paste it anywhere to share."
     }
 
     private func deleteCollection(_ collection: PlaceCollection) {

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct TripsListView: View {
     @Query(sort: \Trip.createdAt, order: .reverse) private var trips: [Trip]
@@ -41,6 +42,7 @@ struct TripsListView: View {
                                         Label("Delete", systemImage: "trash")
                                     }
                                 }
+                                ExportBoardMenu(trip: trip)
                             }
                             .swipeActions(edge: .leading) {
                                 Button {
@@ -204,6 +206,64 @@ private struct TripRow: View {
             Spacer()
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// A board's whole-board export — every place and list, with real
+/// coordinates and visited/favorite status intact (unlike sharing a
+/// handful of place cards, which strips all of that as
+/// sender-board-specific). Its own small view (rather than inline in
+/// TripRow) so each row's export file only gets generated once its
+/// swipe actions actually get revealed, not for every row up front.
+private struct ExportBoardMenu: View {
+    let trip: Trip
+
+    @State private var fileURL: URL?
+    @State private var message: String?
+
+    var body: some View {
+        Menu {
+            Button {
+                copyAsText()
+            } label: {
+                Label("Copy as Text", systemImage: "doc.on.doc")
+            }
+            if let fileURL {
+                ShareLink(item: fileURL) {
+                    Label("Share as File", systemImage: "doc")
+                }
+            }
+        } label: {
+            Label("Export", systemImage: "square.and.arrow.up")
+        }
+        .tint(.gray)
+        .onAppear { refresh() }
+        .alert("Board Shared", isPresented: Binding(
+            get: { message != nil },
+            set: { if !$0 { message = nil } }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(message ?? "")
+        }
+    }
+
+    private func refresh() {
+        guard let data = try? BackupService.exportBoard(trip) else {
+            fileURL = nil
+            return
+        }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(BackupService.boardFilename(for: trip))
+        fileURL = (try? data.write(to: url, options: .atomic)) != nil ? url : nil
+    }
+
+    private func copyAsText() {
+        guard let data = try? BackupService.exportBoard(trip), let text = String(data: data, encoding: .utf8) else {
+            message = "Couldn't prepare this board for copying."
+            return
+        }
+        UIPasteboard.general.string = text
+        message = "Copied \"\(trip.name)\" — paste it anywhere to share."
     }
 }
 
