@@ -1,4 +1,5 @@
 import { useMapSettingsStore } from "../store/useMapSettingsStore";
+import { normalizeTrailingCountryName } from "./countryNames";
 import { geocodeWithGoogle, reverseGeocodeWithGoogle } from "./googleGeocode";
 import { geocodeWithNaver, reverseGeocodeWithNaver } from "./naverGeocode";
 import { isInKorea } from "./koreaRegion";
@@ -71,12 +72,19 @@ async function geocodeWithNominatim(
  * Maps with their own Client ID (the most accurate for Korean addresses);
  * otherwise falls back to OpenStreetMap's Nominatim (no API key required
  * — the default).
+ *
+ * The query's trailing country name is normalized to English first (see
+ * normalizeTrailingCountryName) — a Korean-language source address often
+ * has just the country name translated (e.g. "..., 이탈리아" for an
+ * otherwise Italian address), and that one mixed-script token is enough
+ * to make Nominatim in particular fail to resolve an address it would
+ * otherwise handle fine.
  */
 export async function geocodePlace(
   query: string,
   contextHint?: string,
 ): Promise<GeocodeResult | null> {
-  const trimmed = query.trim();
+  const trimmed = normalizeTrailingCountryName(query.trim());
   if (!trimmed) return null;
   const fullQuery = contextHint ? `${trimmed}, ${contextHint}` : trimmed;
 

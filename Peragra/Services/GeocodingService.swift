@@ -22,8 +22,15 @@ enum GeocodingService {
     /// Korean addresses); otherwise falls back to Apple's system geocoder
     /// (no API key required — the default). `contextHint` (typically the
     /// trip's destination) disambiguates places that share a common name.
+    ///
+    /// The query's trailing country name is normalized to English first
+    /// (see CountryNames) — a Korean-language source address often has
+    /// just the country name translated (e.g. "..., 이탈리아" for an
+    /// otherwise Italian address), and that one mixed-script token can be
+    /// enough to make a geocoder fail on an address it would otherwise
+    /// handle fine.
     static func geocode(query: String, contextHint: String?) async -> Result? {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = CountryNames.normalizeTrailingCountryName(query.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !trimmed.isEmpty else { return nil }
 
         let fullQuery: String
