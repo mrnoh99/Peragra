@@ -9,6 +9,7 @@ import { naverMapUrl } from "../lib/naverMapUrl";
 import { tmapUrl } from "../lib/tmapUrl";
 import { openCustomSchemeUrl } from "../lib/customSchemeUrl";
 import { isInstagramLink, normalizeLinkHref } from "../lib/linkUrl";
+import { isPlaceOutsideKorea } from "../lib/mapProviderPolicy";
 
 function formatVisitedDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString(undefined, {
@@ -281,6 +282,20 @@ export function PlaceCard({
               {place.phone && (
                 <a
                   href={`tel:${place.phone.replace(/[^0-9+]/g, "")}`}
+                  onClick={(e) => {
+                    // Outside Korea, the number as saved is very likely
+                    // missing the country code a real international call
+                    // needs — worth a beat to confirm before dialing,
+                    // rather than silently placing (or failing) the call.
+                    if (
+                      isPlaceOutsideKorea(place) &&
+                      !window.confirm(
+                        `${place.name}'s phone number looks like it's outside Korea — this may be an international call. Call anyway?`,
+                      )
+                    ) {
+                      e.preventDefault();
+                    }
+                  }}
                   className="inline-flex items-center gap-1 text-green-600 hover:underline"
                 >
                   📞 Call

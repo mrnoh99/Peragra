@@ -22,6 +22,7 @@ struct PlaceRowView: View {
     @State private var showingCopiedBadge = false
     @State private var notesExpanded = false
     @State private var isRetryingGeocode = false
+    @State private var isConfirmingInternationalCall = false
 
     /// Notes past this length get a "Show more" toggle instead of always
     /// stretching the row to fit — long enough that a short one-line note
@@ -129,11 +130,29 @@ struct PlaceRowView: View {
             HStack(spacing: 14) {
                 if let phone = place.phone, !phone.isEmpty, let callURL = callURL(for: phone) {
                     Button {
-                        openURL(callURL)
+                        let placeLike = MapProviderPolicy.PlaceLike(
+                            latitude: place.latitude,
+                            longitude: place.longitude,
+                            name: place.name,
+                            address: place.address
+                        )
+                        if MapProviderPolicy.isPlaceOutsideKorea(placeLike) {
+                            isConfirmingInternationalCall = true
+                        } else {
+                            openURL(callURL)
+                        }
                     } label: {
                         Label("Call", systemImage: "phone")
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.green)
+                    }
+                    .confirmationDialog(
+                        "\(place.name)'s phone number looks like it's outside Korea — this may be an international call.",
+                        isPresented: $isConfirmingInternationalCall,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Call") { openURL(callURL) }
+                        Button("Cancel", role: .cancel) {}
                     }
                 }
 
