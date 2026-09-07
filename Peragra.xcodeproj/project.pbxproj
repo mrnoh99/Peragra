@@ -65,6 +65,7 @@
 		09345D1DA7EF0E8B59381977 /* SharedPlaceImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92777D0B2DA6E43FA9BC2A67 /* SharedPlaceImport.swift */; };
 		92E451A37D7BA04DDBA8A902 /* SharedPlaceImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92777D0B2DA6E43FA9BC2A67 /* SharedPlaceImport.swift */; };
 		ACDBD24360779BF59A2F9536 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C365627A5561D045C7906DA2 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		247F90AE8C8442DCEA151F28 /* OpenGraphFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27A239D3F9CC3BFDEB646E6 /* OpenGraphFetcher.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -154,6 +155,7 @@
 		9064F9EA700A62D7A83460AF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = ShareExtension/Info.plist; sourceTree = "<group>"; };
 		C92DF6920F9B8B38EB5E5CFA /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = ShareExtension.entitlements; path = ShareExtension/ShareExtension.entitlements; sourceTree = "<group>"; };
 		C365627A5561D045C7906DA2 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A27A239D3F9CC3BFDEB646E6 /* OpenGraphFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OpenGraphFetcher.swift; path = Peragra/Services/OpenGraphFetcher.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -193,6 +195,7 @@
 				842EC9BF9A1E00C1E6EA1A99 /* NaverMapOpener.swift */,
 				FEFBCDE0461B9000C8BAEF66 /* TmapOpener.swift */,
 				92777D0B2DA6E43FA9BC2A67 /* SharedPlaceImport.swift */,
+				A27A239D3F9CC3BFDEB646E6 /* OpenGraphFetcher.swift */,
 			);
 			name = Services;
 			sourceTree = "<group>";
@@ -447,6 +450,7 @@
 				5D2B1A19029BF80C0F6476E5 /* NaverMapOpener.swift in Sources */,
 				06E396CC25C22217A1A954B7 /* TmapOpener.swift in Sources */,
 				92E451A37D7BA04DDBA8A902 /* SharedPlaceImport.swift in Sources */,
+				247F90AE8C8442DCEA151F28 /* OpenGraphFetcher.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -349,10 +349,36 @@ struct TripDetailView: View {
             // after TripsListView's onOpenURL pushed it, never a later
             // ordinary visit to this same board.
             if let shared = SharedPlaceImportStore.takePending() {
-                sharedRowToPrefill = shared
-                showingAddPlace = true
+                Task {
+                    sharedRowToPrefill = await resolvingSharedName(shared)
+                    showingAddPlace = true
+                }
             }
         }
+    }
+
+    /// Fills in a name for a shared place that arrived with none —
+    /// Google Maps' and Kakao Map's own "Share" action give only a link,
+    /// unlike Naver Map's, which shares the place name as plain text
+    /// alongside its link. Tries reading the shared page's own Open
+    /// Graph title (see OpenGraphFetcher) before falling back to the
+    /// same "Unknown" placeholder the on-site photo flow uses when it
+    /// can't tell a place's name either — so this row is still reviewable
+    /// and savable rather than silently stuck with a blank, unsavable name.
+    private func resolvingSharedName(_ shared: SharedPlaceImport) async -> SharedPlaceImport {
+        var resolved = shared
+        guard resolved.name.trimmingCharacters(in: .whitespaces).isEmpty else { return resolved }
+
+        if let url = URL(string: resolved.link), let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+            let info = await OpenGraphFetcher.fetch(url: url)
+            if let title = info.title?.trimmingCharacters(in: .whitespaces), !title.isEmpty {
+                resolved.name = title
+                return resolved
+            }
+        }
+
+        resolved.name = "Unknown"
+        return resolved
     }
 
     private var header: some View {
