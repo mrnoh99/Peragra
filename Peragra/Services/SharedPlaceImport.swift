@@ -9,6 +9,11 @@ import Foundation
 /// memory of their own.
 struct SharedPlaceImport: Codable {
     var name: String
+    // Naver Map's own "Share" gives name, address, and a link as three
+    // separate pieces (unlike Google Maps'/Kakao Map's, which give only
+    // a link) — captured when present, left empty otherwise rather than
+    // guessed at.
+    var address: String
     var link: String
 }
 
@@ -51,8 +56,19 @@ enum SharedPlaceImportStore {
         let url = url?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !title.isEmpty || !text.isEmpty || !url.isEmpty else { return nil }
 
+        // Naver Map's share text is "Place Name\nAddress\n<link>" — no
+        // separate title field. Some other apps instead give the name as
+        // its own title, with text holding just a description/address
+        // line. Either way, whichever non-URL line(s) of `text` weren't
+        // already claimed as the name is the closest thing to an address
+        // this format offers.
+        let lines = nonURLLines(in: text)
+        let name = title.isEmpty ? (lines.first ?? "") : title
+        let address = title.isEmpty ? (lines.count > 1 ? lines[1] : "") : (lines.first ?? "")
+
         return SharedPlaceImport(
-            name: title.isEmpty ? nameFromText(text) : title,
+            name: name,
+            address: address,
             link: url.isEmpty ? extractURL(from: text) : url
         )
     }
@@ -62,8 +78,9 @@ enum SharedPlaceImportStore {
         return String(text[range])
     }
 
-    private static func nameFromText(_ text: String) -> String {
-        let firstLine = text.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? ""
-        return firstLine.range(of: #"https?://\S+"#, options: .regularExpression) != nil ? "" : firstLine
+    private static func nonURLLines(in text: String) -> [String] {
+        text.split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && $0.range(of: #"https?://\S+"#, options: .regularExpression) == nil }
     }
 }

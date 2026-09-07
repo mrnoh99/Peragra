@@ -38,6 +38,33 @@ enum OpenGraphFetcher {
         )
     }
 
+    /// Fills in a shared candidate's name when it arrived with none —
+    /// Google Maps' and Kakao Map's own "Share" give only a link, unlike
+    /// Naver Map's, which already includes the name (and address) as
+    /// plain text alongside its link, needing no fetch at all. Tries
+    /// this page's own Open Graph title before falling back to the same
+    /// "Unknown" placeholder the on-site photo flow uses when it can't
+    /// tell a place's name either — so the row is still reviewable and
+    /// savable rather than stuck with a blank, unsavable name. Doesn't
+    /// touch `address`: og:description mixes in ratings/category text
+    /// alongside a place's actual address, which isn't reliable enough
+    /// to feed into geocoding as address text.
+    static func resolvingName(for candidate: SharedPlaceImport) async -> SharedPlaceImport {
+        var resolved = candidate
+        guard resolved.name.trimmingCharacters(in: .whitespaces).isEmpty else { return resolved }
+
+        if let url = URL(string: resolved.link), let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+            let info = await fetch(url: url)
+            if let title = info.title?.trimmingCharacters(in: .whitespaces), !title.isEmpty {
+                resolved.name = title
+                return resolved
+            }
+        }
+
+        resolved.name = "Unknown"
+        return resolved
+    }
+
     /// Maps each `<meta>` tag's `property`/`name` attribute to its
     /// `content` — a single regex pass over every meta tag, rather than
     /// one search per property name, since pages vary in attribute

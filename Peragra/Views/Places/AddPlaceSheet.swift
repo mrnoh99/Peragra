@@ -81,7 +81,7 @@ struct AddPlaceSheet: View {
         self.trip = trip
         self.defaultCollection = defaultCollection
         if let initialRow {
-            _rows = State(initialValue: [CandidateRow(name: initialRow.name, link: initialRow.link)])
+            _rows = State(initialValue: [CandidateRow(name: initialRow.name, address: initialRow.address, link: initialRow.link)])
         } else {
             _rows = State(initialValue: [CandidateRow()])
         }
@@ -359,6 +359,9 @@ struct AddPlaceSheet: View {
                             }
                         }
                         .listRowSeparator(.hidden)
+                        if let coordinate = nearbySearchCoordinate {
+                            openInMapMenu(for: coordinate)
+                        }
                         Button("Dismiss", role: .cancel) { dismissNearbyCandidates() }
                     } header: {
                         Text("📍 Is it one of these nearby places?")
@@ -458,6 +461,18 @@ struct AddPlaceSheet: View {
                     uploadPhotoItems = []
                 }
             }
+            // The other half of "Open in Map to Identify" above — fired
+            // by TripsListView.onOpenURL once a share comes back matching
+            // the row this sheet sent to a map app. Only takes effect
+            // while this exact sheet is still on screen (the row's id
+            // means nothing once it's gone) — see PendingMapResolution.
+            .onReceive(NotificationCenter.default.publisher(for: .peragraMapResolutionReceived)) { notification in
+                guard
+                    let rowID = notification.userInfo?["rowID"] as? UUID,
+                    let shared = notification.userInfo?["shared"] as? SharedPlaceImport
+                else { return }
+                applyMapResolution(shared, toRowID: rowID)
+            }
         }
     }
 
@@ -540,6 +555,87 @@ struct AddPlaceSheet: View {
         nearbyCandidates = []
         nearbyCandidateRowID = nil
         nearbySearchCoordinate = nil
+    }
+
+    /// Applies a place resolved via the "Open in Map to Identify" round
+    /// trip — a map app's own "Share" coming back with a name (and
+    /// sometimes an address) for the row that sent the person there —
+    /// see this view's .onReceive(of: .peragraMapResolutionReceived)
+    /// above. Leaves the row's own manualLatitude/manualLongitude untouched:
+    /// that's the on-site photo's real GPS fix, more trustworthy than
+    /// anything a map share could offer, and this is only about naming
+    /// what's already known to be there.
+    private func applyMapResolution(_ shared: SharedPlaceImport, toRowID rowID: UUID) {
+        guard let index = rows.firstIndex(where: { $0.id == rowID }) else { return }
+        rows[index].name = shared.name
+        if !shared.address.trimmingCharacters(in: .whitespaces).isEmpty {
+            rows[index].address = shared.address
+        }
+        if !shared.link.trimmingCharacters(in: .whitespaces).isEmpty {
+            rows[index].link = shared.link
+        }
+        if nearbyCandidateRowID == rowID {
+            nearbyCandidates = []
+            nearbyCandidateRowID = nil
+            nearbySearchCoordinate = nil
+        }
+    }
+
+    @ViewBuilder
+    private func openInMapMenu(for coordinate: CLLocationCoordinate2D) -> some View {
+        let lookupPlace = placeForMapLookup(at: coordinate)
+        Menu {
+            if let mapsURL = GoogleMapsOpener.url(for: lookupPlace) {
+                Button {
+                    openInMap(mapsURL)
+                } label: {
+                    Label("Google Maps", systemImage: "map")
+                }
+            }
+            if let naverURL = NaverMapOpener.url(for: lookupPlace) {
+                Button {
+                    openInMap(naverURL)
+                } label: {
+                    Label("Naver Map", systemImage: "map")
+                }
+            }
+            if let kakaoURL = KakaoMapOpener.url(for: lookupPlace) {
+                Button {
+                    openInMap(kakaoURL)
+                } label: {
+                    Label("Kakao Map", systemImage: "map")
+                }
+            }
+            if let tmapURL = TmapOpener.url(for: lookupPlace) {
+                Button {
+                    openInMap(tmapURL)
+                } label: {
+                    Label("Tmap", systemImage: "map")
+                }
+            }
+        } label: {
+            Label("Not listed? Open in Map, then share it back here", systemImage: "map")
+                .font(.caption)
+        }
+    }
+
+    /// A Place that only ever exists in memory, long enough to hand to
+    /// the existing map openers (GoogleMapsOpener etc.) — they all take a
+    /// real Place, but this row isn't saved yet, and doesn't need to be
+    /// just to build a coordinate-based map link for it.
+    private func placeForMapLookup(at coordinate: CLLocationCoordinate2D) -> Place {
+        let place = Place(name: "Unknown", category: .other, address: "", phone: nil, notes: "", instagramURLString: nil, trip: nil)
+        place.latitude = coordinate.latitude
+        place.longitude = coordinate.longitude
+        place.geocodeStatus = .located
+        return place
+    }
+
+    private func openInMap(_ url: URL) {
+        if let rowID = nearbyCandidateRowID {
+            PendingMapResolution.set(rowID: rowID)
+        }
+        openURL(url)
     }
 
     /// When the plain nearby list is too ambiguous to tell which result

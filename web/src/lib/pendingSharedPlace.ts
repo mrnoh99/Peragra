@@ -4,7 +4,7 @@ import type { SharedPlaceCandidate } from "./sharedPlaceImport";
 // load — the browser navigates to the action URL as a real GET request,
 // remounting the whole app — so a plain module-level variable is enough
 // to hand the parsed candidate from App.tsx's mount effect to the "From
-// Google" trip page's first render, without round-tripping it through
+// Map" trip page's first render, without round-tripping it through
 // router state (which would need clearing afterward to stop a later
 // back-navigation from reopening the same import).
 let pending: SharedPlaceCandidate | null = null;

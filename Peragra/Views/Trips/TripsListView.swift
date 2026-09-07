@@ -167,12 +167,33 @@ struct TripsListView: View {
         // stashes a shared place — "Share" on a place in Google Maps,
         // Naver Map, Kakao Map, or any other app — in the App Group's
         // shared storage, then opens this URL to hand off to the main
-        // app — an extension has no SwiftData access of its own. Pushes
-        // straight to the "From Map" board; TripDetailView picks the
-        // pending place back up itself (see its own onAppear) and opens
-        // Add Places pre-filled with it.
+        // app — an extension has no SwiftData access of its own.
         .onOpenURL { url in
             guard url.scheme == "peragra", url.host == "share-import" else { return }
+
+            // A PendingMapResolution target means this share isn't a
+            // fresh, out-of-context import — it's the answer to an
+            // already-open Add Places row's own "Open in Map to
+            // Identify" (an on-site photo whose GPS resolved but whose
+            // name didn't). Route it back to that row instead of
+            // creating a new place in "From Map".
+            if let target = PendingMapResolution.take() {
+                Task {
+                    guard let shared = SharedPlaceImportStore.takePending() else { return }
+                    let resolved = await OpenGraphFetcher.resolvingName(for: shared)
+                    NotificationCenter.default.post(
+                        name: .peragraMapResolutionReceived,
+                        object: nil,
+                        userInfo: ["rowID": target.rowID, "shared": resolved]
+                    )
+                }
+                return
+            }
+
+            // Otherwise, a fresh import — push straight to the "From
+            // Map" board; TripDetailView picks the pending place back up
+            // itself (see its own onAppear) and opens Add Places
+            // pre-filled with it.
             path.append(sharedPlacesBoard())
         }
     }

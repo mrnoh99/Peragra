@@ -66,6 +66,7 @@
 		92E451A37D7BA04DDBA8A902 /* SharedPlaceImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92777D0B2DA6E43FA9BC2A67 /* SharedPlaceImport.swift */; };
 		ACDBD24360779BF59A2F9536 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C365627A5561D045C7906DA2 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		247F90AE8C8442DCEA151F28 /* OpenGraphFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27A239D3F9CC3BFDEB646E6 /* OpenGraphFetcher.swift */; };
+		E1EB583645C73CD6BD8EE857 /* PendingMapResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4990A2815D1CBD834A1D6B3E /* PendingMapResolution.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -156,6 +157,7 @@
 		C92DF6920F9B8B38EB5E5CFA /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = ShareExtension.entitlements; path = ShareExtension/ShareExtension.entitlements; sourceTree = "<group>"; };
 		C365627A5561D045C7906DA2 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A27A239D3F9CC3BFDEB646E6 /* OpenGraphFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OpenGraphFetcher.swift; path = Peragra/Services/OpenGraphFetcher.swift; sourceTree = "<group>"; };
+		4990A2815D1CBD834A1D6B3E /* PendingMapResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PendingMapResolution.swift; path = Peragra/Services/PendingMapResolution.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -196,6 +198,7 @@
 				FEFBCDE0461B9000C8BAEF66 /* TmapOpener.swift */,
 				92777D0B2DA6E43FA9BC2A67 /* SharedPlaceImport.swift */,
 				A27A239D3F9CC3BFDEB646E6 /* OpenGraphFetcher.swift */,
+				4990A2815D1CBD834A1D6B3E /* PendingMapResolution.swift */,
 			);
 			name = Services;
 			sourceTree = "<group>";
@@ -451,6 +454,7 @@
 				06E396CC25C22217A1A954B7 /* TmapOpener.swift in Sources */,
 				92E451A37D7BA04DDBA8A902 /* SharedPlaceImport.swift in Sources */,
 				247F90AE8C8442DCEA151F28 /* OpenGraphFetcher.swift in Sources */,
+				E1EB583645C73CD6BD8EE857 /* PendingMapResolution.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
