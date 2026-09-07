@@ -219,6 +219,12 @@ struct NaverMapWebView: UIViewRepresentable {
               const el = document.getElementById("status-overlay");
               if (el) el.textContent = "status: " + text;
             }
+            // TEMPORARY: reveals whether this page actually loaded via
+            // LocalHTMLServer (location.href would be
+            // http://localhost:<port>/) or silently fell back to the old
+            // loadHTMLString path (http://localhost/, no port) — remove
+            // once confirmed.
+            setStatus("loaded from " + location.href + " — script tag inserted");
 
             function showLoadError(message) {
               if (mapReady) return;
