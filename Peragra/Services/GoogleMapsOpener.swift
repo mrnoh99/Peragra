@@ -25,7 +25,24 @@ enum GoogleMapsOpener {
     /// instead. Confirmed by a real "can't find a way to the specified
     /// destination" failure on a place whose pin didn't show on our map
     /// either.
+    ///
+    /// When the name itself can't be trusted as search text — the
+    /// "Unknown" placeholder left by an on-site capture with no legible
+    /// signage, or truly empty — a text search has nothing real to match
+    /// and Google Maps reports "no results" even though this app already
+    /// has a real coordinate for the place. There, the query is the
+    /// coordinate itself ("lat,lng", which Google's search API accepts
+    /// directly) so the pin still resolves, at the cost of a coordinate
+    /// label instead of a name.
     private static func query(for place: Place, tripDestination: String?) -> String? {
+        let trimmedName = place.name.trimmingCharacters(in: .whitespaces)
+        let hasUsableName = !trimmedName.isEmpty && trimmedName != "Unknown"
+
+        if !hasUsableName, let latitude = place.latitude, let longitude = place.longitude,
+           place.geocodeStatus == .located || place.geocodeStatus == .estimated {
+            return "\(latitude),\(longitude)"
+        }
+
         guard !place.name.isEmpty else { return nil }
         if place.geocodeStatus == .located, !place.address.isEmpty {
             return "\(place.name), \(place.address)"
