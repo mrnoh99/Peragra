@@ -13,6 +13,14 @@ enum MapProvider: String {
     case free
     case google
     case naver
+
+    var label: String {
+        switch self {
+        case .free: return "Apple Maps"
+        case .google: return "Google Maps"
+        case .naver: return "Naver Map"
+        }
+    }
 }
 
 /// Reactive wrapper around the map provider choice (UserDefaults — not

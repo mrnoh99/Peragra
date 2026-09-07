@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import CoreLocation
 
 struct PlaceRowView: View {
     @Bindable var place: Place
@@ -23,6 +24,8 @@ struct PlaceRowView: View {
     @State private var notesExpanded = false
     @State private var isRetryingGeocode = false
     @State private var isConfirmingInternationalCall = false
+    @State private var geocodeCandidates: [GeocodingService.ProviderResult] = []
+    @State private var showingCandidatePicker = false
 
     /// Notes past this length get a "Show more" toggle instead of always
     /// stretching the row to fit — long enough that a short one-line note
@@ -104,27 +107,18 @@ struct PlaceRowView: View {
                         .font(.caption)
                         .foregroundStyle(.orange)
                     Spacer(minLength: 0)
-                    // Lets a failed pin be retried without editing the
-                    // address — e.g. after switching map providers in
-                    // Settings, or because GeocodingService's own
-                    // address-then-name fallback wasn't in effect the
-                    // first time this ran.
-                    if isRetryingGeocode {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Button("Retry") {
-                            Task { await retryGeocode() }
-                        }
-                        .font(.caption.weight(.medium))
-                        .buttonStyle(.plain)
-                    }
+                    retryControl
                 }
             }
 
             if place.geocodeStatus == .estimated {
-                Label("Approximate location — AI's best guess, since the given address couldn't be found on the map.", systemImage: "mappin.and.ellipse")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Label("Approximate location — AI's best guess, since the given address couldn't be found on the map.", systemImage: "mappin.and.ellipse")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    retryControl
+                }
             }
 
             HStack(spacing: 14) {
@@ -268,6 +262,29 @@ struct PlaceRowView: View {
         .sheet(isPresented: $showingEdit) {
             EditPlaceSheet(place: place)
         }
+        .sheet(isPresented: $showingCandidatePicker) {
+            GeocodeCandidateSheet(placeName: place.name, candidates: geocodeCandidates) { chosen in
+                apply(chosen.result, status: .located)
+            }
+        }
+    }
+
+    /// Retries against every configured map provider — shown for both a
+    /// hard failure and an AI-estimated (approximate) pin, since
+    /// "approximate" is really just a softer form of "not properly
+    /// located" and worth another shot too, e.g. after switching/adding
+    /// a map provider in Settings.
+    @ViewBuilder
+    private var retryControl: some View {
+        if isRetryingGeocode {
+            ProgressView().controlSize(.small)
+        } else {
+            Button("Retry") {
+                Task { await retryGeocode() }
+            }
+            .font(.caption.weight(.medium))
+            .buttonStyle(.plain)
+        }
     }
 
     /// Address and phone combined onto one line (when both are present)
@@ -307,25 +324,67 @@ struct PlaceRowView: View {
         return String(format: "%.1f km", meters / 1000)
     }
 
-    /// Falls back to the same AI nearest-address estimate AddPlaceSheet/
-    /// EditPlaceSheet already use on a fresh geocode failure — without
-    /// this, retrying an address real geocoders simply have no data for
-    /// (a small business Nominatim/Google/Naver has never indexed) reruns
-    /// the exact same query and fails the exact same way every time.
+    /// Tries every configured map provider (not just whichever one's
+    /// selected in Settings) rather than a single geocode — one provider
+    /// can confidently return a real but wrong coordinate for an
+    /// obscure/short name (a real case: Naver placed a restaurant
+    /// nowhere near Korea while Google found it exactly), and the
+    /// person can't know which to trust without seeing them. When the
+    /// providers agree there's nothing to ask about, so it applies the
+    /// result directly; when they meaningfully disagree, it shows
+    /// GeocodeCandidateSheet instead of guessing. Falls back to the same
+    /// AI nearest-address estimate AddPlaceSheet/EditPlaceSheet already
+    /// use when no provider finds anything at all.
     private func retryGeocode() async {
         isRetryingGeocode = true
         defer { isRetryingGeocode = false }
         let siblingPlaces = (place.trip?.places ?? []).filter { $0.id != place.id }.map {
             MapProviderPolicy.PlaceLike(latitude: $0.latitude, longitude: $0.longitude, name: $0.name, address: $0.address)
         }
-        if let result = await GeocodingService.geocode(name: place.name, address: place.address, contextHint: destination, siblingPlaces: siblingPlaces) {
-            place.latitude = result.latitude
-            place.longitude = result.longitude
-            place.geocodeStatus = .located
-            place.syncCountryList(context: modelContext)
+
+        let candidates = await GeocodingService.geocodeAllProviders(name: place.name, address: place.address, contextHint: destination, siblingPlaces: siblingPlaces)
+
+        if candidates.isEmpty {
+            await fallBackToAIEstimate()
             return
         }
 
+        if candidatesDisagree(candidates) {
+            geocodeCandidates = candidates
+            showingCandidatePicker = true
+            return
+        }
+
+        // Providers agree (or only one answered) — prefer the currently
+        // configured provider's own result when it's among them, since
+        // that's what the rest of the app (Open in Map, etc.) is already
+        // set up around.
+        let chosen = candidates.first { $0.provider == MapSettings.shared.provider } ?? candidates[0]
+        apply(chosen.result, status: .located)
+    }
+
+    /// Worth asking the person to pick only when the candidates actually
+    /// point at different places — two providers landing a block or two
+    /// apart is normal geocoder noise, not a real disagreement.
+    private func candidatesDisagree(_ candidates: [GeocodingService.ProviderResult], thresholdMeters: Double = 300) -> Bool {
+        for i in 0..<candidates.count {
+            for j in (i + 1)..<candidates.count {
+                let a = CLLocation(latitude: candidates[i].result.latitude, longitude: candidates[i].result.longitude)
+                let b = CLLocation(latitude: candidates[j].result.latitude, longitude: candidates[j].result.longitude)
+                if a.distance(from: b) > thresholdMeters { return true }
+            }
+        }
+        return false
+    }
+
+    private func apply(_ result: GeocodingService.Result, status: GeocodeStatus) {
+        place.latitude = result.latitude
+        place.longitude = result.longitude
+        place.geocodeStatus = status
+        place.syncCountryList(context: modelContext)
+    }
+
+    private func fallBackToAIEstimate() async {
         if AISettings.shared.activeAPIKey != nil {
             do {
                 let guessedAddress = try await AIExtractionService.guessNearestAddress(
@@ -337,10 +396,7 @@ struct PlaceRowView: View {
                 )
                 if let guessedAddress,
                    let estimate = await GeocodingService.geocode(query: guessedAddress, contextHint: destination) {
-                    place.latitude = estimate.latitude
-                    place.longitude = estimate.longitude
-                    place.geocodeStatus = .estimated
-                    place.syncCountryList(context: modelContext)
+                    apply(estimate, status: .estimated)
                     return
                 }
             } catch {

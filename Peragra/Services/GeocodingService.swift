@@ -94,20 +94,71 @@ enum GeocodingService {
         contextHint: String?,
         siblingPlaces: [MapProviderPolicy.PlaceLike] = []
     ) async -> Result? {
+        let selfPlace = MapProviderPolicy.PlaceLike(
+            latitude: nil, longitude: nil,
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            address: address.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        let places = [selfPlace] + siblingPlaces
+        let providerOverride = MapProviderPolicy.pickProvider(MapSettings.shared.provider, places: places)
+        return await geocode(provider: providerOverride, name: name, address: address, contextHint: contextHint, siblingPlaces: siblingPlaces)
+    }
+
+    struct ProviderResult {
+        let provider: MapProvider
+        let result: Result
+    }
+
+    /// Same address-then-name lookup as geocode(name:address:...), but
+    /// tried against every provider with usable credentials — Apple's
+    /// free geocoder (always), Google (always, via the bundled key),
+    /// and Naver (once the person has entered their own Client ID and
+    /// Secret) — instead of only the one currently selected in Settings.
+    /// For "Retry" to let a person choose when providers disagree,
+    /// rather than trusting whichever one happens to be configured: a
+    /// short/obscure name can get a confident but wrong match from one
+    /// geocoder while another gets it right (a real case: Naver placed
+    /// one restaurant nowhere near Korea while Google found it exactly).
+    /// Each provider's own plausibility check (see isPlausible) still
+    /// applies to its own result.
+    static func geocodeAllProviders(
+        name: String,
+        address: String,
+        contextHint: String?,
+        siblingPlaces: [MapProviderPolicy.PlaceLike] = []
+    ) async -> [ProviderResult] {
+        var providers: [MapProvider] = [.free, .google]
+        if MapSettings.shared.naverClientId != nil, MapSettings.shared.naverClientSecret != nil {
+            providers.append(.naver)
+        }
+
+        var results: [ProviderResult] = []
+        for provider in providers {
+            if let result = await geocode(provider: provider, name: name, address: address, contextHint: contextHint, siblingPlaces: siblingPlaces) {
+                results.append(ProviderResult(provider: provider, result: result))
+            }
+        }
+        return results
+    }
+
+    private static func geocode(
+        provider: MapProvider,
+        name: String,
+        address: String,
+        contextHint: String?,
+        siblingPlaces: [MapProviderPolicy.PlaceLike]
+    ) async -> Result? {
         let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let selfPlace = MapProviderPolicy.PlaceLike(latitude: nil, longitude: nil, name: trimmedName, address: trimmedAddress)
 
-        let places = [selfPlace] + siblingPlaces
-        let providerOverride = MapProviderPolicy.pickProvider(MapSettings.shared.provider, places: places)
-
         if !trimmedAddress.isEmpty,
-           let result = await geocode(query: trimmedAddress, contextHint: contextHint, providerOverride: providerOverride),
+           let result = await geocode(query: trimmedAddress, contextHint: contextHint, providerOverride: provider),
            isPlausible(result, selfPlace: selfPlace, siblingPlaces: siblingPlaces) {
             return result
         }
         if !trimmedName.isEmpty,
-           let result = await geocode(query: trimmedName, contextHint: contextHint, providerOverride: providerOverride),
+           let result = await geocode(query: trimmedName, contextHint: contextHint, providerOverride: provider),
            isPlausible(result, selfPlace: selfPlace, siblingPlaces: siblingPlaces) {
             return result
         }

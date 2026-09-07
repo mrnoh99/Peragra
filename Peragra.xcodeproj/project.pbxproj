@@ -59,6 +59,7 @@
 		D899874C72004F4ABA74DC77 /* ImportPlacesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ECEA13D01644CFB117C110 /* ImportPlacesSheet.swift */; };
 		300F05A9BE2E4EE4540304E7 /* DuplicatePlaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74D8BAE8F441ACAC57975902 /* DuplicatePlaces.swift */; };
 		6E45F5C7D66D08A66256EA24 /* FindDuplicatesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D61E6108C9AC74FFDCF6056C /* FindDuplicatesSheet.swift */; };
+		4EC68CDA1E9B90D4257120E7 /* GeocodeCandidateSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FBA12EF8282DC9DA2F6725 /* GeocodeCandidateSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -116,6 +117,7 @@
 		D0ECEA13D01644CFB117C110 /* ImportPlacesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImportPlacesSheet.swift; path = Peragra/Views/Places/ImportPlacesSheet.swift; sourceTree = "<group>"; };
 		74D8BAE8F441ACAC57975902 /* DuplicatePlaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DuplicatePlaces.swift; path = Peragra/Services/DuplicatePlaces.swift; sourceTree = "<group>"; };
 		D61E6108C9AC74FFDCF6056C /* FindDuplicatesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FindDuplicatesSheet.swift; path = Peragra/Views/Trips/FindDuplicatesSheet.swift; sourceTree = "<group>"; };
+		B2FBA12EF8282DC9DA2F6725 /* GeocodeCandidateSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeocodeCandidateSheet.swift; path = Peragra/Views/Places/GeocodeCandidateSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -162,6 +164,7 @@
 			children = (
 				EBA04DC7BF07B250AF95A74F /* PlaceRowView.swift */,
 				D0ECEA13D01644CFB117C110 /* ImportPlacesSheet.swift */,
+				B2FBA12EF8282DC9DA2F6725 /* GeocodeCandidateSheet.swift */,
 				9A724FCCA820579F5A284A7A /* InstagramEmbedView.swift */,
 				AB844760848B91E7946DB225 /* PlaceMapView.swift */,
 				C0D74B1688389732B5CD38E3 /* AddPlaceSheet.swift */,
@@ -355,6 +358,7 @@
 				10510ADAF26E4309AD1B04DB /* SharePlaces.swift in Sources */,
 				300F05A9BE2E4EE4540304E7 /* DuplicatePlaces.swift in Sources */,
 				6E45F5C7D66D08A66256EA24 /* FindDuplicatesSheet.swift in Sources */,
+				4EC68CDA1E9B90D4257120E7 /* GeocodeCandidateSheet.swift in Sources */,
 				B12C5E090088E25DEB914B9A /* LocationService.swift in Sources */,
 				C052B83134DFD7A8D22AA57A /* CameraCaptureView.swift in Sources */,
 				A9033BC47A48DEBA9EFF95A8 /* KakaoMapOpener.swift in Sources */,

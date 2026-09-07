@@ -137,12 +137,60 @@ export async function geocodePlaceByAddressOrName(
     ...siblingPlaces,
   ]);
 
+  return geocodeSingleProvider(providerOverride, { name, address }, contextHint, siblingPlaces);
+}
+
+export interface ProviderResult {
+  provider: MapProvider;
+  result: GeocodeResult;
+}
+
+/**
+ * Same address-then-name lookup as geocodePlaceByAddressOrName, but
+ * tried against every provider with usable credentials — the free
+ * Nominatim provider (always), Google (once the person has entered
+ * their own API key), and Naver (once they've entered a Client ID) —
+ * instead of only the one currently selected in Settings. For "retry"
+ * to let a person choose when providers disagree, rather than trusting
+ * whichever one happens to be configured: a short/obscure name can get
+ * a confident but wrong match from one geocoder while another gets it
+ * right (a real case: Naver placed one restaurant nowhere near Korea
+ * while Google found it exactly). Each provider's own plausibility
+ * check (see isPlausible) still applies to its own result.
+ */
+export async function geocodeAllProviders(
+  place: { name: string; address: string },
+  contextHint?: string,
+  siblingPlaces: Array<{ lat: number | null; lng: number | null; name: string; address: string }> = [],
+): Promise<ProviderResult[]> {
+  const { googleMapsApiKey, naverClientId } = useMapSettingsStore.getState();
+  const providers: MapProvider[] = ["free"];
+  if (googleMapsApiKey) providers.push("google");
+  if (naverClientId) providers.push("naver");
+
+  const results: ProviderResult[] = [];
+  for (const provider of providers) {
+    const result = await geocodeSingleProvider(provider, place, contextHint, siblingPlaces);
+    if (result) results.push({ provider, result });
+  }
+  return results;
+}
+
+async function geocodeSingleProvider(
+  provider: MapProvider,
+  place: { name: string; address: string },
+  contextHint: string | undefined,
+  siblingPlaces: Array<{ lat: number | null; lng: number | null; name: string; address: string }>,
+): Promise<GeocodeResult | null> {
+  const address = place.address.trim();
+  const name = place.name.trim();
+
   if (address) {
-    const result = await geocodePlace(address, contextHint, providerOverride);
+    const result = await geocodePlace(address, contextHint, provider);
     if (result && isPlausible(result, { name, address }, siblingPlaces)) return result;
   }
   if (name) {
-    const result = await geocodePlace(name, contextHint, providerOverride);
+    const result = await geocodePlace(name, contextHint, provider);
     if (result && isPlausible(result, { name, address }, siblingPlaces)) return result;
   }
   return null;
