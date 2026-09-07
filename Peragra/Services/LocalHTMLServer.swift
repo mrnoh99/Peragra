@@ -39,13 +39,11 @@ final class LocalHTMLServer {
         queue.async {
             self.currentHTML = html
             if let port = self.port {
-                DispatchQueue.main.async { completion(URL(string: "http://localhost:\(port)/")) }
+                DispatchQueue.main.async { completion(Self.url(forPort: port)) }
                 return
             }
             self.pendingCallbacks.append { port in
-                DispatchQueue.main.async {
-                    completion(port.map { URL(string: "http://localhost:\($0)/")! })
-                }
+                DispatchQueue.main.async { completion(port.map(Self.url(forPort:))) }
             }
             if self.listener == nil {
                 self.startListening()
@@ -53,11 +51,26 @@ final class LocalHTMLServer {
         }
     }
 
+    /// Omits ":80" for the default HTTP port rather than including it
+    /// literally — the served string needs to match "http://localhost/"
+    /// exactly, as registered in the NCP console, not just resolve to an
+    /// equivalent origin.
+    private static func url(forPort port: UInt16) -> URL {
+        port == 80 ? URL(string: "http://localhost/")! : URL(string: "http://localhost:\(port)/")!
+    }
+
     private func startListening() {
         let params = NWParameters.tcp
         // Loopback only — this process shouldn't be reachable from
-        // anywhere else on the local network.
-        params.requiredLocalEndpoint = NWEndpoint.hostPort(host: "127.0.0.1", port: .any)
+        // anywhere else on the local network. Bound to the default HTTP
+        // port (80), not an OS-assigned ephemeral one: NCP's Web Service
+        // URL is registered as exactly "http://localhost/" (no port), and
+        // an ephemeral port produced a different origin every launch —
+        // if Naver's tile-serving check does strict origin matching
+        // (unlike the more lenient initial script-load check), that
+        // mismatch alone would explain a map that initializes fine but
+        // never gets a single tile.
+        params.requiredLocalEndpoint = NWEndpoint.hostPort(host: "127.0.0.1", port: 80)
         guard let listener = try? NWListener(using: params) else {
             resolvePending(port: nil)
             return
