@@ -61,9 +61,19 @@ struct NaverMapWebView: UIViewRepresentable {
         let signature = Signature(clientId: clientId, places: places, tripDestination: tripDestination)
         guard context.coordinator.loadedSignature != signature else { return }
         context.coordinator.loadedSignature = signature
+        // Naver's NCP console checks the calling page's own origin against
+        // the "Web Service URL" registered for this Client ID — passing
+        // Naver's own domain here (as originally written) made that check
+        // compare Naver's domain against itself, which NCP correctly
+        // refuses ("Naver Open API 인증에 실패하였습니다"). http://localhost
+        // is NCP's documented value for a native app embedding the Web
+        // Dynamic Map SDK in a WebView rather than serving it from a real
+        // website — register that same value as this Client ID's Web
+        // Service URL in the NCP console (Web Dynamic Map > 사용 API 관리 >
+        // Web 서비스 URL) for this to authenticate.
         webView.loadHTMLString(
             Self.html(clientId: clientId, places: places, tripDestination: tripDestination),
-            baseURL: URL(string: "https://oapi.map.naver.com")
+            baseURL: URL(string: "http://localhost")
         )
     }
 
