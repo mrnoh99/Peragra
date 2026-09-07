@@ -111,6 +111,34 @@ struct NaverMapWebView: UIViewRepresentable {
             }
             decisionHandler(.allow)
         }
+
+        // Neither the 10s JS timeout nor window.onerror can catch a
+        // failure at this level — if the navigation itself never commits
+        // (blocked by ATS, a bad baseURL, ...), no JS ever runs, and the
+        // page would otherwise sit blank forever with zero signal. Written
+        // to not depend on our own page's JS having already run (document
+        // may not exist yet), unlike the in-page showLoadError helper.
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            reportNativeFailure(error, on: webView)
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            reportNativeFailure(error, on: webView)
+        }
+
+        private func reportNativeFailure(_ error: Error, on webView: WKWebView) {
+            let message = (error as NSError).localizedDescription
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "'", with: "\\'")
+                .replacingOccurrences(of: "\n", with: " ")
+            let js = """
+            (function() {
+              var html = '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:24px;text-align:center;font:14px -apple-system,sans-serif;color:#a3a3a3;">Naver Map failed to load: \(message)</div>';
+              if (document.body) { document.body.innerHTML = html; } else { document.open(); document.write(html); document.close(); }
+            })();
+            """
+            webView.evaluateJavaScript(js)
+        }
     }
 
     private static func html(clientId: String, places: [MarkerPlace], tripDestination: String) -> String {
