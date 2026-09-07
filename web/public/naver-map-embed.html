@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Naver Map</title>
+<style>
+  html, body, #map { margin: 0; height: 100%; width: 100%; }
+</style>
+</head>
+<body>
+<!--
+  Hosted here (not embedded as loadHTMLString inside the iOS app's
+  WKWebView) so it loads as a genuine https://mrnoh99.github.io/Peragra/
+  page — the same origin already registered as this Client ID's Web
+  Service URL in the NCP console, and the same one NaverMapView.tsx (the
+  web app's own Naver map component) already uses successfully. Loading
+  Naver's map JS SDK from a synthetic local origin (loadHTMLString, or
+  even a same-string-but-loopback local HTTP server) let the script and
+  map object initialize fine but left every tile request failing
+  silently ("Failure to load tile meta information") — this sidesteps
+  that entirely by being a real, already-working origin instead of
+  reproducing Naver's script-loading technique against a fake one.
+
+  The native app navigates the WKWebView straight to this page, then
+  calls window.renderNaverMap(payload) via evaluateJavaScript once the
+  navigation finishes — payload is
+  { clientId, tripDestination, places: [{ id, name, address, emoji,
+  visited, addressTrusted, latitude, longitude, kakaoMapUrlString,
+  naverMapUrlString, tmapUrlString }] }, mirroring NaverMapWebView
+  .MarkerPlace on the Swift side. "View place card" taps relay back to
+  native via window.webkit.messageHandlers.selectPlace, the same
+  WKScriptMessageHandler channel used when this ran as embedded HTML.
+-->
+<div id="map">
+  <div style="display:flex;align-items:center;justify-content:center;height:100%;font:14px -apple-system,sans-serif;color:#a3a3a3;">Loading Naver Map…</div>
+</div>
+<script>
+  let pendingPayload = null;
+  let scriptLoadStarted = false;
+  let mapReady = false;
+
+  function showError(message) {
+    if (mapReady) return;
+    const el = document.getElementById("map");
+    if (el) {
+      el.outerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;' +
+        'height:100%;padding:24px;text-align:center;font:14px -apple-system,sans-serif;' +
+        'color:#a3a3a3;">' + message + '</div>';
+    }
+  }
+
+  function loadNaverScript(clientId) {
+    if (scriptLoadStarted) return;
+    scriptLoadStarted = true;
+    const timeout = setTimeout(() => {
+      showError("Couldn't load Naver Map — check your Client ID in Settings.");
+    }, 10000);
+    window.navermap_authFailure = function () {
+      clearTimeout(timeout);
+      showError("Naver Map rejected this Client ID — check it in Settings.");
+    };
+    const script = document.createElement("script");
+    script.src = "https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=" +
+      encodeURIComponent(clientId) + "&submodules=geocoder";
+    script.onload = function () {
+      clearTimeout(timeout);
+      if (pendingPayload) doRender(pendingPayload);
+    };
+    script.onerror = function () {
+      clearTimeout(timeout);
+      showError("Failed to load the Naver Map script.");
+    };
+    document.body.appendChild(script);
+  }
+
+  function doRender(payload) {
+    mapReady = true;
+    const tripDestination = payload.tripDestination || "";
+    const places = payload.places || [];
+    const first = places[0];
+    const map = new naver.maps.Map(document.getElementById("map"), {
+      center: new naver.maps.LatLng(first ? first.latitude : 37.5665, first ? first.longitude : 126.978),
+      zoom: 13,
+    });
+
+    const bounds = new naver.maps.LatLngBounds();
+    const infoWindow = new naver.maps.InfoWindow();
+
+    places.forEach((place) => {
+      const position = new naver.maps.LatLng(place.latitude, place.longitude);
+      const marker = new naver.maps.Marker({
+        position,
+        map,
+        icon: {
+          content: '<div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;opacity:' + (place.visited ? 0.5 : 1) + ';">' + place.emoji + "</div>",
+          size: new naver.maps.Size(24, 24),
+          anchor: new naver.maps.Point(12, 24),
+        },
+      });
+      naver.maps.Event.addListener(marker, "click", () => {
+        // Built as DOM nodes with textContent, not an HTML string, so a
+        // place name/address containing markup can't inject into the page.
+        const content = document.createElement("div");
+        content.style.position = "relative";
+        content.style.padding = "4px 22px 4px 2px";
+        const closeEl = document.createElement("button");
+        closeEl.type = "button";
+        closeEl.textContent = "×";
+        closeEl.setAttribute("aria-label", "Close");
+        closeEl.style.position = "absolute";
+        closeEl.style.top = "0";
+        closeEl.style.right = "0";
+        closeEl.style.border = "none";
+        closeEl.style.background = "none";
+        closeEl.style.padding = "2px 6px";
+        closeEl.style.fontSize = "16px";
+        closeEl.style.lineHeight = "1";
+        closeEl.style.color = "#a3a3a3";
+        closeEl.style.cursor = "pointer";
+        closeEl.onclick = () => infoWindow.close();
+        content.appendChild(closeEl);
+        const nameEl = document.createElement("div");
+        nameEl.style.fontWeight = "600";
+        nameEl.textContent = place.name;
+        content.appendChild(nameEl);
+        if (place.address) {
+          const addressEl = document.createElement("div");
+          addressEl.style.color = "#737373";
+          addressEl.style.fontSize = "12px";
+          addressEl.textContent = place.address;
+          content.appendChild(addressEl);
+        }
+        const mapsQuery = (place.addressTrusted && place.address)
+          ? [place.name, place.address].filter(Boolean).join(", ")
+          : [place.name, tripDestination].filter(Boolean).join(", ");
+        const googleUrl = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(mapsQuery);
+        const makeMapLink = (href, label) => {
+          const linkEl = document.createElement("a");
+          linkEl.href = href;
+          linkEl.textContent = label;
+          linkEl.style.display = "block";
+          linkEl.style.marginTop = "4px";
+          linkEl.style.fontSize = "12px";
+          return linkEl;
+        };
+        const viewCardEl = document.createElement("button");
+        viewCardEl.type = "button";
+        viewCardEl.textContent = "📋 View place card";
+        viewCardEl.style.display = "block";
+        viewCardEl.style.marginTop = "4px";
+        viewCardEl.style.fontSize = "12px";
+        viewCardEl.style.color = "#f9532c";
+        viewCardEl.style.textDecoration = "underline";
+        viewCardEl.style.background = "none";
+        viewCardEl.style.border = "none";
+        viewCardEl.style.padding = "0";
+        viewCardEl.style.cursor = "pointer";
+        viewCardEl.onclick = () => {
+          if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.selectPlace) {
+            window.webkit.messageHandlers.selectPlace.postMessage(place.id);
+          }
+        };
+        content.appendChild(viewCardEl);
+        content.appendChild(makeMapLink(googleUrl, "Open in Google Maps"));
+        if (place.naverMapUrlString) content.appendChild(makeMapLink(place.naverMapUrlString, "Open in Naver Map"));
+        if (place.kakaoMapUrlString) content.appendChild(makeMapLink(place.kakaoMapUrlString, "Open in Kakao Map"));
+        if (place.tmapUrlString) content.appendChild(makeMapLink(place.tmapUrlString, "Open in Tmap"));
+        infoWindow.setContent(content);
+        infoWindow.open(map, marker);
+      });
+      bounds.extend(position);
+    });
+
+    if (places.length > 1) map.fitBounds(bounds);
+  }
+
+  // Called by the native app (via evaluateJavaScript) once this page has
+  // finished navigating — queues the render until the Naver script (kicked
+  // off on the first call) has finished loading.
+  window.renderNaverMap = function (payload) {
+    pendingPayload = payload;
+    if (window.naver && window.naver.maps) {
+      doRender(payload);
+    } else {
+      loadNaverScript(payload.clientId);
+    }
+  };
+</script>
+</body>
+</html>

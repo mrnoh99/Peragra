@@ -28,7 +28,6 @@
 		5D1744EAB307E60EBE13C935 /* PlaceListingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8BC485BB5A43C5FE5BF7D88 /* PlaceListingView.swift */; };
 		64644134808E5774D2F023BD /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67754B66A448FD1EF6D5B920 /* KeychainService.swift */; };
 		6E6844D2B9A89DD6613ABD38 /* GeocodingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E74D7D82C88C55F4E7AA03 /* GeocodingService.swift */; };
-		A8E0D39ABCA32BFF28305E80 /* LocalHTMLServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 918227F673360604DA06D0A9 /* LocalHTMLServer.swift */; };
 		DFBA4461C6C4AD82B9CACF95 /* CountryNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AD8BEF461772CE22EB9CD33 /* CountryNames.swift */; };
 		E682BA3052E3BB6ADB790E26 /* MapProviderPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C574D7F2BE12EC94D09EB32 /* MapProviderPolicy.swift */; };
 		CB12BFDFE13C4E25AC5675ED /* LinkURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86C11280A56A412D9E36051B /* LinkURL.swift */; };
@@ -84,7 +83,6 @@
 		028883BBF7824353869042DA /* AllPlacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AllPlacesView.swift; path = Peragra/Views/Trips/AllPlacesView.swift; sourceTree = "<group>"; };
 		38284761B40F598FFC15CD78 /* PlaceCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceCollection.swift; path = Peragra/Models/PlaceCollection.swift; sourceTree = "<group>"; };
 		51E74D7D82C88C55F4E7AA03 /* GeocodingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeocodingService.swift; path = Peragra/Services/GeocodingService.swift; sourceTree = "<group>"; };
-		918227F673360604DA06D0A9 /* LocalHTMLServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LocalHTMLServer.swift; path = Peragra/Services/LocalHTMLServer.swift; sourceTree = "<group>"; };
 		0AD8BEF461772CE22EB9CD33 /* CountryNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CountryNames.swift; path = Peragra/Services/CountryNames.swift; sourceTree = "<group>"; };
 		6C574D7F2BE12EC94D09EB32 /* MapProviderPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MapProviderPolicy.swift; path = Peragra/Services/MapProviderPolicy.swift; sourceTree = "<group>"; };
 		86C11280A56A412D9E36051B /* LinkURL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LinkURL.swift; path = Peragra/Services/LinkURL.swift; sourceTree = "<group>"; };
@@ -138,7 +136,6 @@
 			isa = PBXGroup;
 			children = (
 				51E74D7D82C88C55F4E7AA03 /* GeocodingService.swift */,
-				918227F673360604DA06D0A9 /* LocalHTMLServer.swift */,
 				0AD8BEF461772CE22EB9CD33 /* CountryNames.swift */,
 				6C574D7F2BE12EC94D09EB32 /* MapProviderPolicy.swift */,
 				86C11280A56A412D9E36051B /* LinkURL.swift */,
@@ -338,7 +335,6 @@
 				D337F6708ACA44E8B869038B /* ImportBoardSheet.swift in Sources */,
 				F015D8D330963F4628024AC8 /* EditTripSheet.swift in Sources */,
 				6E6844D2B9A89DD6613ABD38 /* GeocodingService.swift in Sources */,
-				A8E0D39ABCA32BFF28305E80 /* LocalHTMLServer.swift in Sources */,
 				DFBA4461C6C4AD82B9CACF95 /* CountryNames.swift in Sources */,
 				E682BA3052E3BB6ADB790E26 /* MapProviderPolicy.swift in Sources */,
 				CB12BFDFE13C4E25AC5675ED /* LinkURL.swift in Sources */,
