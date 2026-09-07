@@ -71,10 +71,11 @@ struct NaverMapWebView: UIViewRepresentable {
         // website — register that same value as this Client ID's Web
         // Service URL in the NCP console (Web Dynamic Map > 사용 API 관리 >
         // Web 서비스 URL) for this to authenticate.
-        webView.loadHTMLString(
-            Self.html(clientId: clientId, places: places, tripDestination: tripDestination),
-            baseURL: URL(string: "http://localhost")
-        )
+        let html = Self.html(clientId: clientId, places: places, tripDestination: tripDestination)
+        let baseURL = URL(string: "http://localhost")
+        context.coordinator.lastLoadedHTML = html
+        context.coordinator.lastLoadedBaseURL = baseURL
+        webView.loadHTMLString(html, baseURL: baseURL)
     }
 
     fileprivate struct Signature: Equatable {
@@ -93,6 +94,13 @@ struct NaverMapWebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         fileprivate var loadedSignature: Signature?
         fileprivate var onSelectPlace: ((String) -> Void)?
+        /// Stashed on every load so a crashed content process can be
+        /// recovered by reloading the exact same content, without needing
+        /// to re-derive it from `NaverMapWebView`'s (struct, not held
+        /// here) properties.
+        fileprivate var lastLoadedHTML: String?
+        fileprivate var lastLoadedBaseURL: URL?
+        private var contentProcessCrashCount = 0
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             guard message.name == "selectPlace", let placeID = message.body as? String else { return }
@@ -138,6 +146,30 @@ struct NaverMapWebView: UIViewRepresentable {
             })();
             """
             webView.evaluateJavaScript(js)
+        }
+
+        // A blank WKWebView with no error from any other delegate method
+        // (didFail, didFailProvisionalNavigation, window.onerror) usually
+        // means the WebContent process itself was killed — WebKit fires
+        // this instead, separately from every navigation-failure path,
+        // and the page is left showing nothing until something explicitly
+        // reloads it. One retry recovers a one-off kill (memory pressure,
+        // say); past that, show a message instead of risking a silent
+        // reload loop against a content genuinely crashing the process.
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            contentProcessCrashCount += 1
+            guard contentProcessCrashCount <= 1, let html = lastLoadedHTML else {
+                let message = "'The Naver Map page crashed" + (contentProcessCrashCount > 1 ? " again" : "") + " — try switching maps in Settings and back.'"
+                let js = """
+                (function() {
+                  var html = '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:24px;text-align:center;font:14px -apple-system,sans-serif;color:#a3a3a3;">' + \(message) + '</div>';
+                  if (document.body) { document.body.innerHTML = html; } else { document.open(); document.write(html); document.close(); }
+                })();
+                """
+                webView.evaluateJavaScript(js)
+                return
+            }
+            webView.loadHTMLString(html, baseURL: lastLoadedBaseURL)
         }
     }
 
