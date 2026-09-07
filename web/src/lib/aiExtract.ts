@@ -411,18 +411,22 @@ export async function extractPlacesFromImages(
       ? images.length > 1
         ? "These photos were taken in person at a single real place — extract one consolidated, " +
           "accurate result for it, cross-referencing all the photos (for example, a storefront sign " +
-          "for the name and a menu photo for prices/items). Only use its name if it's actually " +
-          "legible somewhere (a sign, menu header, receipt, storefront text, ...) — if none of these " +
-          "photos actually name it, use null for name rather than guessing from the type of food, " +
-          "decor, or general appearance; a wrong guessed name is worse than none, since it later " +
-          "gets treated as confirmed and searched for on a map."
+          "for the name and a menu photo for prices/items). Use whatever name-like text actually " +
+          "appears on a sign, storefront, menu header, or receipt — Korean and other small-business " +
+          'signage very often IS just a short phrase mixing a neighborhood/style and specialty ' +
+          '(e.g. a sign reading "신림동 명물 순대국"), and that counts as the name even though it also ' +
+          "describes the food; don't reject it as \"just a description.\" Only use null for name " +
+          "when there is truly no legible name-like text anywhere in these photos — never invent one " +
+          "from the food's appearance, cuisine type, or decor alone when nothing at all is written."
         : "This photo was taken in person at a single real place (its storefront, sign, menu, or " +
           "interior) — extract one accurate result for it from whatever is written or shown, such as " +
-          "its name and any menu items, prices, or hours visible. Only use its name if it's actually " +
-          "legible in the photo (a sign, menu header, receipt, storefront text, ...) — if the name " +
-          "isn't actually shown, use null for name rather than guessing from the type of food, " +
-          "decor, or general appearance; a wrong guessed name is worse than none, since it later " +
-          "gets treated as confirmed and searched for on a map."
+          "its name and any menu items, prices, or hours visible. Use whatever name-like text " +
+          "actually appears on a sign, storefront, menu header, or receipt — Korean and other " +
+          "small-business signage very often IS just a short phrase mixing a neighborhood/style and " +
+          'specialty (e.g. a sign reading "신림동 명물 순대국"), and that counts as the name even though ' +
+          "it also describes the food; don't reject it as \"just a description.\" Only use null for " +
+          "name when there is truly no legible name-like text anywhere in the photo — never invent " +
+          "one from the food's appearance, cuisine type, or decor alone when nothing at all is written."
       : photoKind === "mapScreenshot"
         ? "This is a screenshot of a map app (Google Maps, Naver Map, Kakao Map, Apple Maps, or " +
           "similar) showing a single place's info card or pin label — extract that place's details " +
