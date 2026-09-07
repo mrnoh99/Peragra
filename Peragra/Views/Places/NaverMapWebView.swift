@@ -228,6 +228,53 @@ struct NaverMapWebView: UIViewRepresentable {
             }
             setStatus("script tag inserted");
 
+            // TEMPORARY: the resource list showed repeated calls to
+            // Naver's own internal telemetry endpoint
+            // (nelo.navercorp.com/_store) instead of any actual tile
+            // request — meaning the SDK detects some failure itself and
+            // silently logs it there rather than calling the documented
+            // navermap_authFailure hook. Intercept fetch/XHR/sendBeacon
+            // calls to that endpoint to read what it's actually reporting,
+            // installed before maps.js loads so it's in place before the
+            // SDK can make that call. Remove once the real cause is found.
+            window.__neloBodies = [];
+            function captureNeloBody(url, body) {
+              if (typeof url === "string" && url.indexOf("nelo.navercorp.com") !== -1) {
+                let text = body;
+                if (body && typeof body !== "string") {
+                  try { text = JSON.stringify(body); } catch (e) { text = String(body); }
+                }
+                window.__neloBodies.push(String(text).slice(0, 500));
+              }
+            }
+            const __originalFetch = window.fetch;
+            if (__originalFetch) {
+              window.fetch = function(input, init) {
+                try {
+                  const url = typeof input === "string" ? input : (input && input.url);
+                  captureNeloBody(url, init && init.body);
+                } catch (e) {}
+                return __originalFetch.apply(this, arguments);
+              };
+            }
+            const __originalOpen = XMLHttpRequest.prototype.open;
+            const __originalSend = XMLHttpRequest.prototype.send;
+            XMLHttpRequest.prototype.open = function(method, url) {
+              this.__requestURL = url;
+              return __originalOpen.apply(this, arguments);
+            };
+            XMLHttpRequest.prototype.send = function(body) {
+              try { captureNeloBody(this.__requestURL, body); } catch (e) {}
+              return __originalSend.apply(this, arguments);
+            };
+            if (navigator.sendBeacon) {
+              const __originalBeacon = navigator.sendBeacon.bind(navigator);
+              navigator.sendBeacon = function(url, data) {
+                try { captureNeloBody(url, data); } catch (e) {}
+                return __originalBeacon(url, data);
+              };
+            }
+
             function showLoadError(message) {
               if (mapReady) return;
               document.getElementById("map").outerHTML =
@@ -289,7 +336,12 @@ struct NaverMapWebView: UIViewRepresentable {
                 }
               }
               setTimeout(() => {
-                if (!tilesLoaded) setStatus("tilesloaded never fired after 6s. resources: " + resourceSummary());
+                if (!tilesLoaded) {
+                  const neloText = window.__neloBodies.length
+                    ? " NELO bodies: " + window.__neloBodies.join(" ~~ ")
+                    : " (no NELO body captured)";
+                  setStatus("tilesloaded never fired after 6s." + neloText + " resources: " + resourceSummary());
+                }
               }, 6000);
 
               const bounds = new naver.maps.LatLngBounds();
