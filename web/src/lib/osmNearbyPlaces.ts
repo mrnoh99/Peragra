@@ -11,8 +11,23 @@ const OSM_TAGS_BY_CATEGORY: Record<PlaceCategory, { key: string; values?: string
   ],
   cafe: [{ key: "amenity", values: ["cafe"] }],
   attraction: [
-    { key: "tourism", values: ["attraction", "museum", "gallery", "zoo", "theme_park", "aquarium"] },
-    { key: "leisure", values: ["park"] },
+    {
+      key: "tourism",
+      values: [
+        "attraction", "museum", "gallery", "zoo", "theme_park", "aquarium",
+        "viewpoint", "artwork", "picnic_site",
+      ],
+    },
+    // `nature_reserve` is included for the (fairly common) case of a
+    // labeled entrance/visitor node even though the reserve's own
+    // boundary is virtually always mapped as a way/relation polygon,
+    // which this node-only search can't match anyway — same reasoning
+    // applies to a national park's own boundary tag (`boundary=
+    // national_park`), left out entirely since it's essentially never a
+    // node. Searching way/relation geometry too would need a different
+    // query shape (Overpass's "out center" mode) — worth doing as a
+    // follow-up if park/reserve coverage specifically turns out to matter.
+    { key: "leisure", values: ["park", "garden", "nature_reserve"] },
     { key: "amenity", values: ["place_of_worship"] },
     // Monuments, memorials, and other historic sites (a war memorial,
     // for instance) — OSM's `historic` key covers these, and neither
@@ -20,11 +35,20 @@ const OSM_TAGS_BY_CATEGORY: Record<PlaceCategory, { key: string; values?: string
     // counts; unlike the other filters, this one isn't narrowed to a
     // specific list, since the tag itself already implies "attraction".
     { key: "historic" },
+    // Natural landmarks — a mountain peak, waterfall, cave mouth, or a
+    // labeled beach spot. `natural` isn't queried at all otherwise.
+    { key: "natural", values: ["beach", "peak", "waterfall", "cave_entrance"] },
+    // An observation/landmark tower (e.g. N Seoul Tower) sometimes has
+    // only this tag, not `tourism=attraction` as well.
+    { key: "man_made", values: ["tower"] },
   ],
   shopping: [{ key: "shop" }],
   hotel: [{ key: "tourism", values: ["hotel", "guest_house", "hostel"] }],
   nightlife: [{ key: "amenity", values: ["bar", "pub", "nightclub", "casino"] }],
-  other: [{ key: "amenity" }, { key: "shop" }, { key: "tourism" }, { key: "leisure" }, { key: "historic" }],
+  other: [
+    { key: "amenity" }, { key: "shop" }, { key: "tourism" }, { key: "leisure" }, { key: "historic" },
+    { key: "natural" }, { key: "man_made" },
+  ],
 };
 
 function categoryForTags(tags: Record<string, string>): PlaceCategory {
