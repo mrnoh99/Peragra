@@ -228,16 +228,21 @@ struct NaverMapWebView: UIViewRepresentable {
             }
             setStatus("script tag inserted");
 
-            // TEMPORARY: the resource list showed repeated calls to
-            // Naver's own internal telemetry endpoint
-            // (nelo.navercorp.com/_store) instead of any actual tile
-            // request — meaning the SDK detects some failure itself and
-            // silently logs it there rather than calling the documented
-            // navermap_authFailure hook. Intercept fetch/XHR/sendBeacon
-            // calls to that endpoint to read what it's actually reporting,
-            // installed before maps.js loads so it's in place before the
-            // SDK can make that call. Remove once the real cause is found.
+            // TEMPORARY: Naver's own SDK reported (via its nelo telemetry
+            // beacon, captured below) "Failure to load tile meta
+            // information: (basic/terrain/satellite)" — a request that
+            // never showed up in the Performance resource list at all,
+            // meaning it's failing before/without a normal network entry.
+            // Log every fetch/XHR call (url, method, and outcome — status
+            // or error) generally now, not just the nelo one, installed
+            // before maps.js loads so it's in place before the SDK can
+            // make that call. Remove once the real cause is found.
+            window.__netLog = [];
             window.__neloBodies = [];
+            function logNet(entry) {
+              window.__netLog.push(entry);
+              if (window.__netLog.length > 12) window.__netLog.shift();
+            }
             function captureNeloBody(url, body) {
               if (typeof url === "string" && url.indexOf("nelo.navercorp.com") !== -1) {
                 let text = body;
@@ -250,27 +255,36 @@ struct NaverMapWebView: UIViewRepresentable {
             const __originalFetch = window.fetch;
             if (__originalFetch) {
               window.fetch = function(input, init) {
-                try {
-                  const url = typeof input === "string" ? input : (input && input.url);
-                  captureNeloBody(url, init && init.body);
-                } catch (e) {}
-                return __originalFetch.apply(this, arguments);
+                const url = typeof input === "string" ? input : (input && input.url);
+                try { captureNeloBody(url, init && init.body); } catch (e) {}
+                return __originalFetch.apply(this, arguments).then((res) => {
+                  logNet((url || "?") + " -> " + res.status);
+                  return res;
+                }).catch((err) => {
+                  logNet((url || "?") + " -> FETCH ERROR: " + err.message);
+                  throw err;
+                });
               };
             }
             const __originalOpen = XMLHttpRequest.prototype.open;
             const __originalSend = XMLHttpRequest.prototype.send;
             XMLHttpRequest.prototype.open = function(method, url) {
               this.__requestURL = url;
+              this.__requestMethod = method;
               return __originalOpen.apply(this, arguments);
             };
             XMLHttpRequest.prototype.send = function(body) {
               try { captureNeloBody(this.__requestURL, body); } catch (e) {}
+              this.addEventListener("loadend", () => {
+                logNet((this.__requestMethod || "?") + " " + (this.__requestURL || "?") + " -> " + this.status);
+              });
               return __originalSend.apply(this, arguments);
             };
             if (navigator.sendBeacon) {
               const __originalBeacon = navigator.sendBeacon.bind(navigator);
               navigator.sendBeacon = function(url, data) {
                 try { captureNeloBody(url, data); } catch (e) {}
+                logNet("beacon " + url);
                 return __originalBeacon(url, data);
               };
             }
@@ -337,10 +351,10 @@ struct NaverMapWebView: UIViewRepresentable {
               }
               setTimeout(() => {
                 if (!tilesLoaded) {
-                  const neloText = window.__neloBodies.length
-                    ? " NELO bodies: " + window.__neloBodies.join(" ~~ ")
-                    : " (no NELO body captured)";
-                  setStatus("tilesloaded never fired after 6s." + neloText + " resources: " + resourceSummary());
+                  const netText = window.__netLog.length
+                    ? " NET LOG: " + window.__netLog.join(" ~~ ")
+                    : " (no fetch/XHR calls logged at all)";
+                  setStatus("tilesloaded never fired after 6s." + netText);
                 }
               }, 6000);
 
