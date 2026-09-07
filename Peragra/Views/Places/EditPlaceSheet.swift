@@ -296,8 +296,8 @@ struct EditPlaceSheet: View {
 
                     if let mapScreenshotResult {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(mapScreenshotResult.name)
-                                .foregroundStyle(.primary)
+                            Text(mapScreenshotResult.name ?? "Unknown name")
+                                .foregroundStyle(mapScreenshotResult.name == nil ? .orange : .primary)
                             if let address = mapScreenshotResult.address {
                                 Text(address)
                                     .font(.caption)
@@ -627,7 +627,7 @@ struct EditPlaceSheet: View {
 
     private func applyMapScreenshotResult() {
         guard let mapScreenshotResult else { return }
-        name = mapScreenshotResult.name
+        if let resultName = mapScreenshotResult.name { name = resultName }
         if let resultAddress = mapScreenshotResult.address { address = resultAddress }
         if let resultPhone = mapScreenshotResult.telephone { phone = resultPhone }
         if let resultNotes = mapScreenshotResult.notes {

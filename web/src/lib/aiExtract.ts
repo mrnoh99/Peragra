@@ -42,7 +42,13 @@ interface OpenAICompatibleChatResponse {
 const PlacesSchema = z.object({
   places: z.array(
     z.object({
-      name: z.string().describe("The place's name (restaurant, cafe, shop, attraction, etc.)"),
+      name: z
+        .string()
+        .nullable()
+        .describe(
+          "The place's name (restaurant, cafe, shop, attraction, etc.) — or null if you can't tell " +
+            "with real confidence what it's actually called (never infer/guess one from indirect cues)",
+        ),
       address: z
         .string()
         .nullable()
@@ -70,7 +76,11 @@ const PlacesSchema = z.object({
 });
 
 export interface AIExtractedPlace {
-  name: string;
+  // null when the model can't confidently tell what this specific place is
+  // called — an on-site photo with no legible sign/menu naming it, most
+  // commonly. Never filled in with a guess: see the "onSite" prompt and
+  // SYSTEM_PROMPT's "never guess" instruction below.
+  name: string | null;
   address: string | null;
   telephone: string | null;
   notes: string | null;
@@ -85,7 +95,9 @@ const SYSTEM_PROMPT =
   "You extract place recommendations (restaurants, cafes, shops, attractions) from " +
   "an Instagram post's caption text or a screenshot of one. Return every distinct " +
   "place mentioned, each with these fields:\n" +
-  "- name: the place's name\n" +
+  "- name: the place's name, exactly as written/shown — or null if you can't tell with real " +
+  "confidence what this specific place is actually called (don't infer or guess one from indirect " +
+  "cues like food type, decor, or general appearance)\n" +
   "- address: its full address exactly as written, or null if none was given\n" +
   "- telephone: its phone number exactly as written, or null if none was given\n" +
   "- notes: anything else relevant to that specific place — hours, price, a recommended " +
@@ -97,7 +109,7 @@ const SYSTEM_PROMPT =
   "Never guess or invent any of these — use null when something wasn't actually given. If " +
   "nothing in the text describes an actual place, return an empty list.\n\n" +
   "Respond with ONLY a single JSON object, no other text, no markdown code fence, matching " +
-  'exactly this shape: {"places": [{"name": string, "address": string | null, ' +
+  'exactly this shape: {"places": [{"name": string | null, "address": string | null, ' +
   '"telephone": string | null, "notes": string | null, "website": string | null}]}';
 
 /**
@@ -399,10 +411,18 @@ export async function extractPlacesFromImages(
       ? images.length > 1
         ? "These photos were taken in person at a single real place — extract one consolidated, " +
           "accurate result for it, cross-referencing all the photos (for example, a storefront sign " +
-          "for the name and a menu photo for prices/items)."
+          "for the name and a menu photo for prices/items). Only use its name if it's actually " +
+          "legible somewhere (a sign, menu header, receipt, storefront text, ...) — if none of these " +
+          "photos actually name it, use null for name rather than guessing from the type of food, " +
+          "decor, or general appearance; a wrong guessed name is worse than none, since it later " +
+          "gets treated as confirmed and searched for on a map."
         : "This photo was taken in person at a single real place (its storefront, sign, menu, or " +
           "interior) — extract one accurate result for it from whatever is written or shown, such as " +
-          "its name and any menu items, prices, or hours visible."
+          "its name and any menu items, prices, or hours visible. Only use its name if it's actually " +
+          "legible in the photo (a sign, menu header, receipt, storefront text, ...) — if the name " +
+          "isn't actually shown, use null for name rather than guessing from the type of food, " +
+          "decor, or general appearance; a wrong guessed name is worse than none, since it later " +
+          "gets treated as confirmed and searched for on a map."
       : photoKind === "mapScreenshot"
         ? "This is a screenshot of a map app (Google Maps, Naver Map, Kakao Map, Apple Maps, or " +
           "similar) showing a single place's info card or pin label — extract that place's details " +

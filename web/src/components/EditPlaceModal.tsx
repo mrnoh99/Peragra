@@ -163,7 +163,7 @@ export function EditPlaceModal({
 
   function applyMapScreenshotResult() {
     if (!mapScreenshotResult) return;
-    setName(mapScreenshotResult.name);
+    if (mapScreenshotResult.name) setName(mapScreenshotResult.name);
     if (mapScreenshotResult.address) setAddress(mapScreenshotResult.address);
     if (mapScreenshotResult.telephone) setPhone(mapScreenshotResult.telephone);
     if (mapScreenshotResult.notes) {
@@ -651,7 +651,9 @@ export function EditPlaceModal({
             <div className="mt-2 rounded-lg border border-dashed border-brand-300 bg-brand-50/40 p-2">
               <p className="mb-1.5 text-xs font-medium text-neutral-700">Found on the map:</p>
               <div className="mb-2 rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-xs">
-                <span className="font-medium text-neutral-700">{mapScreenshotResult.name}</span>
+                <span className={mapScreenshotResult.name ? "font-medium text-neutral-700" : "font-medium text-amber-600"}>
+                  {mapScreenshotResult.name ?? "Unknown name"}
+                </span>
                 {mapScreenshotResult.address && (
                   <span className="block text-neutral-400">{mapScreenshotResult.address}</span>
                 )}

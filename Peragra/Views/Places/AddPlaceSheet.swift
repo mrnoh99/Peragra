@@ -638,7 +638,7 @@ struct AddPlaceSheet: View {
                 aiProgress = (current: index + 1, total: screenshotDatas.count)
             }
             replaceRows(
-                with: allResults.map { (name: $0.name as String?, address: $0.address, telephone: $0.telephone, notes: $0.notes, website: $0.website) }
+                with: allResults.map { (name: $0.name, address: $0.address, telephone: $0.telephone, notes: $0.notes, website: $0.website) }
             )
         } catch {
             extractResultMessage = nil
@@ -753,6 +753,16 @@ struct AddPlaceSheet: View {
             }
         }
 
+        // AI is told never to guess a name it can't actually read (see the
+        // onSite textPrompt) — a wrong guessed name is worse than none,
+        // since it would later get treated as confirmed and searched for
+        // by name (on the map, or by GeocodingService) instead of by the
+        // coordinate this photo already pins precisely. "Unknown" keeps
+        // the row non-blank (so it can still be selected/saved) and
+        // visibly flags that it needs a real name — the nearby-places
+        // search below, and reverse-geocode's own name guess, both get a
+        // chance to replace it with the real one before the person even
+        // has to type anything.
         var newRows = extracted.isEmpty
             ? [CandidateRow(
                 category: onSiteCategoryHint ?? .restaurant,
@@ -762,7 +772,7 @@ struct AddPlaceSheet: View {
               )]
             : extracted.map { place in
                 CandidateRow(
-                    name: place.name,
+                    name: place.name ?? "Unknown",
                     address: place.address ?? "",
                     phone: place.telephone ?? "",
                     notes: place.notes ?? "",
@@ -774,16 +784,16 @@ struct AddPlaceSheet: View {
             }
 
         // AI extraction only reads text visible in the photo — a photo of
-        // a storefront often has none — so a blank address/name is filled
-        // in (never overwritten) from reverse-geocoding the coordinate
-        // itself.
+        // a storefront often has none — so a blank/unnamed address/name is
+        // filled in (never overwritten otherwise) from reverse-geocoding
+        // the coordinate itself.
         var foundNameFromLocation = false
         if let coordinate, let reverse = await GeocodingService.reverseGeocode(latitude: coordinate.latitude, longitude: coordinate.longitude) {
             for index in newRows.indices {
                 if newRows[index].address.trimmingCharacters(in: .whitespaces).isEmpty {
                     newRows[index].address = reverse.address
                 }
-                if newRows[index].name.trimmingCharacters(in: .whitespaces).isEmpty, let name = reverse.name {
+                if isPlaceholderName(newRows[index].name), let name = reverse.name {
                     newRows[index].name = name
                     foundNameFromLocation = true
                 }
@@ -792,22 +802,22 @@ struct AddPlaceSheet: View {
         rows = newRows
 
         // Offer real nearby places to pick from, as a step up from the
-        // bare reverse-geocode above — only worth asking when AI found
-        // nothing on its own (there's exactly one blank row).
+        // bare reverse-geocode above — worth asking whenever there's a row
+        // with no real, confirmed name yet: AI found nothing at all (one
+        // blank row), or it found a place but couldn't confidently name it
+        // ("Unknown", possibly just improved on by reverse-geocode above).
         nearbyCandidates = []
         nearbyCandidateRowID = nil
         nearbySearchCoordinate = nil
-        if extracted.isEmpty, let coordinate {
+        if let coordinate, let unnamedRow = newRows.first(where: { isPlaceholderName($0.name) }) {
             nearbySearchCoordinate = coordinate
             let candidates = await NearbyPlacesService.search(
                 latitude: coordinate.latitude,
                 longitude: coordinate.longitude,
                 categoryHint: onSiteCategoryHint
             )
-            if let firstRowID = newRows.first?.id {
-                nearbyCandidates = candidates
-                nearbyCandidateRowID = firstRowID
-            }
+            nearbyCandidates = candidates
+            nearbyCandidateRowID = unnamedRow.id
         }
         onSiteCategoryHint = nil
 
@@ -822,10 +832,21 @@ struct AddPlaceSheet: View {
             extractResultMessage = foundNameFromLocation
                 ? "📍 Found a place at \(locationSourceLabel) — review below before saving."
                 : "📍 Captured \(locationSourceLabel) — fill in the place details below."
+        } else if nearbyCandidateRowID != nil {
+            extractResultMessage = foundNameFromLocation
+                ? "📍 Captured \(locationSourceLabel), but couldn't read its name for sure — check the suggestion below before saving."
+                : "📍 Captured \(locationSourceLabel), but couldn't read its name for sure — pick the real place below, or edit it before saving."
         } else {
             let placeWord = extracted.count == 1 ? "place" : "places"
             extractResultMessage = "📍 Captured \(locationSourceLabel) and found \(extracted.count) \(placeWord) — review below before saving."
         }
+    }
+
+    /// True for a row whose name still needs a real answer — either never
+    /// set, or AI's own explicit "couldn't tell" placeholder.
+    private func isPlaceholderName(_ name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty || trimmed == "Unknown"
     }
 
     private func loadScreenshots(_ items: [PhotosPickerItem]) async {

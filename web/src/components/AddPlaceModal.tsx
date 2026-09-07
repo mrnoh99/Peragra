@@ -76,6 +76,13 @@ function makeRow(partial?: Partial<CandidateRow>): CandidateRow {
   };
 }
 
+/** True for a row whose name still needs a real answer — either never set,
+ *  or AI's own explicit "couldn't tell" placeholder. */
+function isPlaceholderName(name: string): boolean {
+  const trimmed = name.trim();
+  return trimmed === "" || trimmed === "Unknown";
+}
+
 export function AddPlaceModal({
   tripId,
   destination,
@@ -422,8 +429,17 @@ export function AddPlaceModal({
             }),
           ]
         : extracted.map((p) =>
+            // AI is told never to guess a name it can't actually read (see
+            // the "onSite" prompt) — a wrong guessed name is worse than
+            // none, since it would later get treated as confirmed and
+            // searched for by name instead of by the coordinate this photo
+            // already pins precisely. "Unknown" keeps the row non-blank
+            // (savable) and visibly flags it needs a real name — the
+            // nearby-places search below, and reverse-geocode's own name
+            // guess, both get a chance to replace it before the person
+            // even has to type anything.
             makeRow({
-              name: p.name ?? "",
+              name: p.name ?? "Unknown",
               address: p.address ?? "",
               phone: p.telephone ?? "",
               notes: p.notes ?? "",
@@ -435,15 +451,16 @@ export function AddPlaceModal({
           );
 
     // AI extraction only reads text visible in the photo — a photo of a
-    // storefront often has none — so a blank address/name is filled in
-    // (never overwritten) from reverse-geocoding the coordinate itself.
+    // storefront often has none — so a blank/unnamed address/name is
+    // filled in (never overwritten otherwise) from reverse-geocoding the
+    // coordinate itself.
     let foundNameFromLocation = false;
     if (location) {
       const reverse = await reverseGeocode(location.lat, location.lng);
       if (reverse) {
         for (const row of newRows) {
           if (!row.address.trim()) row.address = reverse.address;
-          if (!row.name.trim() && reverse.name) {
+          if (isPlaceholderName(row.name) && reverse.name) {
             row.name = reverse.name;
             foundNameFromLocation = true;
           }
@@ -453,18 +470,26 @@ export function AddPlaceModal({
     setRows(newRows);
 
     // Offer real nearby places to pick from, as a step up from the bare
-    // reverse-geocode above — only worth asking when AI found nothing on
-    // its own (there's exactly one blank row).
+    // reverse-geocode above — worth asking whenever there's a row with no
+    // real, confirmed name yet: AI found nothing at all (one blank row),
+    // or it found a place but couldn't confidently name it ("Unknown",
+    // possibly just improved on by reverse-geocode above).
     setNearbyCandidates([]);
     setNearbyCandidateRowId(null);
     setNearbySearchLocation(null);
-    if (extracted.length === 0 && location) {
+    const unnamedRow = newRows.find((row) => isPlaceholderName(row.name));
+    // Tracked locally, not read back from the setNearbyCandidateRowId
+    // state above — a state setter's value isn't visible again until the
+    // next render, so the message logic below needs its own answer. Set
+    // regardless of whether the initial search actually found anything —
+    // the "narrow by category" picker UI already offers a retry for a
+    // zero-result search, so this shouldn't depend on that succeeding.
+    const offeredCandidates = Boolean(unnamedRow && location);
+    if (unnamedRow && location) {
       setNearbySearchLocation(location);
+      setNearbyCandidateRowId(unnamedRow.id);
       const candidates = await searchNearbyPlaces(location.lat, location.lng, onSiteCategoryHint || undefined);
-      if (candidates.length > 0) {
-        setNearbyCandidates(candidates);
-        setNearbyCandidateRowId(newRows[0].id);
-      }
+      setNearbyCandidates(candidates);
     }
     setOnSiteCategoryHint("");
 
@@ -482,6 +507,12 @@ export function AddPlaceModal({
         foundNameFromLocation
           ? `📍 Found a place at ${locationSourceLabel} — review below before saving.`
           : `📍 Captured ${locationSourceLabel} — fill in the place details below.`,
+      );
+    } else if (offeredCandidates) {
+      setExtractResultMessage(
+        foundNameFromLocation
+          ? `📍 Captured ${locationSourceLabel}, but couldn't read its name for sure — check the suggestion below before saving.`
+          : `📍 Captured ${locationSourceLabel}, but couldn't read its name for sure — pick the real place below, or edit it before saving.`,
       );
     } else {
       setExtractResultMessage(
