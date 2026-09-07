@@ -77,6 +77,7 @@
 		15658DA193E448FF92443F65 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HelpView.swift; path = Peragra/Views/HelpView.swift; sourceTree = "<group>"; };
 		21B44480A4EA75D86D5BF876 /* PeragraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PeragraApp.swift; path = Peragra/App/PeragraApp.swift; sourceTree = "<group>"; };
 		9E6D1AFCE0734F87BD6B72B4 /* Peragra.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = Peragra.entitlements; path = Peragra/Peragra.entitlements; sourceTree = "<group>"; };
+		9D1DFCC325EC5FE2A540EDA4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = Peragra/Info.plist; sourceTree = "<group>"; };
 		27B84F76ADB57E07BE44A068 /* TripsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TripsListView.swift; path = Peragra/Views/Trips/TripsListView.swift; sourceTree = "<group>"; };
 		028883BBF7824353869042DA /* AllPlacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AllPlacesView.swift; path = Peragra/Views/Trips/AllPlacesView.swift; sourceTree = "<group>"; };
 		38284761B40F598FFC15CD78 /* PlaceCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceCollection.swift; path = Peragra/Models/PlaceCollection.swift; sourceTree = "<group>"; };
@@ -213,6 +214,7 @@
 			children = (
 				21B44480A4EA75D86D5BF876 /* PeragraApp.swift */,
 				9E6D1AFCE0734F87BD6B72B4 /* Peragra.entitlements */,
+				9D1DFCC325EC5FE2A540EDA4 /* Info.plist */,
 			);
 			name = App;
 			sourceTree = "<group>";
@@ -402,6 +404,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Peragra/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Peragra;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Peragra uses your camera to take a photo of the place you're visiting, so AI can read its name and details.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Peragra uses your location to tag a place with exactly where you took its photo.";
@@ -452,6 +455,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Peragra/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Peragra;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Peragra uses your camera to take a photo of the place you're visiting, so AI can read its name and details.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Peragra uses your location to tag a place with exactly where you took its photo.";
