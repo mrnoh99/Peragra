@@ -10,5 +10,16 @@
 		<string>tmap</string>
 		<string>comgooglemaps</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.peragra.app.share-import</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>peragra</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

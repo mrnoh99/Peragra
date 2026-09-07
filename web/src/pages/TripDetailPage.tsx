@@ -7,6 +7,7 @@ import { ListingView } from "../components/ListingView";
 import { MapView } from "../components/MapView";
 import { PlaceFilterBar, type SortMode } from "../components/PlaceFilterBar";
 import { distanceKm } from "../lib/distance";
+import { takePendingSharedPlace } from "../lib/pendingSharedPlace";
 import { buildSharedPlacesPayload, saveSharedPlacesFile, sharedPlacesToText } from "../lib/sharePlaces";
 import { useStore } from "../store/useStore";
 import { PLACE_CATEGORIES, type Collection, type Place, type PlaceCategory } from "../types";
@@ -61,8 +62,14 @@ export function TripDetailPage() {
     ensureFavoritesCollection(tripId);
   }, [tripId, ensureVisitedCollection, ensureFavoritesCollection]);
 
+  // Set when arriving here from an OS share (App.tsx's share_target
+  // handling stashes it right before navigating here) — opens Add Places
+  // pre-filled with what was shared instead of blank. Read once, at
+  // mount, since a share_target navigation is always a fresh full page
+  // load that mounts this page fresh — see lib/pendingSharedPlace.ts.
+  const [sharedPlaceRow, setSharedPlaceRow] = useState(() => takePendingSharedPlace());
   const [tab, setTab] = useState<Tab>("listing");
-  const [showAddPlace, setShowAddPlace] = useState(false);
+  const [showAddPlace, setShowAddPlace] = useState(() => sharedPlaceRow !== null);
   const [showImportPlaces, setShowImportPlaces] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showExportPlaces, setShowExportPlaces] = useState(false);
@@ -545,7 +552,11 @@ export function TripDetailPage() {
           tripId={tripId}
           destination={trip.destination}
           defaultCollectionId={activeCollectionIds.size === 1 ? [...activeCollectionIds][0] : undefined}
-          onClose={() => setShowAddPlace(false)}
+          initialRow={sharedPlaceRow ?? undefined}
+          onClose={() => {
+            setShowAddPlace(false);
+            setSharedPlaceRow(null);
+          }}
         />
       )}
 

@@ -13,9 +13,14 @@ struct TripsListView: View {
     @State private var tripPendingEdit: Trip?
     @State private var showingCloudRestoreAlert = false
     @State private var showingImportBoard = false
+    // Explicit (rather than NavigationStack's implicit-path form) only so
+    // a place shared in from another app (see onOpenURL below) can push
+    // straight to its destination board without the person tapping
+    // anything themselves.
+    @State private var path = NavigationPath()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if trips.isEmpty {
                     emptyState
@@ -158,6 +163,33 @@ struct TripsListView: View {
                 Task { await CloudBackupService.backup(context: modelContext) }
             }
         }
+        // ShareExtension (see ShareExtension/ShareViewController.swift)
+        // stashes a shared place (typically "Share" on a Google Maps
+        // place) in the App Group's shared storage, then opens this URL
+        // to hand off to the main app — an extension has no SwiftData
+        // access of its own. Pushes straight to the "From Google" board;
+        // TripDetailView picks the pending place back up itself (see its
+        // own onAppear) and opens Add Places pre-filled with it.
+        .onOpenURL { url in
+            guard url.scheme == "peragra", url.host == "share-import" else { return }
+            path.append(sharedPlacesBoard())
+        }
+    }
+
+    /// The board every OS-shared place lands in — found by name (like any
+    /// other board, boards have no other kind of persistent tag) or
+    /// created lazily the first time something's actually shared.
+    private func sharedPlacesBoard() -> Trip {
+        let boardName = "From Google"
+        if let existing = trips.first(where: { $0.name == boardName }) {
+            return existing
+        }
+        let trip = Trip(name: boardName, destination: "", coverEmoji: "🗺️")
+        modelContext.insert(trip)
+        _ = PlaceCollection.ensureFavoritesList(for: trip, context: modelContext)
+        _ = PlaceCollection.ensureVisitedList(for: trip, context: modelContext)
+        try? modelContext.save()
+        return trip
     }
 
     /// If this device has no local data at all — most likely because the

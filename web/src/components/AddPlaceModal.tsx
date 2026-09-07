@@ -87,11 +87,17 @@ export function AddPlaceModal({
   tripId,
   destination,
   defaultCollectionId,
+  initialRow,
   onClose,
 }: {
   tripId: string;
   destination: string;
   defaultCollectionId?: string;
+  // Seeds the first row instead of starting blank — used when arriving
+  // here from an OS share (see App.tsx's share_target handling), where
+  // the name/link are already known and only need a quick review before
+  // saving.
+  initialRow?: { name: string; link: string };
   onClose: () => void;
 }) {
   const addPlace = useStore((s) => s.addPlace);
@@ -108,7 +114,9 @@ export function AddPlaceModal({
 
   const [instagramInput, setInstagramInput] = useState("");
   const [notes, setNotes] = useState("");
-  const [rows, setRows] = useState<CandidateRow[]>([makeRow()]);
+  const [rows, setRows] = useState<CandidateRow[]>([
+    makeRow(initialRow ? { name: initialRow.name, link: initialRow.link } : undefined),
+  ]);
   const [saving, setSaving] = useState(false);
 
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);

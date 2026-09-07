@@ -72,9 +72,19 @@ struct AddPlaceSheet: View {
     // Explicit, so this view's access level never depends on Swift's
     // synthesized-memberwise-init rules around private stored properties
     // elsewhere in the type (bit us once already — see aiSettings below).
-    init(trip: Trip, defaultCollection: PlaceCollection? = nil) {
+    //
+    // `initialRow` seeds the first row instead of starting blank — used
+    // when arriving here from an OS share (see TripDetailView's pickup of
+    // SharedPlaceImportStore), where the name/link are already known and
+    // only need a quick review before saving.
+    init(trip: Trip, defaultCollection: PlaceCollection? = nil, initialRow: SharedPlaceImport? = nil) {
         self.trip = trip
         self.defaultCollection = defaultCollection
+        if let initialRow {
+            _rows = State(initialValue: [CandidateRow(name: initialRow.name, link: initialRow.link)])
+        } else {
+            _rows = State(initialValue: [CandidateRow()])
+        }
     }
 
     @Environment(\.modelContext) private var modelContext
@@ -83,7 +93,7 @@ struct AddPlaceSheet: View {
 
     @State private var instagramInput = ""
     @State private var notes = ""
-    @State private var rows: [CandidateRow] = [CandidateRow()]
+    @State private var rows: [CandidateRow]
     @State private var isSaving = false
 
     @State private var screenshotItems: [PhotosPickerItem] = []

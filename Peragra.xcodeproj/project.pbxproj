@@ -61,7 +61,35 @@
 		300F05A9BE2E4EE4540304E7 /* DuplicatePlaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74D8BAE8F441ACAC57975902 /* DuplicatePlaces.swift */; };
 		6E45F5C7D66D08A66256EA24 /* FindDuplicatesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D61E6108C9AC74FFDCF6056C /* FindDuplicatesSheet.swift */; };
 		4EC68CDA1E9B90D4257120E7 /* GeocodeCandidateSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FBA12EF8282DC9DA2F6725 /* GeocodeCandidateSheet.swift */; };
+		267DC566CBD07EC651908308 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E9206BFE482976D3FC8650E /* ShareViewController.swift */; };
+		09345D1DA7EF0E8B59381977 /* SharedPlaceImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92777D0B2DA6E43FA9BC2A67 /* SharedPlaceImport.swift */; };
+		92E451A37D7BA04DDBA8A902 /* SharedPlaceImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92777D0B2DA6E43FA9BC2A67 /* SharedPlaceImport.swift */; };
+		ACDBD24360779BF59A2F9536 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C365627A5561D045C7906DA2 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0AD255249A6AE5FBACD58A1E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 98FB7356E72AD6EB3CCC8AFA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AD8578ECA29841F74F3E98F0;
+			remoteInfo = ShareExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		10DE2C1F6F32AD928F13C759 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				ACDBD24360779BF59A2F9536 /* ShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		FEFBCDE0461B9000C8BAEF66 /* TmapOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TmapOpener.swift; path = Peragra/Services/TmapOpener.swift; sourceTree = "<group>"; };
@@ -121,6 +149,11 @@
 		74D8BAE8F441ACAC57975902 /* DuplicatePlaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DuplicatePlaces.swift; path = Peragra/Services/DuplicatePlaces.swift; sourceTree = "<group>"; };
 		D61E6108C9AC74FFDCF6056C /* FindDuplicatesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FindDuplicatesSheet.swift; path = Peragra/Views/Trips/FindDuplicatesSheet.swift; sourceTree = "<group>"; };
 		B2FBA12EF8282DC9DA2F6725 /* GeocodeCandidateSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeocodeCandidateSheet.swift; path = Peragra/Views/Places/GeocodeCandidateSheet.swift; sourceTree = "<group>"; };
+		5E9206BFE482976D3FC8650E /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ShareViewController.swift; path = ShareExtension/ShareViewController.swift; sourceTree = "<group>"; };
+		92777D0B2DA6E43FA9BC2A67 /* SharedPlaceImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharedPlaceImport.swift; path = Peragra/Services/SharedPlaceImport.swift; sourceTree = "<group>"; };
+		9064F9EA700A62D7A83460AF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = ShareExtension/Info.plist; sourceTree = "<group>"; };
+		C92DF6920F9B8B38EB5E5CFA /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = ShareExtension.entitlements; path = ShareExtension/ShareExtension.entitlements; sourceTree = "<group>"; };
+		C365627A5561D045C7906DA2 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -128,6 +161,7 @@
 			isa = PBXGroup;
 			children = (
 				B0478E29427E1153CA20E031 /* Peragra.app */,
+				C365627A5561D045C7906DA2 /* ShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -158,6 +192,7 @@
 				A46B7AEF579F0764C332223A /* KoreaRegion.swift */,
 				842EC9BF9A1E00C1E6EA1A99 /* NaverMapOpener.swift */,
 				FEFBCDE0461B9000C8BAEF66 /* TmapOpener.swift */,
+				92777D0B2DA6E43FA9BC2A67 /* SharedPlaceImport.swift */,
 			);
 			name = Services;
 			sourceTree = "<group>";
@@ -186,6 +221,7 @@
 			children = (
 				445DF96D0B60493CEC404297 /* Products */,
 				94C84655B3C98B085BB68093 /* Peragra */,
+				EF5F9A9B62318E5EAF4968FF /* ShareExtension */,
 			);
 			sourceTree = "<group>";
 		};
@@ -251,6 +287,16 @@
 			name = Trips;
 			sourceTree = "<group>";
 		};
+		EF5F9A9B62318E5EAF4968FF /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				5E9206BFE482976D3FC8650E /* ShareViewController.swift */,
+				9064F9EA700A62D7A83460AF /* Info.plist */,
+				C92DF6920F9B8B38EB5E5CFA /* ShareExtension.entitlements */,
+			);
+			name = ShareExtension;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -260,15 +306,33 @@
 			buildPhases = (
 				1D8BC5BF3A855DBB8AAB2974 /* Sources */,
 				E89634ACE0CABDD529DD6BD5 /* Resources */,
+				10DE2C1F6F32AD928F13C759 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C1540042087BDA1748FB5976 /* PBXTargetDependency */,
 			);
 			name = Peragra;
 			productName = Peragra;
 			productReference = B0478E29427E1153CA20E031 /* Peragra.app */;
 			productType = "com.apple.product-type.application";
+		};
+		AD8578ECA29841F74F3E98F0 /* ShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ED4D698EA7B8BF92ADE7B258 /* Build configuration list for PBXNativeTarget "ShareExtension" */;
+			buildPhases = (
+				0FC1EC24C1E2E9A930725678 /* Sources */,
+				B1F704BEDE9F71BCFD37B055 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShareExtension;
+			productName = ShareExtension;
+			productReference = C365627A5561D045C7906DA2 /* ShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -280,6 +344,9 @@
 				LastUpgradeCheck = 1520;
 				TargetAttributes = {
 					C4A89A13B06A8C3627F8EF09 = {
+						CreatedOnToolsVersion = 15.2;
+					};
+					AD8578ECA29841F74F3E98F0 = {
 						CreatedOnToolsVersion = 15.2;
 					};
 				};
@@ -298,6 +365,7 @@
 			projectRoot = "";
 			targets = (
 				C4A89A13B06A8C3627F8EF09 /* Peragra */,
+				AD8578ECA29841F74F3E98F0 /* ShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -308,6 +376,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				DCD34AA1AD8583EF2A04F8A2 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B1F704BEDE9F71BCFD37B055 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -371,10 +446,28 @@
 				CFBBE95AF25C0407B609AE87 /* KoreaRegion.swift in Sources */,
 				5D2B1A19029BF80C0F6476E5 /* NaverMapOpener.swift in Sources */,
 				06E396CC25C22217A1A954B7 /* TmapOpener.swift in Sources */,
+				92E451A37D7BA04DDBA8A902 /* SharedPlaceImport.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0FC1EC24C1E2E9A930725678 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				267DC566CBD07EC651908308 /* ShareViewController.swift in Sources */,
+				09345D1DA7EF0E8B59381977 /* SharedPlaceImport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C1540042087BDA1748FB5976 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AD8578ECA29841F74F3E98F0 /* ShareExtension */;
+			targetProxy = 0AD255249A6AE5FBACD58A1E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		762B982A7EAA183BD55CEB02 /* Release */ = {
@@ -476,6 +569,54 @@
 			};
 			name = Release;
 		};
+		9D49BBC8F52EE4468E3E856B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 4;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Peragra;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.peragra.app.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		803A6D6BAC72C6105C5A6326 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 4;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Peragra;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.peragra.app.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -493,6 +634,15 @@
 			buildConfigurations = (
 				84B2EDC52BAF9A18D80ABE23 /* Debug */,
 				EDC12AD8107C2B18CB029EAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		ED4D698EA7B8BF92ADE7B258 /* Build configuration list for PBXNativeTarget "ShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9D49BBC8F52EE4468E3E856B /* Debug */,
+				803A6D6BAC72C6105C5A6326 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -33,6 +33,10 @@ struct TripDetailView: View {
     @State private var newListName = ""
     @State private var exportPlacesFileURL: URL?
     @State private var exportPlacesMessage: String?
+    // Picked up from SharedPlaceImportStore on appear (see below) when a
+    // share sheet handoff (TripsListView's onOpenURL) landed here — nil
+    // on every ordinary visit to this board.
+    @State private var sharedRowToPrefill: SharedPlaceImport?
     /// A place shows up while every currently-toggled-on list contains it
     /// (AND, not OR) — several lists can be active at once.
     @State private var activeCollectionIDs: Set<UUID> = []
@@ -301,7 +305,8 @@ struct TripDetailView: View {
         }
         .sheet(isPresented: $showingAddPlace) {
             let defaultCollection = activeCollectionIDs.count == 1 ? collections.first(where: { activeCollectionIDs.contains($0.id) }) : nil
-            AddPlaceSheet(trip: trip, defaultCollection: defaultCollection)
+            AddPlaceSheet(trip: trip, defaultCollection: defaultCollection, initialRow: sharedRowToPrefill)
+                .onDisappear { sharedRowToPrefill = nil }
         }
         .sheet(isPresented: $showingImportPlaces) {
             ImportPlacesSheet(trip: trip)
@@ -338,6 +343,15 @@ struct TripDetailView: View {
             // marked visited/favorited.
             _ = PlaceCollection.ensureFavoritesList(for: trip, context: modelContext)
             _ = PlaceCollection.ensureVisitedList(for: trip, context: modelContext)
+
+            // Reads and clears in one step — a pending share is only
+            // ever meant for the first TripDetailView that appears right
+            // after TripsListView's onOpenURL pushed it, never a later
+            // ordinary visit to this same board.
+            if let shared = SharedPlaceImportStore.takePending() {
+                sharedRowToPrefill = shared
+                showingAddPlace = true
+            }
         }
     }
 
