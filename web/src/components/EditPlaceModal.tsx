@@ -221,12 +221,24 @@ export function EditPlaceModal({
     const hasCameraPhoto = photos.some((p) => p.source === "camera");
 
     let location: { lat: number; lng: number } | null = null;
+    // The coordinate's own margin of error, from whichever source
+    // produced it — sizes the nearby-places search radius below (see
+    // lib/nearbyPlaces.ts's nearbySearchRadius) rather than assuming one
+    // fixed distance always covers it.
+    let locationAccuracy: number | null = null;
     if (hasCameraPhoto) {
-      location = await getCurrentLocation();
+      const fix = await getCurrentLocation();
+      if (fix) {
+        location = { lat: fix.lat, lng: fix.lng };
+        locationAccuracy = fix.accuracy;
+      }
     }
     for (const photo of photos.filter((p) => p.source === "upload")) {
       const exif = await readPhotoExif(photo.file);
-      if (!location && exif.location) location = exif.location;
+      if (!location && exif.location) {
+        location = exif.location;
+        locationAccuracy = exif.accuracy;
+      }
     }
 
     let extracted: AIExtractedPlace[] = [];
@@ -296,7 +308,7 @@ export function EditPlaceModal({
       // just sitting at whatever the place already was.
       setHasSearchedNearby(true);
       const categoryHint = category !== place.category ? category : undefined;
-      const candidates = await searchNearbyPlaces(location.lat, location.lng, categoryHint);
+      const candidates = await searchNearbyPlaces(location.lat, location.lng, categoryHint, locationAccuracy);
       setNearbyCandidates(candidates);
     }
 

@@ -63,19 +63,15 @@ function categoryForTags(tags: Record<string, string>): PlaceCategory {
   return "other";
 }
 
-// A photo's GPS fix and a POI's own indexed coordinate rarely land in
-// exactly the same spot — more so for something like a monument, where
-// the "point" could be set anywhere across its own plaza — so 100m was
-// cutting off real, nearby matches. 200m stays tight enough to not pull
-// in places from unrelated blocks.
-const SEARCH_RADIUS_METERS = 200;
-
-function buildQuery(lat: number, lng: number, categoryHint?: PlaceCategory): string {
+// Sized by the caller (nearbyPlaces.ts's nearbySearchRadius) from the GPS
+// fix's own accuracy and the category being searched for, rather than
+// one fixed distance for every case.
+function buildQuery(lat: number, lng: number, categoryHint: PlaceCategory | undefined, radius: number): string {
   const filters = categoryHint ? OSM_TAGS_BY_CATEGORY[categoryHint] : OSM_TAGS_BY_CATEGORY.other;
   const clauses = filters
     .map(({ key, values }) => {
       const tagMatch = values ? `"${key}"~"^(${values.join("|")})$"` : `"${key}"`;
-      return `node(around:${SEARCH_RADIUS_METERS},${lat},${lng})[${tagMatch}]["name"];`;
+      return `node(around:${radius},${lat},${lng})[${tagMatch}]["name"];`;
     })
     .join("\n  ");
   return `[out:json][timeout:10];\n(\n  ${clauses}\n);\nout body 8;`;
@@ -104,12 +100,13 @@ export async function searchNearbyPlacesOSM(
   lat: number,
   lng: number,
   categoryHint?: PlaceCategory,
+  radius = 200,
 ): Promise<NearbyPlaceCandidate[]> {
   try {
     const response = await fetch("https://overpass-api.de/api/interpreter", {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
-      body: buildQuery(lat, lng, categoryHint),
+      body: buildQuery(lat, lng, categoryHint, radius),
     });
     if (!response.ok) return [];
     const data = (await response.json()) as OverpassResponse;

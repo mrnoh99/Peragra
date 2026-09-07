@@ -31,9 +31,13 @@ enum NearbyPlacesService {
         let category: PlaceCategory
     }
 
-    /// - Parameter categoryHint: Narrows the search to one category, for
-    ///   when the plain nearby list is too ambiguous to tell which result
-    ///   is right and the person supplies a hint (restaurant, cafe, ...).
+    /// - Parameters:
+    ///   - categoryHint: Narrows the search to one category, for when the
+    ///     plain nearby list is too ambiguous to tell which result is
+    ///     right and the person supplies a hint (restaurant, cafe, ...).
+    ///   - accuracy: The GPS fix's own reported horizontalAccuracy, when
+    ///     known — sizes the search radius (see radius(for:accuracy:))
+    ///     instead of trusting one fixed distance for every situation.
     ///
     /// Always returned nearest-first, regardless of provider — Google's
     /// own API already ranks by distance (rankPreference: DISTANCE, see
@@ -41,13 +45,19 @@ enum NearbyPlacesService {
     /// doesn't document any particular result order, so this sorts every
     /// result by its actual distance from the query coordinate itself
     /// rather than trusting either provider's ordering.
-    static func search(latitude: Double, longitude: Double, categoryHint: PlaceCategory? = nil) async -> [Candidate] {
+    static func search(
+        latitude: Double,
+        longitude: Double,
+        categoryHint: PlaceCategory? = nil,
+        accuracy: CLLocationAccuracy? = nil
+    ) async -> [Candidate] {
+        let radius = radius(for: categoryHint, accuracy: accuracy)
         let results: [Candidate]
         if MapSettings.shared.isGoogleActive {
             let apiKey = MapSettings.shared.effectiveGoogleMapsAPIKey
-            results = await GoogleNearbyPlacesService.search(latitude: latitude, longitude: longitude, apiKey: apiKey, categoryHint: categoryHint)
+            results = await GoogleNearbyPlacesService.search(latitude: latitude, longitude: longitude, apiKey: apiKey, categoryHint: categoryHint, radius: radius)
         } else {
-            results = await appleSearch(latitude: latitude, longitude: longitude, categoryHint: categoryHint)
+            results = await appleSearch(latitude: latitude, longitude: longitude, categoryHint: categoryHint, radius: radius)
         }
 
         let origin = CLLocation(latitude: latitude, longitude: longitude)
@@ -58,15 +68,42 @@ enum NearbyPlacesService {
         }
     }
 
-    // A photo's GPS fix and a POI's own indexed coordinate rarely land in
-    // exactly the same spot — more so for something spread across its
-    // own plaza, like a monument — so 100m was cutting off real, nearby
-    // matches.
-    private static let searchRadiusMeters: CLLocationDistance = 200
+    /// A restaurant/cafe/shop/hotel/nightlife spot is a single building —
+    /// a tight radius avoids pulling in unrelated places from down the
+    /// block. An attraction can be spread across its own plaza or park,
+    /// and so can whatever's behind an unset hint (it might turn out to
+    /// be an attraction) — a much wider radius is worth the extra,
+    /// dismissable candidates it can pull in, since too narrow risks
+    /// missing the real match entirely rather than just showing extras.
+    ///
+    /// Sized around the GPS fix's own reported accuracy (plus a fixed
+    /// buffer for the ordinary case of a POI's indexed coordinate not
+    /// landing exactly where the fix did), clamped to a floor (accuracy
+    /// alone, on a great fix, would otherwise search unrealistically
+    /// tight) and a ceiling (a bad fix shouldn't search a whole
+    /// neighborhood). No accuracy at all (older/nil-carrying data) falls
+    /// back to that category's own ceiling — better to search wide than
+    /// assume a fix was good when it's genuinely unknown.
+    private static func radius(for categoryHint: PlaceCategory?, accuracy: CLLocationAccuracy?) -> CLLocationDistance {
+        let isPointLike: Bool
+        switch categoryHint {
+        case .restaurant, .cafe, .shopping, .hotel, .nightlife:
+            isPointLike = true
+        case .attraction, .other, nil:
+            isPointLike = false
+        }
 
-    private static func appleSearch(latitude: Double, longitude: Double, categoryHint: PlaceCategory?) async -> [Candidate] {
+        let buffer: CLLocationDistance = isPointLike ? 30 : 100
+        let minimum: CLLocationDistance = isPointLike ? 80 : 150
+        let maximum: CLLocationDistance = isPointLike ? 150 : 500
+
+        guard let accuracy, accuracy > 0 else { return maximum }
+        return min(maximum, max(minimum, accuracy + buffer))
+    }
+
+    private static func appleSearch(latitude: Double, longitude: Double, categoryHint: PlaceCategory?, radius: CLLocationDistance) async -> [Candidate] {
         let center = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-        var request = MKLocalPointsOfInterestRequest(center: center, radius: searchRadiusMeters)
+        var request = MKLocalPointsOfInterestRequest(center: center, radius: radius)
         if let categoryHint, let poiCategories = poiCategories(for: categoryHint) {
             request.pointOfInterestFilter = MKPointOfInterestFilter(including: poiCategories)
         }

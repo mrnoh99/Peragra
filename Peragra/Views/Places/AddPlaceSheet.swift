@@ -57,6 +57,11 @@ private struct OnSitePhoto: Identifiable {
     // hands back unless the app has that access. Only meaningful for
     // `.upload` photos.
     var assetLocation: CLLocationCoordinate2D?
+    // The asset's own reported horizontalAccuracy, alongside assetLocation
+    // — sizes the nearby-places search radius (see
+    // NearbyPlacesService.radius(for:accuracy:)) rather than assuming one
+    // fixed distance always covers this fix's real margin of error.
+    var assetAccuracy: CLLocationAccuracy?
     var assetCreationDate: Date?
     var source: Source = .upload
 }
@@ -769,10 +774,12 @@ struct AddPlaceSheet: View {
             }
 
             var assetLocation: CLLocationCoordinate2D?
+            var assetAccuracy: CLLocationAccuracy?
             var assetCreationDate: Date?
             if let identifier = item.itemIdentifier,
                let asset = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil).firstObject {
                 assetLocation = asset.location?.coordinate
+                assetAccuracy = asset.location?.horizontalAccuracy
                 assetCreationDate = asset.creationDate
             }
 
@@ -780,6 +787,7 @@ struct AddPlaceSheet: View {
                 displayData: jpegData,
                 originalData: originalData,
                 assetLocation: assetLocation,
+                assetAccuracy: assetAccuracy,
                 assetCreationDate: assetCreationDate,
                 source: .upload
             ))
@@ -793,6 +801,7 @@ struct AddPlaceSheet: View {
             displayData: data,
             originalData: Data(),
             assetLocation: nil,
+            assetAccuracy: nil,
             assetCreationDate: nil,
             source: .camera
         ))
@@ -825,9 +834,16 @@ struct AddPlaceSheet: View {
         let hasCameraPhoto = photos.contains { $0.source == .camera }
 
         var coordinate: CLLocationCoordinate2D?
+        // The coordinate's own margin of error, from whichever source
+        // produced it — sizes the nearby-places search radius below
+        // (see NearbyPlacesService.radius(for:accuracy:)) rather than
+        // assuming one fixed distance always covers it.
+        var coordinateAccuracy: CLLocationAccuracy?
         var capturedAt: Date?
         if hasCameraPhoto {
-            coordinate = await LocationService.currentLocation()
+            let fix = await LocationService.currentLocation()
+            coordinate = fix?.coordinate
+            coordinateAccuracy = fix?.accuracy
             capturedAt = .now
         }
         for photo in photos where photo.source == .upload {
@@ -839,8 +855,12 @@ struct AddPlaceSheet: View {
                 ? PhotoMetadata.extract(from: photo.originalData)
                 : nil
             let location = photo.assetLocation ?? exif?.location
+            let accuracy = photo.assetLocation != nil ? photo.assetAccuracy : exif?.accuracy
             let date = photo.assetCreationDate ?? exif?.capturedAt
-            if coordinate == nil { coordinate = location }
+            if coordinate == nil {
+                coordinate = location
+                coordinateAccuracy = accuracy
+            }
             if let date, capturedAt == nil || date < capturedAt! {
                 capturedAt = date
             }
@@ -948,7 +968,8 @@ struct AddPlaceSheet: View {
             let candidates = await NearbyPlacesService.search(
                 latitude: coordinate.latitude,
                 longitude: coordinate.longitude,
-                categoryHint: onSiteCategoryHint
+                categoryHint: onSiteCategoryHint,
+                accuracy: coordinateAccuracy
             )
             nearbyCandidates = candidates
             nearbyCandidateRowID = unnamedRow.id

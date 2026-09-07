@@ -9,10 +9,16 @@
 
 export interface PhotoExifInfo {
   location: { lat: number; lng: number } | null;
+  // The GPS fix's own reported horizontal positioning error (meters),
+  // when the photo carries it — not every photo does (it's an optional
+  // EXIF GPS tag), but the iOS Camera app writes it, derived from
+  // CLLocation.horizontalAccuracy at the moment of capture. Sizes the
+  // nearby-places search radius (see nearbyPlaces.ts).
+  accuracy: number | null;
   capturedAt: number | null;
 }
 
-const NO_EXIF: PhotoExifInfo = { location: null, capturedAt: null };
+const NO_EXIF: PhotoExifInfo = { location: null, accuracy: null, capturedAt: null };
 
 const TYPE_SIZES: Record<number, number> = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 };
 
@@ -80,6 +86,7 @@ function parseTiff(view: DataView, tiffStart: number): PhotoExifInfo {
   }
 
   let location: { lat: number; lng: number } | null = null;
+  let accuracy: number | null = null;
   const gpsEntry = ifd0.get(0x8825);
   if (gpsEntry) {
     const gpsOffset = view.getUint32(gpsEntry.valuePos, little);
@@ -97,9 +104,13 @@ function parseTiff(view: DataView, tiffStart: number): PhotoExifInfo {
         location = { lat: latValue * latSign, lng: lngValue * lngSign };
       }
     }
+    // GPSHPositioningError (tag 0x1F) — not every photo carries it (an
+    // optional GPS tag), but the iOS Camera app does write it.
+    const accuracyEntry = gpsIfd.get(0x001f);
+    if (accuracyEntry) accuracy = readRational(view, accuracyEntry, little);
   }
 
-  return { location, capturedAt };
+  return { location, accuracy, capturedAt };
 }
 
 function readIFDEntries(
@@ -147,6 +158,16 @@ function readRationalDMS(view: DataView, entry: IFDEntry, little: boolean): numb
     degrees += i === 0 ? part : part / Math.pow(60, i);
   }
   return degrees;
+}
+
+/** Reads a single-value RATIONAL (a numerator/denominator pair) — unlike
+ *  readRationalDMS's 3-value degrees/minutes/seconds array, this is one
+ *  plain value (used for GPSHPositioningError, in meters). */
+function readRational(view: DataView, entry: IFDEntry, little: boolean): number | null {
+  if (entry.valuePos + 8 > view.byteLength) return null;
+  const numerator = view.getUint32(entry.valuePos, little);
+  const denominator = view.getUint32(entry.valuePos + 4, little);
+  return denominator === 0 ? null : numerator / denominator;
 }
 
 /** EXIF dates are "YYYY:MM:DD HH:MM:SS" with no timezone — treated as local time. */

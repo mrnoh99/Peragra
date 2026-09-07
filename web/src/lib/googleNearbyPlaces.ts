@@ -101,6 +101,7 @@ export async function searchNearbyPlacesGoogle(
   lng: number,
   apiKey: string,
   categoryHint?: PlaceCategory,
+  radius = 200,
 ): Promise<NearbyPlaceCandidate[]> {
   try {
     await loadGoogleMapsScript(apiKey);
@@ -117,11 +118,10 @@ export async function searchNearbyPlacesGoogle(
     const includedPrimaryTypes = categoryHint ? PRIMARY_TYPES_BY_CATEGORY[categoryHint] : undefined;
     const { places } = await Place.searchNearby({
       fields: ["displayName", "formattedAddress", "location", "id", "primaryType", "nationalPhoneNumber"],
-      // A photo's GPS fix and a POI's own indexed coordinate rarely land
-      // in exactly the same spot — more so for something spread across
-      // its own plaza, like a monument — so 100m was cutting off real,
-      // nearby matches.
-      locationRestriction: { center: { lat, lng }, radius: 200 },
+      // Sized by the caller (nearbyPlaces.ts's nearbySearchRadius) from
+      // the GPS fix's own accuracy and the category being searched for,
+      // rather than one fixed distance for every case.
+      locationRestriction: { center: { lat, lng }, radius },
       maxResultCount: 8,
       rankPreference: SearchNearbyRankPreference.DISTANCE,
       ...(includedPrimaryTypes && includedPrimaryTypes.length > 0 ? { includedPrimaryTypes } : {}),

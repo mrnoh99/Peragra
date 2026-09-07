@@ -7,15 +7,25 @@ import CoreLocation
 /// that path reads the photo's own location (Photos library record, or
 /// EXIF) instead of this.
 final class LocationService: NSObject, CLLocationManagerDelegate {
-    private let manager = CLLocationManager()
-    private var continuation: CheckedContinuation<CLLocationCoordinate2D?, Never>?
+    /// A coordinate alongside the fix's own reported horizontalAccuracy
+    /// (meters) — used to size how wide a nearby-places search needs to
+    /// be (see NearbyPlacesService.radius(for:accuracy:)) instead of
+    /// assuming one fixed distance always covers whatever margin of
+    /// error this particular fix actually has.
+    struct Fix {
+        let coordinate: CLLocationCoordinate2D
+        let accuracy: CLLocationAccuracy
+    }
 
-    static func currentLocation() async -> CLLocationCoordinate2D? {
+    private let manager = CLLocationManager()
+    private var continuation: CheckedContinuation<Fix?, Never>?
+
+    static func currentLocation() async -> Fix? {
         let service = LocationService()
         return await service.fetch()
     }
 
-    private func fetch() async -> CLLocationCoordinate2D? {
+    private func fetch() async -> Fix? {
         await withCheckedContinuation { continuation in
             self.continuation = continuation
             manager.delegate = self
@@ -49,15 +59,19 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        finish(with: locations.first?.coordinate)
+        guard let location = locations.first else {
+            finish(with: nil)
+            return
+        }
+        finish(with: Fix(coordinate: location.coordinate, accuracy: location.horizontalAccuracy))
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         finish(with: nil)
     }
 
-    private func finish(with coordinate: CLLocationCoordinate2D?) {
-        continuation?.resume(returning: coordinate)
+    private func finish(with fix: Fix?) {
+        continuation?.resume(returning: fix)
         continuation = nil
     }
 }

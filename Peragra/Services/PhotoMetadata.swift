@@ -6,15 +6,16 @@ import ImageIO
 /// location/time when the photo's Photos library record (read via
 /// PHAsset, when the app has library access) isn't available.
 enum PhotoMetadata {
-    static func extract(from data: Data) -> (location: CLLocationCoordinate2D?, capturedAt: Date?) {
+    static func extract(from data: Data) -> (location: CLLocationCoordinate2D?, accuracy: CLLocationAccuracy?, capturedAt: Date?) {
         guard
             let source = CGImageSourceCreateWithData(data as CFData, nil),
             let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
         else {
-            return (nil, nil)
+            return (nil, nil, nil)
         }
 
         var location: CLLocationCoordinate2D?
+        var accuracy: CLLocationAccuracy?
         if let gps = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any],
            let latitude = gps[kCGImagePropertyGPSLatitude] as? Double,
            let latitudeRef = gps[kCGImagePropertyGPSLatitudeRef] as? String,
@@ -24,6 +25,10 @@ enum PhotoMetadata {
                 latitude: latitudeRef == "S" ? -latitude : latitude,
                 longitude: longitudeRef == "W" ? -longitude : longitude
             )
+            // Not every photo carries this — it's an optional EXIF GPS
+            // tag — but the iOS Camera app does write it (derived from
+            // CLLocation.horizontalAccuracy at the moment of capture).
+            accuracy = gps[kCGImagePropertyGPSHPositioningError] as? Double
         }
 
         var capturedAt: Date?
@@ -35,6 +40,6 @@ enum PhotoMetadata {
             capturedAt = formatter.date(from: dateString)
         }
 
-        return (location, capturedAt)
+        return (location, accuracy, capturedAt)
     }
 }
