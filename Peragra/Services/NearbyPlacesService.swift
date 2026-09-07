@@ -34,12 +34,28 @@ enum NearbyPlacesService {
     /// - Parameter categoryHint: Narrows the search to one category, for
     ///   when the plain nearby list is too ambiguous to tell which result
     ///   is right and the person supplies a hint (restaurant, cafe, ...).
+    ///
+    /// Always returned nearest-first, regardless of provider — Google's
+    /// own API already ranks by distance (rankPreference: DISTANCE, see
+    /// GoogleNearbyPlacesService), but Apple's MKLocalPointsOfInterestRequest
+    /// doesn't document any particular result order, so this sorts every
+    /// result by its actual distance from the query coordinate itself
+    /// rather than trusting either provider's ordering.
     static func search(latitude: Double, longitude: Double, categoryHint: PlaceCategory? = nil) async -> [Candidate] {
+        let results: [Candidate]
         if MapSettings.shared.isGoogleActive {
             let apiKey = MapSettings.shared.effectiveGoogleMapsAPIKey
-            return await GoogleNearbyPlacesService.search(latitude: latitude, longitude: longitude, apiKey: apiKey, categoryHint: categoryHint)
+            results = await GoogleNearbyPlacesService.search(latitude: latitude, longitude: longitude, apiKey: apiKey, categoryHint: categoryHint)
+        } else {
+            results = await appleSearch(latitude: latitude, longitude: longitude, categoryHint: categoryHint)
         }
-        return await appleSearch(latitude: latitude, longitude: longitude, categoryHint: categoryHint)
+
+        let origin = CLLocation(latitude: latitude, longitude: longitude)
+        return results.sorted { lhs, rhs in
+            let lhsDistance = CLLocation(latitude: lhs.latitude, longitude: lhs.longitude).distance(from: origin)
+            let rhsDistance = CLLocation(latitude: rhs.latitude, longitude: rhs.longitude).distance(from: origin)
+            return lhsDistance < rhsDistance
+        }
     }
 
     // A photo's GPS fix and a POI's own indexed coordinate rarely land in

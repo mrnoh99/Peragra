@@ -1,3 +1,4 @@
+import { distanceKm } from "./distance";
 import { searchNearbyPlacesGoogle } from "./googleNearbyPlaces";
 import type { NearbyPlaceCandidate } from "./nearbyPlaceCandidate";
 import { searchNearbyPlacesOSM } from "./osmNearbyPlaces";
@@ -16,6 +17,13 @@ export type { NearbyPlaceCandidate };
  * API (New) instead — matching the iOS app's own Apple/Google dispatch.
  * An optional category hint narrows the search, for when the plain
  * nearby list is too ambiguous to tell which result is right.
+ *
+ * Always returned nearest-first, regardless of provider — Google's own
+ * API already ranks by distance (rankPreference: DISTANCE, see
+ * googleNearbyPlaces.ts), but Overpass has no such option (results come
+ * back in whatever order the query engine finds them, not by distance),
+ * so this sorts every result by its actual distance from the query
+ * coordinate itself rather than trusting either provider's ordering.
  */
 export async function searchNearbyPlaces(
   lat: number,
@@ -23,8 +31,11 @@ export async function searchNearbyPlaces(
   categoryHint?: PlaceCategory,
 ): Promise<NearbyPlaceCandidate[]> {
   const { mapProvider, googleMapsApiKey } = useMapSettingsStore.getState();
-  if (mapProvider === "google" && googleMapsApiKey) {
-    return searchNearbyPlacesGoogle(lat, lng, googleMapsApiKey, categoryHint);
-  }
-  return searchNearbyPlacesOSM(lat, lng, categoryHint);
+  const results =
+    mapProvider === "google" && googleMapsApiKey
+      ? await searchNearbyPlacesGoogle(lat, lng, googleMapsApiKey, categoryHint)
+      : await searchNearbyPlacesOSM(lat, lng, categoryHint);
+
+  const origin = { lat, lng };
+  return [...results].sort((a, b) => distanceKm(origin, a) - distanceKm(origin, b));
 }
