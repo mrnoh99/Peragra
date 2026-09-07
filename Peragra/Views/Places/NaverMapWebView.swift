@@ -270,8 +270,26 @@ struct NaverMapWebView: UIViewRepresentable {
               naver.maps.Event.addListener(map, "idle", () => {
                 if (!tilesLoaded) setStatus("map idle fired (no tilesloaded yet)");
               });
+              // TEMPORARY: lists every actual network request the page
+              // made (via the Performance API), so we can see the real
+              // tile URLs Naver's SDK is requesting and whether they're
+              // failing at the network level (transferSize 0 usually
+              // means blocked/failed) rather than guessing at one. Remove
+              // once the real cause is found.
+              function resourceSummary() {
+                try {
+                  const entries = performance.getEntriesByType("resource");
+                  if (entries.length === 0) return "no resource entries";
+                  return entries.slice(-6).map((e) => {
+                    const shortName = e.name.length > 70 ? "..." + e.name.slice(-67) : e.name;
+                    return shortName + " size=" + e.transferSize + " dur=" + Math.round(e.duration);
+                  }).join(" || ");
+                } catch (e) {
+                  return "perf API error: " + e.message;
+                }
+              }
               setTimeout(() => {
-                if (!tilesLoaded) setStatus("map object created but tilesloaded never fired after 6s — tiles are failing to load silently");
+                if (!tilesLoaded) setStatus("tilesloaded never fired after 6s. resources: " + resourceSummary());
               }, 6000);
 
               const bounds = new naver.maps.LatLngBounds();
