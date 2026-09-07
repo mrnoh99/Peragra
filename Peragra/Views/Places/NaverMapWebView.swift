@@ -194,11 +194,16 @@ struct NaverMapWebView: UIViewRepresentable {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
             html, body, #map { margin: 0; height: 100%; width: 100%; }
+            /* TEMPORARY high-contrast diagnostic background — proves
+               whether this page's own static markup paints at all,
+               independent of whether Naver's SDK/tiles ever load. Revert
+               once the real cause is found. */
+            body { background: #ff2d55; }
           </style>
         </head>
         <body>
           <div id="map">
-            <div style="display:flex;align-items:center;justify-content:center;height:100%;font:14px -apple-system,sans-serif;color:#a3a3a3;">Loading Naver Map…</div>
+            <div style="display:flex;align-items:center;justify-content:center;height:100%;font:20px -apple-system,sans-serif;font-weight:700;color:#000;background:#ffeb3b;">DIAGNOSTIC: page loaded</div>
           </div>
           <script>
             const places = \(placesJSON);
