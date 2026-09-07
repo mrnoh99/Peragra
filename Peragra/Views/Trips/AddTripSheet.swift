@@ -84,17 +84,8 @@ struct AddTripSheet: View {
         // just closing with nothing to show for it.
         do {
             try modelContext.save()
-            // Reported repeatedly as "board still doesn't show up" even
-            // with the explicit save above never throwing — logged here so
-            // the next report can include what actually happened instead
-            // of guessing again: does the id round-trip, does a fresh
-            // fetch on this same context see it, how many trips does the
-            // context think exist right after saving.
-            let fetchedCount = (try? modelContext.fetchCount(FetchDescriptor<Trip>())) ?? -1
-            print("AddTripSheet: created trip id=\(trip.id) name=\(trip.name); modelContext now reports \(fetchedCount) total trip(s); hasChanges=\(modelContext.hasChanges)")
             dismiss()
         } catch {
-            print("AddTripSheet: save() threw — \(error)")
             modelContext.delete(trip)
             saveErrorMessage = "Something went wrong while saving this board. Nothing was created — try again."
         }
