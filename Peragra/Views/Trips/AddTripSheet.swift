@@ -76,6 +76,7 @@ struct AddTripSheet: View {
             coverEmoji: coverEmoji
         )
         modelContext.insert(trip)
+        print("AddTripSheet: inserted trip id=\(trip.id); hasChanges=\(modelContext.hasChanges)")
         _ = PlaceCollection.ensureFavoritesList(for: trip, context: modelContext)
         _ = PlaceCollection.ensureVisitedList(for: trip, context: modelContext)
         // Saved explicitly (rather than left to autosave) so the new board
@@ -84,8 +85,17 @@ struct AddTripSheet: View {
         // just closing with nothing to show for it.
         do {
             try modelContext.save()
+            // Two independent checks: fetchCount on this same context
+            // (would explain a stale-in-context-only bug) and on a brand
+            // new context opened on the exact same container (rules that
+            // out — this one can only see what's actually on disk).
+            let sameContextCount = (try? modelContext.fetchCount(FetchDescriptor<Trip>())) ?? -1
+            let freshContext = ModelContext(modelContext.container)
+            let freshContextCount = (try? freshContext.fetchCount(FetchDescriptor<Trip>())) ?? -1
+            print("AddTripSheet: save() did not throw. same-context fetchCount=\(sameContextCount), fresh-context fetchCount=\(freshContextCount), hasChanges=\(modelContext.hasChanges)")
             dismiss()
         } catch {
+            print("AddTripSheet: save() threw — \(error)")
             modelContext.delete(trip)
             saveErrorMessage = "Something went wrong while saving this board. Nothing was created — try again."
         }
