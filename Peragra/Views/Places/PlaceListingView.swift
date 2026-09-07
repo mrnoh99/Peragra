@@ -131,117 +131,126 @@ struct PlaceListingView: View {
         isSelecting = false
     }
 
+    // A plain HStack here used to cram the status text and every action
+    // button into one fixed-width row — on a narrow phone screen SwiftUI
+    // just squeezed each label down until it wrapped character-by-
+    // character ("Dese-", "lect", "All"), unreadable. The status text now
+    // sits on its own row (so it's never fighting the buttons for space),
+    // and the buttons scroll horizontally instead of being compressed —
+    // matching the chip bar pattern used elsewhere in this app (e.g.
+    // TripDetailView's collectionFilterBar).
     private var bulkActionBar: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            bulkActionBarControls
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 10)
-        .background(.bar)
-    }
-
-    private var bulkActionBarControls: some View {
-        HStack {
+        VStack(alignment: .leading, spacing: 6) {
             Text(selectedIDs.isEmpty ? "Select places to edit" : "\(selectedIDs.count) selected")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
-            Spacer()
-            Button {
-                toggleSelectAll()
-            } label: {
-                Text(selectedIDs.count == places.count ? "Deselect All" : "Select All")
-                    .font(.subheadline.weight(.medium))
-            }
-            .disabled(places.isEmpty)
-            Button(role: .destructive) {
-                isConfirmingBulkDelete = true
-            } label: {
-                Label("Delete", systemImage: "trash")
-                    .font(.subheadline.weight(.medium))
-            }
-            .disabled(selectedIDs.isEmpty)
-            Menu {
-                ForEach(PlaceCategory.allCases) { category in
-                    Button {
-                        applyCategory(category)
-                    } label: {
-                        Label(category.label, systemImage: category.symbolName)
-                    }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    bulkActionBarControls
                 }
-            } label: {
-                Label("Change Category", systemImage: "tag")
-                    .font(.subheadline.weight(.medium))
             }
-            .disabled(selectedIDs.isEmpty)
-
-            if !otherBoards.isEmpty {
-                Menu {
-                    ForEach(otherBoards) { board in
-                        Button {
-                            moveSelected(to: board)
-                        } label: {
-                            Text("\(board.coverEmoji) \(board.name)")
-                        }
-                    }
-                } label: {
-                    Label("Move to Board", systemImage: "arrow.right.square")
-                        .font(.subheadline.weight(.medium))
-                }
-                .disabled(selectedIDs.isEmpty)
-            }
-
-            if !allCollections.isEmpty {
-                Menu {
-                    ForEach(allCollections) { collection in
-                        Button {
-                            toggleSelected(to: collection)
-                        } label: {
-                            let title = collectionLabel(collection)
-                            if isOnAllSelected(collection) {
-                                Label(title, systemImage: "checkmark")
-                            } else {
-                                Text(title)
-                            }
-                        }
-                    }
-                } label: {
-                    Label("Send to List", systemImage: "list.bullet")
-                        .font(.subheadline.weight(.medium))
-                }
-                .disabled(selectedIDs.isEmpty)
-            }
-
-            Button {
-                onViewSelectedOnMap(selectedIDs)
-            } label: {
-                Label("Show on Map", systemImage: "map")
-                    .font(.subheadline.weight(.medium))
-            }
-            .disabled(selectedIDs.isEmpty)
-
-            Menu {
-                Button {
-                    copySelectedAsText()
-                } label: {
-                    Label("Copy as Text", systemImage: "doc.on.doc")
-                }
-                if let exportFileURL {
-                    ShareLink(item: exportFileURL) {
-                        Label("Share as File", systemImage: "doc")
-                    }
-                }
-            } label: {
-                Label("Export", systemImage: "square.and.arrow.up")
-                    .font(.subheadline.weight(.medium))
-            }
-            .disabled(selectedIDs.isEmpty)
-
             if let exportMessage {
                 Text(exportMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(.bar)
+    }
+
+    @ViewBuilder
+    private var bulkActionBarControls: some View {
+        Button {
+            toggleSelectAll()
+        } label: {
+            Text(selectedIDs.count == places.count ? "Deselect All" : "Select All")
+                .font(.subheadline.weight(.medium))
+        }
+        .disabled(places.isEmpty)
+        Button(role: .destructive) {
+            isConfirmingBulkDelete = true
+        } label: {
+            Label("Delete", systemImage: "trash")
+                .font(.subheadline.weight(.medium))
+        }
+        .disabled(selectedIDs.isEmpty)
+        Menu {
+            ForEach(PlaceCategory.allCases) { category in
+                Button {
+                    applyCategory(category)
+                } label: {
+                    Label(category.label, systemImage: category.symbolName)
+                }
+            }
+        } label: {
+            Label("Change Category", systemImage: "tag")
+                .font(.subheadline.weight(.medium))
+        }
+        .disabled(selectedIDs.isEmpty)
+
+        if !otherBoards.isEmpty {
+            Menu {
+                ForEach(otherBoards) { board in
+                    Button {
+                        moveSelected(to: board)
+                    } label: {
+                        Text("\(board.coverEmoji) \(board.name)")
+                    }
+                }
+            } label: {
+                Label("Move to Board", systemImage: "arrow.right.square")
+                    .font(.subheadline.weight(.medium))
+            }
+            .disabled(selectedIDs.isEmpty)
+        }
+
+        if !allCollections.isEmpty {
+            Menu {
+                ForEach(allCollections) { collection in
+                    Button {
+                        toggleSelected(to: collection)
+                    } label: {
+                        let title = collectionLabel(collection)
+                        if isOnAllSelected(collection) {
+                            Label(title, systemImage: "checkmark")
+                        } else {
+                            Text(title)
+                        }
+                    }
+                }
+            } label: {
+                Label("Send to List", systemImage: "list.bullet")
+                    .font(.subheadline.weight(.medium))
+            }
+            .disabled(selectedIDs.isEmpty)
+        }
+
+        Button {
+            onViewSelectedOnMap(selectedIDs)
+        } label: {
+            Label("Show on Map", systemImage: "map")
+                .font(.subheadline.weight(.medium))
+        }
+        .disabled(selectedIDs.isEmpty)
+
+        Menu {
+            Button {
+                copySelectedAsText()
+            } label: {
+                Label("Copy as Text", systemImage: "doc.on.doc")
+            }
+            if let exportFileURL {
+                ShareLink(item: exportFileURL) {
+                    Label("Share as File", systemImage: "doc")
+                }
+            }
+        } label: {
+            Label("Export", systemImage: "square.and.arrow.up")
+                .font(.subheadline.weight(.medium))
+        }
+        .disabled(selectedIDs.isEmpty)
     }
 
     /// Regenerates the temp file ShareLink hands off whenever the

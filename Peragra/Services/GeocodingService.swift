@@ -96,17 +96,44 @@ enum GeocodingService {
     ) async -> Result? {
         let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let selfPlace = MapProviderPolicy.PlaceLike(latitude: nil, longitude: nil, name: trimmedName, address: trimmedAddress)
 
-        let places = [MapProviderPolicy.PlaceLike(latitude: nil, longitude: nil, name: trimmedName, address: trimmedAddress)] + siblingPlaces
+        let places = [selfPlace] + siblingPlaces
         let providerOverride = MapProviderPolicy.pickProvider(MapSettings.shared.provider, places: places)
 
-        if !trimmedAddress.isEmpty, let result = await geocode(query: trimmedAddress, contextHint: contextHint, providerOverride: providerOverride) {
+        if !trimmedAddress.isEmpty,
+           let result = await geocode(query: trimmedAddress, contextHint: contextHint, providerOverride: providerOverride),
+           isPlausible(result, selfPlace: selfPlace, siblingPlaces: siblingPlaces) {
             return result
         }
-        if !trimmedName.isEmpty {
-            return await geocode(query: trimmedName, contextHint: contextHint, providerOverride: providerOverride)
+        if !trimmedName.isEmpty,
+           let result = await geocode(query: trimmedName, contextHint: contextHint, providerOverride: providerOverride),
+           isPlausible(result, selfPlace: selfPlace, siblingPlaces: siblingPlaces) {
+            return result
         }
         return nil
+    }
+
+    /// A geocoder can confidently return a real coordinate for an
+    /// obscure/short name that just happens to phonetically or partially
+    /// match something completely unrelated on another continent — one
+    /// place ended up plotted in the Gulf of Guinea for exactly this
+    /// reason. Rejects a result that lands outside Korea when nothing
+    /// suggests it should: this place's own name/address doesn't mention
+    /// a non-Korean country, AND this board already has another place
+    /// confirmed inside Korea (so this isn't just a legitimately
+    /// international board/trip, where an out-of-Korea result is
+    /// expected and fine). A rejected result falls back to the next
+    /// query (name after address, or "couldn't locate") rather than
+    /// silently showing a wrong location.
+    private static func isPlausible(_ result: Result, selfPlace: MapProviderPolicy.PlaceLike, siblingPlaces: [MapProviderPolicy.PlaceLike]) -> Bool {
+        if KoreaRegion.contains(latitude: result.latitude, longitude: result.longitude) { return true }
+        if CountryNames.mentionsNonKoreanCountry(selfPlace.address) || CountryNames.mentionsNonKoreanCountry(selfPlace.name) { return true }
+        let siblingConfirmedInKorea = siblingPlaces.contains { sibling in
+            guard let latitude = sibling.latitude, let longitude = sibling.longitude else { return false }
+            return KoreaRegion.contains(latitude: latitude, longitude: longitude)
+        }
+        return !siblingConfirmedInKorea
     }
 
     /// Reverse geocoding (coordinate -> address/name), for turning a GPS

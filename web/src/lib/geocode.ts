@@ -1,5 +1,5 @@
 import { useMapSettingsStore, type MapProvider } from "../store/useMapSettingsStore";
-import { normalizeTrailingCountryName } from "./countryNames";
+import { mentionsNonKoreanCountry, normalizeTrailingCountryName } from "./countryNames";
 import { geocodeWithGoogle, reverseGeocodeWithGoogle } from "./googleGeocode";
 import { geocodeWithNaver, reverseGeocodeWithNaver } from "./naverGeocode";
 import { isInKorea } from "./koreaRegion";
@@ -139,12 +139,39 @@ export async function geocodePlaceByAddressOrName(
 
   if (address) {
     const result = await geocodePlace(address, contextHint, providerOverride);
-    if (result) return result;
+    if (result && isPlausible(result, { name, address }, siblingPlaces)) return result;
   }
   if (name) {
-    return geocodePlace(name, contextHint, providerOverride);
+    const result = await geocodePlace(name, contextHint, providerOverride);
+    if (result && isPlausible(result, { name, address }, siblingPlaces)) return result;
   }
   return null;
+}
+
+/**
+ * A geocoder can confidently return a real coordinate for an obscure/
+ * short name that just happens to phonetically or partially match
+ * something completely unrelated on another continent — one place ended
+ * up plotted in the Gulf of Guinea for exactly this reason. Rejects a
+ * result that lands outside Korea when nothing suggests it should: this
+ * place's own name/address doesn't mention a non-Korean country, AND
+ * this board already has another place confirmed inside Korea (so this
+ * isn't just a legitimately international board/trip, where an
+ * out-of-Korea result is expected and fine). A rejected result falls
+ * back to the next query (name after address, or "couldn't locate")
+ * rather than silently showing a wrong location.
+ */
+function isPlausible(
+  result: GeocodeResult,
+  place: { name: string; address: string },
+  siblingPlaces: Array<{ lat: number | null; lng: number | null; name: string; address: string }>,
+): boolean {
+  if (isInKorea(result.lat, result.lng)) return true;
+  if (mentionsNonKoreanCountry(place.address) || mentionsNonKoreanCountry(place.name)) return true;
+  const siblingConfirmedInKorea = siblingPlaces.some(
+    (sibling) => sibling.lat !== null && sibling.lng !== null && isInKorea(sibling.lat, sibling.lng),
+  );
+  return !siblingConfirmedInKorea;
 }
 
 export interface ReverseGeocodeResult {
