@@ -17,6 +17,7 @@ export function TripsPage() {
   const deleteTrip = useStore((s) => s.deleteTrip);
   const [showCreate, setShowCreate] = useState(false);
   const [showImportBoard, setShowImportBoard] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [exportMenuTripId, setExportMenuTripId] = useState<string | null>(null);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
@@ -80,19 +81,39 @@ export function TripsPage() {
           >
             All places
           </Link>
-          <button
-            onClick={() => setShowImportBoard(true)}
-            title="Add a board someone shared with you"
-            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
-          >
-            📥 Import
-          </button>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
-          >
-            + New
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowAddMenu((v) => !v)}
+              className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
+            >
+              + Add {showAddMenu ? "▲" : "▼"}
+            </button>
+            {showAddMenu && (
+              <div className="absolute right-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddMenu(false);
+                    setShowCreate(true);
+                  }}
+                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                >
+                  🧭 New board
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddMenu(false);
+                    setShowImportBoard(true);
+                  }}
+                  title="Add a board someone shared with you"
+                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                >
+                  📥 Import board
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

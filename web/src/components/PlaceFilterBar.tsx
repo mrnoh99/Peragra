@@ -33,8 +33,6 @@ export function PlaceFilterBar({
   totalCount,
   hideVisited,
   onHideVisitedChange,
-  favoritesOnly,
-  onFavoritesOnlyChange,
   sortMode,
   onSortModeChange,
   distanceFromId,
@@ -50,8 +48,6 @@ export function PlaceFilterBar({
   totalCount: number;
   hideVisited: boolean;
   onHideVisitedChange: (value: boolean) => void;
-  favoritesOnly: boolean;
-  onFavoritesOnlyChange: (value: boolean) => void;
   sortMode: SortMode;
   onSortModeChange: (value: SortMode) => void;
   distanceFromId: string;
@@ -61,24 +57,6 @@ export function PlaceFilterBar({
 }) {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
-      <input
-        value={search}
-        onChange={(e) => onSearchChange(e.target.value)}
-        placeholder="Search saved places…"
-        className={`min-w-[160px] flex-1 ${selectClass}`}
-      />
-      <select
-        value={categoryFilter}
-        onChange={(e) => onCategoryFilterChange(e.target.value as PlaceCategory | "all")}
-        className={selectClass}
-      >
-        <option value="all">All categories ({totalCount})</option>
-        {PLACE_CATEGORIES.map((c) => (
-          <option key={c.value} value={c.value}>
-            {c.label} ({categoryCounts.get(c.value) ?? 0})
-          </option>
-        ))}
-      </select>
       <select
         value={sortMode}
         onChange={(e) => onSortModeChange(e.target.value as SortMode)}
@@ -105,6 +83,24 @@ export function PlaceFilterBar({
       {sortMode === "distance" && !distanceFromResolved && distanceFromId === "" && (
         <span className="text-xs text-neutral-400">Pick a located place to sort by.</span>
       )}
+      <input
+        value={search}
+        onChange={(e) => onSearchChange(e.target.value)}
+        placeholder="Search saved places…"
+        className={`min-w-[160px] flex-1 ${selectClass}`}
+      />
+      <select
+        value={categoryFilter}
+        onChange={(e) => onCategoryFilterChange(e.target.value as PlaceCategory | "all")}
+        className={selectClass}
+      >
+        <option value="all">All categories ({totalCount})</option>
+        {PLACE_CATEGORIES.map((c) => (
+          <option key={c.value} value={c.value}>
+            {c.label} ({categoryCounts.get(c.value) ?? 0})
+          </option>
+        ))}
+      </select>
 
       <div className="ml-auto flex items-center gap-1.5">
         <button
@@ -113,13 +109,6 @@ export function PlaceFilterBar({
           className={toggleChipClass(hideVisited)}
         >
           Hide visited
-        </button>
-        <button
-          type="button"
-          onClick={() => onFavoritesOnlyChange(!favoritesOnly)}
-          className={toggleChipClass(favoritesOnly)}
-        >
-          ★ Favorites only
         </button>
       </div>
     </div>

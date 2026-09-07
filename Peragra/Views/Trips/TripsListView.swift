@@ -62,17 +62,19 @@ struct TripsListView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingAddTrip = true
+                    Menu {
+                        Button {
+                            showingAddTrip = true
+                        } label: {
+                            Label("New Board", systemImage: "plus")
+                        }
+                        Button {
+                            showingImportBoard = true
+                        } label: {
+                            Label("Import Board", systemImage: "square.and.arrow.down")
+                        }
                     } label: {
-                        Label("New", systemImage: "plus")
-                    }
-                }
-                ToolbarItem(placement: .secondaryAction) {
-                    Button {
-                        showingImportBoard = true
-                    } label: {
-                        Label("Import", systemImage: "square.and.arrow.down")
+                        Label("Add", systemImage: "plus")
                     }
                 }
                 ToolbarItem(placement: .secondaryAction) {

@@ -20,6 +20,7 @@ struct PlaceListingView: View {
     @State private var isSelecting = false
     @State private var selectedIDs: Set<UUID> = []
     @State private var placePendingDelete: Place?
+    @State private var placePendingEdit: Place?
     @State private var isConfirmingBulkDelete = false
     @State private var exportMessage: String?
     @State private var exportFileURL: URL?
@@ -77,6 +78,16 @@ struct PlaceListingView: View {
                                     }
                                 }
                             }
+                            .swipeActions(edge: .leading) {
+                                if !isSelecting {
+                                    Button {
+                                        placePendingEdit = place
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                    .tint(.blue)
+                                }
+                            }
                         }
                     }
                     .listStyle(.plain)
@@ -94,6 +105,9 @@ struct PlaceListingView: View {
             if isSelecting {
                 bulkActionBar
             }
+        }
+        .sheet(item: $placePendingEdit) { place in
+            EditPlaceSheet(place: place)
         }
         .confirmationDialog(
             "Delete this place?",

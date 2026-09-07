@@ -64,6 +64,7 @@ export function TripDetailPage() {
   const [tab, setTab] = useState<Tab>("listing");
   const [showAddPlace, setShowAddPlace] = useState(false);
   const [showImportPlaces, setShowImportPlaces] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [showExportPlaces, setShowExportPlaces] = useState(false);
   const [exportPlacesMessage, setExportPlacesMessage] = useState<string | null>(null);
   const [showFindDuplicates, setShowFindDuplicates] = useState(false);
@@ -125,7 +126,6 @@ export function TripDetailPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<PlaceCategory | "all">("all");
   const [hideVisited, setHideVisited] = useState(false);
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("default");
   const [distanceFromId, setDistanceFromId] = useState<string>("");
 
@@ -146,7 +146,6 @@ export function TripDetailPage() {
   const preCategoryFiltered = useMemo(() => {
     return visiblePlaces.filter((p) => {
       if (hideVisited && p.visited) return false;
-      if (favoritesOnly && !p.favorite) return false;
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         if (
@@ -159,7 +158,7 @@ export function TripDetailPage() {
       }
       return true;
     });
-  }, [visiblePlaces, hideVisited, favoritesOnly, search]);
+  }, [visiblePlaces, hideVisited, search]);
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<PlaceCategory, number>();
@@ -264,13 +263,6 @@ export function TripDetailPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <button
-            onClick={() => setShowImportPlaces(true)}
-            title="Add places someone shared with you"
-            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
-          >
-            📥 Import
-          </button>
           <div className="relative">
             <button
               onClick={() => setShowExportPlaces((v) => !v)}
@@ -305,12 +297,39 @@ export function TripDetailPage() {
           >
             🔎 Duplicates
           </button>
-          <button
-            onClick={() => setShowAddPlace(true)}
-            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
-          >
-            + Add
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowAddMenu((v) => !v)}
+              className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
+            >
+              + Add {showAddMenu ? "▲" : "▼"}
+            </button>
+            {showAddMenu && (
+              <div className="absolute right-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddMenu(false);
+                    setShowAddPlace(true);
+                  }}
+                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                >
+                  ➕ Add places
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddMenu(false);
+                    setShowImportPlaces(true);
+                  }}
+                  title="Add places someone shared with you"
+                  className="whitespace-nowrap rounded px-2 py-1 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                >
+                  📥 Import places
+                </button>
+              </div>
+            )}
+          </div>
           {exportPlacesMessage && (
             <span className="basis-full text-right text-xs text-neutral-500">{exportPlacesMessage}</span>
           )}
@@ -324,14 +343,17 @@ export function TripDetailPage() {
           </h2>
           <div className="space-y-1">
             <button
-              onClick={() => setActiveCollectionIds(new Set())}
+              onClick={() => {
+                setActiveCollectionIds(new Set());
+                setCategoryFilter("all");
+              }}
               className={`block w-full rounded-lg px-3 py-1.5 text-left text-sm ${
                 activeCollectionIds.size === 0
                   ? "bg-brand-50 font-medium text-brand-700"
                   : "text-neutral-600 hover:bg-neutral-100"
               }`}
             >
-              All places
+              All ({places.length})
             </button>
             {collections.map((c) => {
               const active = activeCollectionIds.has(c.id);
@@ -475,8 +497,6 @@ export function TripDetailPage() {
                 totalCount={preCategoryFiltered.length}
                 hideVisited={hideVisited}
                 onHideVisitedChange={setHideVisited}
-                favoritesOnly={favoritesOnly}
-                onFavoritesOnlyChange={setFavoritesOnly}
                 sortMode={sortMode}
                 onSortModeChange={setSortMode}
                 distanceFromId={distanceFromId}

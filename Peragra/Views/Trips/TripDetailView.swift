@@ -43,7 +43,6 @@ struct TripDetailView: View {
     @State private var search = ""
     @State private var categoryFilter: PlaceCategory?
     @State private var hideVisited = false
-    @State private var favoritesOnly = false
     @State private var sortMode: PlaceSortMode = .defaultOrder
     @State private var referencePlaceID: UUID?
 
@@ -100,7 +99,6 @@ struct TripDetailView: View {
     private var preCategoryFiltered: [Place] {
         visiblePlaces.filter { place in
             if hideVisited && place.visited { return false }
-            if favoritesOnly && !place.favorite { return false }
             if !search.trimmingCharacters(in: .whitespaces).isEmpty {
                 let q = search.lowercased()
                 let haystack = [place.name, place.address, place.notes].joined(separator: " ").lowercased()
@@ -219,9 +217,7 @@ struct TripDetailView: View {
                 PlaceFilterBar(
                     categoryFilter: $categoryFilter,
                     categoryCounts: categoryCounts,
-                    totalCount: preCategoryFiltered.count,
                     hideVisited: $hideVisited,
-                    favoritesOnly: $favoritesOnly,
                     sortMode: $sortMode,
                     referencePlaceID: $referencePlaceID,
                     locatablePlaces: locatablePlaces
@@ -263,10 +259,12 @@ struct TripDetailView: View {
         .searchable(text: $search, prompt: "Search saved places")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showingAddPlace = true } label: { Label("Add", systemImage: "plus") }
-            }
-            ToolbarItem(placement: .secondaryAction) {
-                Button { showingImportPlaces = true } label: { Label("Import", systemImage: "square.and.arrow.down") }
+                Menu {
+                    Button { showingAddPlace = true } label: { Label("Add Places", systemImage: "plus") }
+                    Button { showingImportPlaces = true } label: { Label("Import Places", systemImage: "square.and.arrow.down") }
+                } label: {
+                    Label("Add", systemImage: "plus")
+                }
             }
             ToolbarItem(placement: .secondaryAction) {
                 Menu {
@@ -357,7 +355,13 @@ struct TripDetailView: View {
     private var collectionFilterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                chip(title: "All places", isSelected: activeCollectionIDs.isEmpty) { activeCollectionIDs.removeAll() }
+                // Doubles as the category filter's reset now that
+                // PlaceFilterBar no longer has its own "All" chip
+                // (redundant with this one) — tapping it clears both.
+                chip(title: "All (\(places.count))", isSelected: activeCollectionIDs.isEmpty) {
+                    activeCollectionIDs.removeAll()
+                    categoryFilter = nil
+                }
                 ForEach(collections) { collection in
                     let collectionChip = chip(
                         title: chipTitle(for: collection),

@@ -15,9 +15,7 @@ enum PlaceSortMode: String, CaseIterable, Identifiable {
 struct PlaceFilterBar: View {
     @Binding var categoryFilter: PlaceCategory?
     let categoryCounts: [PlaceCategory: Int]
-    let totalCount: Int
     @Binding var hideVisited: Bool
-    @Binding var favoritesOnly: Bool
     @Binding var sortMode: PlaceSortMode
     @Binding var referencePlaceID: UUID?
     /// Places with a resolved coordinate, offered as choices for "Distance from…".
@@ -31,9 +29,16 @@ struct PlaceFilterBar: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                FilterChip(title: "All (\(totalCount))", isSelected: categoryFilter == nil) {
-                    categoryFilter = nil
+                sortMenu
+                if sortMode == .distance {
+                    referencePlaceMenu
                 }
+                Divider().frame(height: 20)
+                // No "All" chip here — TripDetailView's collectionFilterBar
+                // "All (n)" chip (row above) resets this filter too, so a
+                // second one right next to the category chips would just be
+                // clutter. Tapping the currently-selected category again
+                // still clears just this filter on its own.
                 ForEach(PlaceCategory.allCases) { category in
                     FilterChip(title: "\(category.label) (\(categoryCounts[category] ?? 0))", isSelected: categoryFilter == category) {
                         categoryFilter = (categoryFilter == category) ? nil : category
@@ -42,14 +47,6 @@ struct PlaceFilterBar: View {
                 Divider().frame(height: 20)
                 FilterChip(title: "Hide visited", isSelected: hideVisited) {
                     hideVisited.toggle()
-                }
-                FilterChip(title: "★ Favorites", isSelected: favoritesOnly) {
-                    favoritesOnly.toggle()
-                }
-                Divider().frame(height: 20)
-                sortMenu
-                if sortMode == .distance {
-                    referencePlaceMenu
                 }
             }
             .padding(.horizontal)
