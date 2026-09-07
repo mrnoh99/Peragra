@@ -75,6 +75,8 @@ struct AddTripSheet: View {
             destination: destination.trimmingCharacters(in: .whitespaces),
             coverEmoji: coverEmoji
         )
+        let storeURLs = modelContext.container.configurations.map { $0.url.path }
+        print("AddTripSheet: container configurations point at: \(storeURLs)")
         modelContext.insert(trip)
         print("AddTripSheet: inserted trip id=\(trip.id); hasChanges=\(modelContext.hasChanges)")
         _ = PlaceCollection.ensureFavoritesList(for: trip, context: modelContext)
