@@ -355,11 +355,15 @@ struct PlaceRowView: View {
             return
         }
 
-        // Providers agree (or only one answered) — prefer the currently
-        // configured provider's own result when it's among them, since
-        // that's what the rest of the app (Open in Map, etc.) is already
-        // set up around.
-        let chosen = candidates.first { $0.provider == MapSettings.shared.provider } ?? candidates[0]
+        // Providers agree (or only one answered) — pick by a fixed
+        // priority based on where the result actually lands, not
+        // whichever provider happens to be active in Settings: Naver has
+        // the best Korean address data by far, so it wins inside Korea;
+        // outside Korea it has essentially no useful data at all (same
+        // reasoning as KoreaRegion's doc comment), so Google leads there.
+        let inKorea = KoreaRegion.contains(latitude: candidates[0].result.latitude, longitude: candidates[0].result.longitude)
+        let providerOrder: [MapProvider] = inKorea ? [.naver, .google, .free] : [.google, .free]
+        let chosen = providerOrder.lazy.compactMap { provider in candidates.first { $0.provider == provider } }.first ?? candidates[0]
         apply(chosen.result, status: .located)
     }
 

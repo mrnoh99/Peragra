@@ -13,9 +13,9 @@ import { tmapUrl } from "../lib/tmapUrl";
 import { openCustomSchemeUrl } from "../lib/customSchemeUrl";
 import { isInstagramLink, normalizeLinkHref } from "../lib/linkUrl";
 import { isPlaceOutsideKorea } from "../lib/mapProviderPolicy";
+import { isInKorea } from "../lib/koreaRegion";
 import { selectActiveApiKey, useAISettingsStore } from "../store/useAISettingsStore";
 import type { MapProvider } from "../store/useMapSettingsStore";
-import { useMapSettingsStore } from "../store/useMapSettingsStore";
 
 const PROVIDER_LABEL: Record<MapProvider, string> = {
   free: "OpenStreetMap",
@@ -123,8 +123,18 @@ export function PlaceCard({
           setGeocodeCandidates(candidates);
           return;
         }
-        const { mapProvider } = useMapSettingsStore.getState();
-        const chosen = candidates.find((c) => c.provider === mapProvider) ?? candidates[0];
+        // Pick by a fixed priority based on where the result actually
+        // lands, not whichever provider happens to be active in
+        // Settings: Naver has the best Korean address data by far, so
+        // it wins inside Korea; outside Korea it has essentially no
+        // useful data at all (same reasoning as koreaRegion.ts's doc
+        // comment), so Google leads there.
+        const providerOrder: MapProvider[] = isInKorea(candidates[0].result.lat, candidates[0].result.lng)
+          ? ["naver", "google", "free"]
+          : ["google", "free"];
+        const chosen =
+          providerOrder.map((provider) => candidates.find((c) => c.provider === provider)).find((c) => c) ??
+          candidates[0];
         setPlaceCoords(place.id, chosen.result, "located");
         return;
       }
