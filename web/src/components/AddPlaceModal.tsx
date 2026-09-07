@@ -450,6 +450,33 @@ export function AddPlaceModal({
             }),
           );
 
+    // When neither a live GPS fix nor any photo's own location data was
+    // available, but AI still read a usable name/address from the photo
+    // itself, geocode that text right here rather than silently deferring
+    // to save()'s own address-based fallback — this lets the same
+    // reverse-geocode/nearby-candidates review below apply to this case
+    // too, and lets the result message plainly say this location came
+    // from the address, not a real GPS fix.
+    let usedAddressGeocodeFallback = false;
+    if (!location) {
+      const sourceRow = newRows.find((row) => !isPlaceholderName(row.name) || row.address.trim());
+      if (sourceRow) {
+        const result = await geocodePlaceByAddressOrName(
+          { name: isPlaceholderName(sourceRow.name) ? "" : sourceRow.name, address: sourceRow.address },
+          destination,
+          siblingPlaces,
+        );
+        if (result) {
+          location = result;
+          usedAddressGeocodeFallback = true;
+          for (const row of newRows) {
+            row.manualLat = result.lat;
+            row.manualLng = result.lng;
+          }
+        }
+      }
+    }
+
     // AI extraction only reads text visible in the photo — a photo of a
     // storefront often has none — so a blank/unnamed address/name is
     // filled in (never overwritten otherwise) from reverse-geocoding the
@@ -501,6 +528,17 @@ export function AddPlaceModal({
         hasCameraPhoto
           ? "Couldn't get your current location — add an address below, or check location permission for this site."
           : "Couldn't find location info in those photos — add an address below, or upload a photo that has it.",
+      );
+    } else if (usedAddressGeocodeFallback) {
+      // Distinct from the ordinary messages below — worth calling out on
+      // its own regardless of whether a name/nearby-picker situation also
+      // applies, since "this came from geocoding the address, not a real
+      // GPS fix from the photo" is the one thing this specific result
+      // can't otherwise convey.
+      setExtractResultMessage(
+        offeredCandidates
+          ? `📍 No location data in ${hasCameraPhoto ? "your current location" : "those photos"} — estimated it from the address instead, but couldn't read its name for sure. Check the suggestion below before saving.`
+          : `📍 No location data in ${hasCameraPhoto ? "your current location" : "those photos"} — estimated it from the address found there instead of a precise GPS fix. Review below before saving.`,
       );
     } else if (extracted.length === 0) {
       setExtractResultMessage(

@@ -783,6 +783,34 @@ struct AddPlaceSheet: View {
                 )
             }
 
+        // When neither a live GPS fix nor any photo's own location data
+        // was available, but AI still read a usable name/address from the
+        // photo itself, geocode that text right here rather than silently
+        // deferring to save()'s own address-based fallback — this lets
+        // the same reverse-geocode/nearby-candidates review below apply
+        // to this case too, and lets the result message plainly say this
+        // location came from the address, not a real GPS fix.
+        var usedAddressGeocodeFallback = false
+        if coordinate == nil,
+           let sourceRow = newRows.first(where: { !isPlaceholderName($0.name) || !$0.address.trimmingCharacters(in: .whitespaces).isEmpty }) {
+            let siblingPlaces = trip.places.map {
+                MapProviderPolicy.PlaceLike(latitude: $0.latitude, longitude: $0.longitude, name: $0.name, address: $0.address)
+            }
+            if let result = await GeocodingService.geocode(
+                name: isPlaceholderName(sourceRow.name) ? "" : sourceRow.name,
+                address: sourceRow.address,
+                contextHint: trip.destination,
+                siblingPlaces: siblingPlaces
+            ) {
+                coordinate = CLLocationCoordinate2D(latitude: result.latitude, longitude: result.longitude)
+                usedAddressGeocodeFallback = true
+                for index in newRows.indices {
+                    newRows[index].manualLatitude = result.latitude
+                    newRows[index].manualLongitude = result.longitude
+                }
+            }
+        }
+
         // AI extraction only reads text visible in the photo — a photo of
         // a storefront often has none — so a blank/unnamed address/name is
         // filled in (never overwritten otherwise) from reverse-geocoding
@@ -828,6 +856,15 @@ struct AddPlaceSheet: View {
             extractErrorMessage = hasCameraPhoto
                 ? "Couldn't get your current location — add an address below, or check Location permission in Settings."
                 : "Couldn't find location info in those photos — add an address below, or upload a photo that has it."
+        } else if usedAddressGeocodeFallback {
+            // Distinct from the ordinary messages below — worth calling
+            // out on its own regardless of whether a name/nearby-picker
+            // situation also applies, since "this came from geocoding the
+            // address, not a real GPS fix from the photo" is the one
+            // thing this specific result can't otherwise convey.
+            extractResultMessage = nearbyCandidateRowID != nil
+                ? "📍 No location data in \(hasCameraPhoto ? "your current location" : "those photos") — estimated it from the address instead, but couldn't read its name for sure. Check the suggestion below before saving."
+                : "📍 No location data in \(hasCameraPhoto ? "your current location" : "those photos") — estimated it from the address found there instead of a precise GPS fix. Review below before saving."
         } else if extracted.isEmpty {
             extractResultMessage = foundNameFromLocation
                 ? "📍 Found a place at \(locationSourceLabel) — review below before saving."
