@@ -205,10 +205,22 @@ struct NaverMapWebView: UIViewRepresentable {
           <div id="map">
             <div style="display:flex;align-items:center;justify-content:center;height:100%;font:20px -apple-system,sans-serif;font-weight:700;color:#000;background:#ffeb3b;">DIAGNOSTIC: page loaded</div>
           </div>
+          <!-- TEMPORARY: a live-updating status line that Naver's own
+               Map constructor can't wipe (it only touches #map's own
+               children), so we can see exactly how far JS execution
+               gets even when the map itself renders blank. Remove once
+               the real cause is found. -->
+          <div id="status-overlay" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#000;color:#0f0;font:11px/1.4 monospace;padding:4px 8px;white-space:pre-wrap;">status: script tag inserted</div>
           <script>
             const places = \(placesJSON);
             const tripDestination = \(tripDestinationJSON);
             let mapReady = false;
+            let tilesLoaded = false;
+
+            function setStatus(text) {
+              const el = document.getElementById("status-overlay");
+              if (el) el.textContent = "status: " + text;
+            }
 
             function showLoadError(message) {
               if (mapReady) return;
@@ -238,11 +250,23 @@ struct NaverMapWebView: UIViewRepresentable {
 
             function initMap() {
               mapReady = true;
+              setStatus("initMap() called, creating map object...");
               const first = places[0];
               const map = new naver.maps.Map(document.getElementById("map"), {
                 center: new naver.maps.LatLng(first ? first.latitude : 37.5665, first ? first.longitude : 126.978),
                 zoom: 13,
               });
+              setStatus("map object created, waiting for tiles...");
+              naver.maps.Event.addListener(map, "tilesloaded", () => {
+                tilesLoaded = true;
+                setStatus("tiles loaded OK");
+              });
+              naver.maps.Event.addListener(map, "idle", () => {
+                if (!tilesLoaded) setStatus("map idle fired (no tilesloaded yet)");
+              });
+              setTimeout(() => {
+                if (!tilesLoaded) setStatus("map object created but tilesloaded never fired after 6s — tiles are failing to load silently");
+              }, 6000);
 
               const bounds = new naver.maps.LatLngBounds();
               const infoWindow = new naver.maps.InfoWindow();
