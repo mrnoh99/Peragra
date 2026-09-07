@@ -137,7 +137,9 @@ struct NaverMapWebView: UIViewRepresentable {
           </style>
         </head>
         <body>
-          <div id="map"></div>
+          <div id="map">
+            <div style="display:flex;align-items:center;justify-content:center;height:100%;font:14px -apple-system,sans-serif;color:#a3a3a3;">Loading Naver Map…</div>
+          </div>
           <script>
             const places = \(placesJSON);
             const tripDestination = \(tripDestinationJSON);
@@ -155,10 +157,18 @@ struct NaverMapWebView: UIViewRepresentable {
             // itself — Naver calls window.navermap_authFailure instead
             // (their documented hook) — so that's wired up alongside a
             // plain timeout for a genuine hang, same two-path handling
-            // GoogleMapWebView uses for its own failure mode.
+            // GoogleMapWebView uses for its own failure mode. window.onerror
+            // catches everything else (a thrown exception inside initMap,
+            // a parse error in a malformed response served in place of the
+            // real script, ...) that would otherwise leave the page stuck
+            // on the loading placeholder forever with no visible cause.
             setTimeout(() => showLoadError("Couldn\\'t load Naver Map — check your Client ID in Settings."), 10000);
             window.navermap_authFailure = function() {
               showLoadError("Naver Map rejected this Client ID — check it in Settings.");
+            };
+            window.onerror = function(message) {
+              showLoadError("Naver Map error: " + message);
+              return true;
             };
 
             function initMap() {
