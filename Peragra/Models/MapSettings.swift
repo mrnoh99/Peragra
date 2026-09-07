@@ -4,11 +4,14 @@ import Observation
 /// Which map/geocoding provider to use. `.free` (Apple MapKit + CLGeocoder)
 /// needs no API key and is the default; `.google` uses the app's bundled
 /// Google Maps key unless the user enters their own in Settings; `.naver`
-/// needs the user's own NCP Client ID/Secret (no bundled default — unlike
-/// Google's key, restricted by app package name, a Naver key can't safely
-/// ship in a public repo's compiled binary the same way) and is the most
-/// accurate for Korean addresses. All three only affect geocoding here —
-/// the map view itself always renders with Apple MapKit.
+/// needs the user's own NCP Client ID (the Secret, when also set, is only
+/// used for NaverGeocodingService's separate REST geocoding API — no
+/// bundled default for either, unlike Google's key, restricted by app
+/// package name, a Naver key can't safely ship in a public repo's compiled
+/// binary the same way) and is the most accurate for Korean addresses.
+/// `.free` renders the in-app map with Apple MapKit; `.google` and
+/// `.naver` (once a Client ID is set) render it with that provider's own
+/// JS Maps SDK in a WebView instead — see PlaceMapView.
 enum MapProvider: String {
     case free
     case google

@@ -60,6 +60,21 @@ struct PlaceMapView: View {
                         onSelectPlace(place)
                     }
                 )
+            } else if mapSettings.provider == .naver, let naverClientId = mapSettings.naverClientId {
+                // Rendering only needs the Client ID, not isNaverActive's
+                // stricter "Client ID and Secret" — that pairing is for
+                // NaverGeocodingService's separate REST API, not the JS
+                // Maps SDK this loads.
+                NaverMapWebView(
+                    clientId: naverClientId,
+                    places: located.map(naverMarker),
+                    tripDestination: destination,
+                    onSelectPlace: { placeIDString in
+                        guard let uuid = UUID(uuidString: placeIDString),
+                              let place = located.first(where: { $0.id == uuid }) else { return }
+                        onSelectPlace(place)
+                    }
+                )
             } else {
                 Map(position: $cameraPosition, selection: $selectedPlace) {
                     ForEach(located) { place in
@@ -91,6 +106,22 @@ struct PlaceMapView: View {
 
     private func googleMarker(for place: Place) -> GoogleMapWebView.MarkerPlace {
         GoogleMapWebView.MarkerPlace(
+            id: place.id.uuidString,
+            name: place.name,
+            address: place.address,
+            emoji: place.category.emoji,
+            visited: place.visited,
+            addressTrusted: place.geocodeStatus == .located,
+            latitude: place.latitude ?? 0,
+            longitude: place.longitude ?? 0,
+            kakaoMapUrlString: KakaoMapOpener.url(for: place)?.absoluteString,
+            naverMapUrlString: NaverMapOpener.url(for: place)?.absoluteString,
+            tmapUrlString: TmapOpener.url(for: place)?.absoluteString
+        )
+    }
+
+    private func naverMarker(for place: Place) -> NaverMapWebView.MarkerPlace {
+        NaverMapWebView.MarkerPlace(
             id: place.id.uuidString,
             name: place.name,
             address: place.address,

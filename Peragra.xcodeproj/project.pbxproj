@@ -20,6 +20,7 @@
 		2B3C4928A507274E72FE9D96 /* TripDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0EC4AE3B322246DAA168D68 /* TripDetailView.swift */; };
 		2DF84AD8803382A42C37CA1E /* Trip.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6E049BCBA203197C3FC9809 /* Trip.swift */; };
 		35624F0CA9E68832540B4790 /* GoogleMapWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7ED4E179AD24B6F86E577A6 /* GoogleMapWebView.swift */; };
+		D94C3BC9F3E13ECB2CBE2D12 /* NaverMapWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DD8CA1DF152226D38F0A335 /* NaverMapWebView.swift */; };
 		37844E01AA604E5535516219 /* PlaceMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB844760848B91E7946DB225 /* PlaceMapView.swift */; };
 		4FEB4377B249D4E8FDDFF66F /* EditPlaceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C264C7A93EFFFAD7D5CB188 /* EditPlaceSheet.swift */; };
 		51C64D7BB7E7C26F899DDC50 /* GatewayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06814E248FCB3AB0A38050BB /* GatewayModels.swift */; };
@@ -99,6 +100,7 @@
 		AB844760848B91E7946DB225 /* PlaceMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceMapView.swift; path = Peragra/Views/Places/PlaceMapView.swift; sourceTree = "<group>"; };
 		B0478E29427E1153CA20E031 /* Peragra.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Peragra.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B7ED4E179AD24B6F86E577A6 /* GoogleMapWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoogleMapWebView.swift; path = Peragra/Views/Places/GoogleMapWebView.swift; sourceTree = "<group>"; };
+		7DD8CA1DF152226D38F0A335 /* NaverMapWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NaverMapWebView.swift; path = Peragra/Views/Places/NaverMapWebView.swift; sourceTree = "<group>"; };
 		C0D74B1688389732B5CD38E3 /* AddPlaceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddPlaceSheet.swift; path = Peragra/Views/Places/AddPlaceSheet.swift; sourceTree = "<group>"; };
 		C0EC4AE3B322246DAA168D68 /* TripDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TripDetailView.swift; path = Peragra/Views/Trips/TripDetailView.swift; sourceTree = "<group>"; };
 		C1AB455D80578B776DC3D4A3 /* GoogleGeocodingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoogleGeocodingService.swift; path = Peragra/Services/GoogleGeocodingService.swift; sourceTree = "<group>"; };
@@ -173,6 +175,7 @@
 				7C264C7A93EFFFAD7D5CB188 /* EditPlaceSheet.swift */,
 				50787C07D48AF72434E63513 /* CameraCaptureView.swift */,
 				B7ED4E179AD24B6F86E577A6 /* GoogleMapWebView.swift */,
+				7DD8CA1DF152226D38F0A335 /* NaverMapWebView.swift */,
 				EB583D3A90CE85D33F3818BB /* PlaceFilterBar.swift */,
 			);
 			name = Places;
@@ -351,6 +354,7 @@
 				3E652117311C6E5DCD93C9AA /* NearbyPlacesService.swift in Sources */,
 				B50214389F404D88D24A6F27 /* GoogleNearbyPlacesService.swift in Sources */,
 				35624F0CA9E68832540B4790 /* GoogleMapWebView.swift in Sources */,
+				D94C3BC9F3E13ECB2CBE2D12 /* NaverMapWebView.swift in Sources */,
 				51C64D7BB7E7C26F899DDC50 /* GatewayModels.swift in Sources */,
 				73C14CCED1F50796BA176AA6 /* GoogleMapsOpener.swift in Sources */,
 				C2C9BD7BCF298521D33647B6 /* PlaceFilterBar.swift in Sources */,
