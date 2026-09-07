@@ -68,13 +68,19 @@ enum NearbyPlacesService {
         }
     }
 
-    /// A restaurant/cafe/shop/hotel/nightlife spot is a single building —
-    /// a tight radius avoids pulling in unrelated places from down the
-    /// block. An attraction can be spread across its own plaza or park,
-    /// and so can whatever's behind an unset hint (it might turn out to
-    /// be an attraction) — a much wider radius is worth the extra,
-    /// dismissable candidates it can pull in, since too narrow risks
-    /// missing the real match entirely rather than just showing extras.
+    /// A restaurant/cafe/shop/nightlife spot is a single building — a
+    /// tight radius avoids pulling in unrelated places from down the
+    /// block. A hotel is grouped with attraction instead, not with those:
+    /// a real report showed a hotel's own POI (often tagged at its main
+    /// entrance/lobby) sitting further from an event photo's GPS fix than
+    /// the tight tier's ceiling covered, while a co-located restaurant
+    /// (with its own, closer-tagged POI) was still found — a large hotel
+    /// or convention property can span its own multiple buildings/wings
+    /// the same way a park or plaza does. Whatever's behind an unset hint
+    /// gets the same wide treatment (it might turn out to be either) — a
+    /// much wider radius is worth the extra, dismissable candidates it
+    /// can pull in, since too narrow risks missing the real match
+    /// entirely rather than just showing extras.
     ///
     /// Sized around the GPS fix's own reported accuracy (plus a fixed
     /// buffer for the ordinary case of a POI's indexed coordinate not
@@ -87,9 +93,9 @@ enum NearbyPlacesService {
     private static func radius(for categoryHint: PlaceCategory?, accuracy: CLLocationAccuracy?) -> CLLocationDistance {
         let isPointLike: Bool
         switch categoryHint {
-        case .restaurant, .cafe, .shopping, .hotel, .nightlife:
+        case .restaurant, .cafe, .shopping, .nightlife:
             isPointLike = true
-        case .attraction, .other, nil:
+        case .attraction, .hotel, .other, nil:
             isPointLike = false
         }
 
