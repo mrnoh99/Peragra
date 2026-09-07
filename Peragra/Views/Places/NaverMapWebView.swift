@@ -67,15 +67,23 @@ struct NaverMapWebView: UIViewRepresentable {
         // compare Naver's domain against itself, which NCP correctly
         // refuses ("Naver Open API 인증에 실패하였습니다"). http://localhost
         // is NCP's documented value for a native app embedding the Web
-        // Dynamic Map SDK in a WebView rather than serving it from a real
-        // website — register that same value as this Client ID's Web
-        // Service URL in the NCP console (Web Dynamic Map > 사용 API 관리 >
-        // Web 서비스 URL) for this to authenticate.
+        // Dynamic Map SDK in a WebView, and is already registered as this
+        // Client ID's Web Service URL — but loadHTMLString(_:baseURL:)
+        // only fakes that origin for resolving relative URLs, it doesn't
+        // make WKWebView send a matching Referer on the actual tile image
+        // requests the page triggers, so the script/map object initialize
+        // fine while every tile silently fails to authenticate. Loading a
+        // real http://localhost:<port>/ navigation via LocalHTMLServer
+        // gives every request off this page a genuine, consistent origin
+        // instead.
         let html = Self.html(clientId: clientId, places: places, tripDestination: tripDestination)
-        let baseURL = URL(string: "http://localhost")
-        context.coordinator.lastLoadedHTML = html
-        context.coordinator.lastLoadedBaseURL = baseURL
-        webView.loadHTMLString(html, baseURL: baseURL)
+        LocalHTMLServer.shared.serve(html: html) { url in
+            guard let url else {
+                webView.loadHTMLString(html, baseURL: URL(string: "http://localhost"))
+                return
+            }
+            webView.load(URLRequest(url: url))
+        }
     }
 
     fileprivate struct Signature: Equatable {
@@ -94,12 +102,6 @@ struct NaverMapWebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         fileprivate var loadedSignature: Signature?
         fileprivate var onSelectPlace: ((String) -> Void)?
-        /// Stashed on every load so a crashed content process can be
-        /// recovered by reloading the exact same content, without needing
-        /// to re-derive it from `NaverMapWebView`'s (struct, not held
-        /// here) properties.
-        fileprivate var lastLoadedHTML: String?
-        fileprivate var lastLoadedBaseURL: URL?
         private var contentProcessCrashCount = 0
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -158,8 +160,8 @@ struct NaverMapWebView: UIViewRepresentable {
         // reload loop against a content genuinely crashing the process.
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
             contentProcessCrashCount += 1
-            guard contentProcessCrashCount <= 1, let html = lastLoadedHTML else {
-                let message = "'The Naver Map page crashed" + (contentProcessCrashCount > 1 ? " again" : "") + " — try switching maps in Settings and back.'"
+            guard contentProcessCrashCount <= 1 else {
+                let message = "'The Naver Map page crashed again — try switching maps in Settings and back.'"
                 let js = """
                 (function() {
                   var html = '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:24px;text-align:center;font:14px -apple-system,sans-serif;color:#a3a3a3;">' + \(message) + '</div>';
@@ -169,7 +171,9 @@ struct NaverMapWebView: UIViewRepresentable {
                 webView.evaluateJavaScript(js)
                 return
             }
-            webView.loadHTMLString(html, baseURL: lastLoadedBaseURL)
+            // A real navigation now (LocalHTMLServer), so reload() correctly
+            // re-fetches it — no need to hand-carry the last HTML/baseURL.
+            webView.reload()
         }
     }
 
@@ -194,22 +198,16 @@ struct NaverMapWebView: UIViewRepresentable {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
             html, body, #map { margin: 0; height: 100%; width: 100%; }
-            /* TEMPORARY high-contrast diagnostic background — proves
-               whether this page's own static markup paints at all,
-               independent of whether Naver's SDK/tiles ever load. Revert
-               once the real cause is found. */
-            body { background: #ff2d55; }
           </style>
         </head>
         <body>
           <div id="map">
-            <div style="display:flex;align-items:center;justify-content:center;height:100%;font:20px -apple-system,sans-serif;font-weight:700;color:#000;background:#ffeb3b;">DIAGNOSTIC: page loaded</div>
+            <div style="display:flex;align-items:center;justify-content:center;height:100%;font:14px -apple-system,sans-serif;color:#a3a3a3;">Loading Naver Map…</div>
           </div>
-          <!-- TEMPORARY: a live-updating status line that Naver's own
-               Map constructor can't wipe (it only touches #map's own
-               children), so we can see exactly how far JS execution
-               gets even when the map itself renders blank. Remove once
-               the real cause is found. -->
+          <!-- TEMPORARY: a live-updating status line confirming tiles
+               actually load now that the page is served over a real
+               http://localhost:<port>/ origin (LocalHTMLServer) instead
+               of loadHTMLString's faked one. Remove once confirmed. -->
           <div id="status-overlay" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#000;color:#0f0;font:11px/1.4 monospace;padding:4px 8px;white-space:pre-wrap;">status: script tag inserted</div>
           <script>
             const places = \(placesJSON);
