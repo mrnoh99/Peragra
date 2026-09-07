@@ -14,11 +14,17 @@ const OSM_TAGS_BY_CATEGORY: Record<PlaceCategory, { key: string; values?: string
     { key: "tourism", values: ["attraction", "museum", "gallery", "zoo", "theme_park", "aquarium"] },
     { key: "leisure", values: ["park"] },
     { key: "amenity", values: ["place_of_worship"] },
+    // Monuments, memorials, and other historic sites (a war memorial,
+    // for instance) — OSM's `historic` key covers these, and neither
+    // `tourism` nor any other key above does. Any value under `historic`
+    // counts; unlike the other filters, this one isn't narrowed to a
+    // specific list, since the tag itself already implies "attraction".
+    { key: "historic" },
   ],
   shopping: [{ key: "shop" }],
   hotel: [{ key: "tourism", values: ["hotel", "guest_house", "hostel"] }],
   nightlife: [{ key: "amenity", values: ["bar", "pub", "nightclub", "casino"] }],
-  other: [{ key: "amenity" }, { key: "shop" }, { key: "tourism" }, { key: "leisure" }],
+  other: [{ key: "amenity" }, { key: "shop" }, { key: "tourism" }, { key: "leisure" }, { key: "historic" }],
 };
 
 function categoryForTags(tags: Record<string, string>): PlaceCategory {
@@ -33,12 +39,19 @@ function categoryForTags(tags: Record<string, string>): PlaceCategory {
   return "other";
 }
 
+// A photo's GPS fix and a POI's own indexed coordinate rarely land in
+// exactly the same spot — more so for something like a monument, where
+// the "point" could be set anywhere across its own plaza — so 100m was
+// cutting off real, nearby matches. 200m stays tight enough to not pull
+// in places from unrelated blocks.
+const SEARCH_RADIUS_METERS = 200;
+
 function buildQuery(lat: number, lng: number, categoryHint?: PlaceCategory): string {
   const filters = categoryHint ? OSM_TAGS_BY_CATEGORY[categoryHint] : OSM_TAGS_BY_CATEGORY.other;
   const clauses = filters
     .map(({ key, values }) => {
       const tagMatch = values ? `"${key}"~"^(${values.join("|")})$"` : `"${key}"`;
-      return `node(around:100,${lat},${lng})[${tagMatch}]["name"];`;
+      return `node(around:${SEARCH_RADIUS_METERS},${lat},${lng})[${tagMatch}]["name"];`;
     })
     .join("\n  ");
   return `[out:json][timeout:10];\n(\n  ${clauses}\n);\nout body 8;`;
@@ -59,8 +72,9 @@ interface OverpassResponse {
  * Overpass API — the fallback used when Google Maps isn't configured,
  * matching the iOS app's own free/Apple-first, Google-when-opted-in
  * dispatch pattern (see nearbyPlaces.ts). Overpass has no key or account,
- * but is also a shared public service — this app queries only a tiny
- * 100m-radius node search per lookup, well within reasonable use.
+ * but is also a shared public service — this app queries only a small
+ * radius node search per lookup (SEARCH_RADIUS_METERS), well within
+ * reasonable use.
  */
 export async function searchNearbyPlacesOSM(
   lat: number,

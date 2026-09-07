@@ -45,10 +45,14 @@ enum GoogleNearbyPlacesService {
         var body: [String: Any] = [
             "maxResultCount": 8,
             "rankPreference": "DISTANCE",
+            // A photo's GPS fix and a POI's own indexed coordinate rarely
+            // land in exactly the same spot — more so for something
+            // spread across its own plaza, like a monument — so 100m was
+            // cutting off real, nearby matches.
             "locationRestriction": [
                 "circle": [
                     "center": ["latitude": latitude, "longitude": longitude],
-                    "radius": 100.0,
+                    "radius": 200.0,
                 ],
             ],
         ]

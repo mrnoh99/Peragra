@@ -117,7 +117,11 @@ export async function searchNearbyPlacesGoogle(
     const includedPrimaryTypes = categoryHint ? PRIMARY_TYPES_BY_CATEGORY[categoryHint] : undefined;
     const { places } = await Place.searchNearby({
       fields: ["displayName", "formattedAddress", "location", "id", "primaryType", "nationalPhoneNumber"],
-      locationRestriction: { center: { lat, lng }, radius: 100 },
+      // A photo's GPS fix and a POI's own indexed coordinate rarely land
+      // in exactly the same spot — more so for something spread across
+      // its own plaza, like a monument — so 100m was cutting off real,
+      // nearby matches.
+      locationRestriction: { center: { lat, lng }, radius: 200 },
       maxResultCount: 8,
       rankPreference: SearchNearbyRankPreference.DISTANCE,
       ...(includedPrimaryTypes && includedPrimaryTypes.length > 0 ? { includedPrimaryTypes } : {}),

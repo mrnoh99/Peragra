@@ -10,6 +10,16 @@ import MapKit
 /// the user has opted into Google Maps with their own key, uses the
 /// Places API (New) instead, matching the rest of this app's Google/Apple
 /// dispatch pattern.
+///
+/// A monument or memorial can go missing from Apple's results even
+/// within range: MKPointOfInterestCategory has no monument/landmark
+/// case at all, so poiCategories(for:) below can only route `.attraction`
+/// to the categories it does have (museum, park, ...) — one it doesn't
+/// cover is simply never returned when a category hint is set narrowing
+/// to attraction, and even an unfiltered search still depends on
+/// whether Apple's own database indexed that specific site. Google's
+/// Places API does have a "landmark" type (see
+/// GoogleNearbyPlacesService) and tends to have better coverage here.
 enum NearbyPlacesService {
     struct Candidate: Identifiable {
         let id = UUID()
@@ -32,9 +42,15 @@ enum NearbyPlacesService {
         return await appleSearch(latitude: latitude, longitude: longitude, categoryHint: categoryHint)
     }
 
+    // A photo's GPS fix and a POI's own indexed coordinate rarely land in
+    // exactly the same spot — more so for something spread across its
+    // own plaza, like a monument — so 100m was cutting off real, nearby
+    // matches.
+    private static let searchRadiusMeters: CLLocationDistance = 200
+
     private static func appleSearch(latitude: Double, longitude: Double, categoryHint: PlaceCategory?) async -> [Candidate] {
         let center = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-        var request = MKLocalPointsOfInterestRequest(center: center, radius: 100)
+        var request = MKLocalPointsOfInterestRequest(center: center, radius: searchRadiusMeters)
         if let categoryHint, let poiCategories = poiCategories(for: categoryHint) {
             request.pointOfInterestFilter = MKPointOfInterestFilter(including: poiCategories)
         }
