@@ -3,12 +3,16 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// The Share Extension's entry point — what actually runs when someone
-/// taps the Peragra icon in another app's share sheet (Google Maps'
-/// "Share" on a place, in the case this exists for). Reads whatever the
-/// sharing app provided, stashes it via SharedPlaceImportStore for the
-/// main app to pick up (an extension has no SwiftData access of its own),
-/// then hands off to the main app by opening its "peragra://share-import"
-/// URL — mirroring the web app's PWA share_target handler.
+/// taps the Peragra icon in another app's share sheet ("Share" on a place
+/// in Google Maps, Naver Map, Kakao Map, or any other app, in the case
+/// this exists for). Accepts any shared content (see the extension's
+/// TRUEPREDICATE activation rule in Info.plist) rather than trying to
+/// recognize a specific map app's URL scheme, so it isn't tied to one
+/// provider. Reads whatever the sharing app provided, stashes it via
+/// SharedPlaceImportStore for the main app to pick up (an extension has
+/// no SwiftData access of its own), then hands off to the main app by
+/// opening its "peragra://share-import" URL — mirroring the web app's PWA
+/// share_target handler.
 final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -89,7 +93,7 @@ private struct ShareRootView: View {
                 .foregroundStyle(Color(red: 0.98, green: 0.33, blue: 0.17))
             Text("Saving to Peragra")
                 .font(.headline)
-            Text("Open Peragra to finish adding this place to your \u{201C}From Google\u{201D} board.")
+            Text("Open Peragra to finish adding this place to your \u{201C}From Map\u{201D} board.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

@@ -2,10 +2,11 @@ import Foundation
 
 /// A place candidate captured by ShareExtension (see
 /// ShareExtension/ShareViewController.swift) from the OS share sheet —
-/// typically triggered by "Share" on a place in the Google Maps app — and
-/// handed off to the main app. Shared by both targets (this file is added
-/// to ShareExtension's build target too), since an extension and its host
-/// app run as separate processes with no shared memory of their own.
+/// "Share" on a place in Google Maps, Naver Map, Kakao Map, or any other
+/// app — and handed off to the main app. Shared by both targets (this
+/// file is added to ShareExtension's build target too), since an
+/// extension and its host app run as separate processes with no shared
+/// memory of their own.
 struct SharedPlaceImport: Codable {
     var name: String
     var link: String
@@ -36,10 +37,10 @@ enum SharedPlaceImportStore {
     }
 
     /// Turns whatever the OS share sheet handed the extension into a
-    /// place candidate. Not Google-specific in code — any app's "Share"
-    /// action that provides a URL or text lands here the same way — but
-    /// in practice this is overwhelmingly triggered by "Share" on a place
-    /// in the Google Maps app, which is what the "From Google" board (see
+    /// place candidate. Not tied to any one map app in code — any app's
+    /// "Share" action that provides a URL or text lands here the same
+    /// way, whether that's Google Maps, Naver Map, Kakao Map, or
+    /// anything else — which is what the "From Map" board (see
     /// TripsListView.sharedPlacesBoard) is named for. Mirrors the web
     /// equivalent, lib/sharedPlaceImport.ts, including its rationale for
     /// not resolving the link itself into coordinates (the name gets

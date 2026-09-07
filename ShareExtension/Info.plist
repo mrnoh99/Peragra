@@ -9,10 +9,11 @@
 			<!-- Matches any shared content at all (not just a URL/text
 			     attachment) — deliberately broad rather than a UTI-scoped
 			     dictionary predicate, so the extension is guaranteed to
-			     actually appear in the Google Maps share sheet regardless
-			     of exactly how Maps packages a shared place. Content this
-			     app can't use (no URL/text/title found) is a no-op — see
-			     ShareViewController.handleSharedItem. -->
+			     actually appear in the share sheet for any map app
+			     (Google Maps, Naver Map, Kakao Map, ...) regardless of
+			     exactly how each one packages a shared place. Content
+			     this app can't use (no URL/text/title found) is a no-op
+			     — see ShareViewController.handleSharedItem. -->
 			<key>NSExtensionActivationRule</key>
 			<string>TRUEPREDICATE</string>
 		</dict>

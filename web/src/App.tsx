@@ -11,8 +11,10 @@ import { useStore } from "./store/useStore";
 
 // The board every OS-shared place (see share_target in
 // manifest.webmanifest) lands in — created lazily the first time
-// something's actually shared, not up front for every install.
-const SHARED_PLACES_BOARD_NAME = "From Google";
+// something's actually shared, not up front for every install. Not tied
+// to one map app: sharing from Google Maps, Naver Map, Kakao Map, or any
+// other app that shares a URL/text all land here the same way.
+const SHARED_PLACES_BOARD_NAME = "From Map";
 
 function App() {
   const navigate = useNavigate();
@@ -21,7 +23,7 @@ function App() {
     // The PWA's share_target navigates here with the shared content as
     // query params (method GET, so it's a plain page load, not a
     // fetch/service-worker interception) — present only when the app was
-    // just opened via "Share" from another app (typically Google Maps).
+    // just opened via "Share" from another app (a map app, most likely).
     const params = new URLSearchParams(window.location.search);
     if (!params.has("title") && !params.has("text") && !params.has("url")) return;
 

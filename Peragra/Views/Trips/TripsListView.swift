@@ -164,12 +164,13 @@ struct TripsListView: View {
             }
         }
         // ShareExtension (see ShareExtension/ShareViewController.swift)
-        // stashes a shared place (typically "Share" on a Google Maps
-        // place) in the App Group's shared storage, then opens this URL
-        // to hand off to the main app — an extension has no SwiftData
-        // access of its own. Pushes straight to the "From Google" board;
-        // TripDetailView picks the pending place back up itself (see its
-        // own onAppear) and opens Add Places pre-filled with it.
+        // stashes a shared place — "Share" on a place in Google Maps,
+        // Naver Map, Kakao Map, or any other app — in the App Group's
+        // shared storage, then opens this URL to hand off to the main
+        // app — an extension has no SwiftData access of its own. Pushes
+        // straight to the "From Map" board; TripDetailView picks the
+        // pending place back up itself (see its own onAppear) and opens
+        // Add Places pre-filled with it.
         .onOpenURL { url in
             guard url.scheme == "peragra", url.host == "share-import" else { return }
             path.append(sharedPlacesBoard())
@@ -180,7 +181,7 @@ struct TripsListView: View {
     /// other board, boards have no other kind of persistent tag) or
     /// created lazily the first time something's actually shared.
     private func sharedPlacesBoard() -> Trip {
-        let boardName = "From Google"
+        let boardName = "From Map"
         if let existing = trips.first(where: { $0.name == boardName }) {
             return existing
         }
