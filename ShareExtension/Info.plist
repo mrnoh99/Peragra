@@ -6,16 +6,26 @@
 	<dict>
 		<key>NSExtensionAttributes</key>
 		<dict>
-			<!-- Matches any shared content at all (not just a URL/text
-			     attachment) — deliberately broad rather than a UTI-scoped
-			     dictionary predicate, so the extension is guaranteed to
-			     actually appear in the share sheet for any map app
-			     (Google Maps, Naver Map, Kakao Map, ...) regardless of
-			     exactly how each one packages a shared place. Content
-			     this app can't use (no URL/text/title found) is a no-op
-			     — see ShareViewController.handleSharedItem. -->
+			<!-- A plain "TRUEPREDICATE" string here (what this used to be)
+			     works fine for a local Xcode Run, but App Store Connect's
+			     distribution validation rejects it outright ("Invalid
+			     Info.plist value ... NSExtensionActivationRule ... is
+			     invalid") — it wants the dictionary form instead. This
+			     matches an item providing a URL (public.url — any app's
+			     share, not just Safari's) or plain text, with a max count
+			     of 1 each, which covers every map app this extension is
+			     meant for (Google Maps, Naver Map, Kakao Map, ...): all of
+			     them hand off either a link, some text, or both. Content
+			     this app still can't use (no URL/text/title found once
+			     actually handed to the extension) stays a no-op — see
+			     ShareViewController.handleSharedItem. -->
 			<key>NSExtensionActivationRule</key>
-			<string>TRUEPREDICATE</string>
+			<dict>
+				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
+				<integer>1</integer>
+				<key>NSExtensionActivationSupportsText</key>
+				<true/>
+			</dict>
 		</dict>
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).ShareViewController</string>
