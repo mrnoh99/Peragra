@@ -10,6 +10,27 @@ private enum DetailTab: String, CaseIterable {
 
 struct TripDetailView: View {
     @Bindable var trip: Trip
+    /// Seeds Add Places already open and prefilled — set only by
+    /// TripsListView, right before it pushes this specific board,
+    /// once it's already taken and resolved a pending share (see
+    /// TripsListView.showPendingShare). Not read from
+    /// SharedPlaceImportStore independently here anymore: that used to
+    /// happen in this view's own onAppear, but checking "is something
+    /// pending" and actually consuming it were two separate steps with
+    /// a real gap between them — a second pending-share check (a
+    /// second foreground/background cycle mid-test, e.g.) landing in
+    /// that gap could push a second, genuinely-empty visit to this same
+    /// board before the first one's own onAppear got to actually
+    /// consume the data, which is exactly the intermittent "opens but
+    /// blank" pattern that kept reproducing. Consuming it exactly once,
+    /// synchronously with the decision to navigate, removes that gap
+    /// entirely.
+    init(trip: Trip, pendingImport: SharedPlaceImport? = nil) {
+        self.trip = trip
+        _sharedRowToPrefill = State(initialValue: pendingImport)
+        _showingAddPlace = State(initialValue: pendingImport != nil)
+    }
+
     @Query private var places: [Place]
     @Query(sort: \Trip.createdAt, order: .reverse) private var allTrips: [Trip]
 
@@ -33,9 +54,9 @@ struct TripDetailView: View {
     @State private var newListName = ""
     @State private var exportPlacesFileURL: URL?
     @State private var exportPlacesMessage: String?
-    // Picked up from SharedPlaceImportStore on appear (see below) when a
-    // share sheet handoff (TripsListView's onOpenURL) landed here — nil
-    // on every ordinary visit to this board.
+    // Seeded from the init's pendingImport (see above) when a share sheet
+    // handoff pushed this specific board with something already
+    // resolved and waiting — nil on every ordinary visit.
     @State private var sharedRowToPrefill: SharedPlaceImport?
     /// A place shows up while every currently-toggled-on list contains it
     /// (AND, not OR) — several lists can be active at once.
@@ -343,22 +364,6 @@ struct TripDetailView: View {
             // marked visited/favorited.
             _ = PlaceCollection.ensureFavoritesList(for: trip, context: modelContext)
             _ = PlaceCollection.ensureVisitedList(for: trip, context: modelContext)
-
-            // Reads and clears in one step — a pending share is only
-            // ever meant for the first TripDetailView that appears right
-            // after TripsListView's onOpenURL pushed it, never a later
-            // ordinary visit to this same board. takePending() itself
-            // retries briefly before giving up (see its own doc comment)
-            // rather than this needing its own logic for that — an
-            // ordinary visit with nothing pending still returns quickly
-            // in the common case, and pays that retry window silently in
-            // the background (nothing here is waiting on it) on the rare
-            // visit where it's checking for real.
-            Task {
-                guard let shared = await SharedPlaceImportStore.takePending() else { return }
-                sharedRowToPrefill = await OpenGraphFetcher.resolvingName(for: shared)
-                showingAddPlace = true
-            }
         }
     }
 

@@ -18,6 +18,12 @@ struct TripsListView: View {
     // straight to its destination board without the person tapping
     // anything themselves.
     @State private var path = NavigationPath()
+    // Set immediately before path.append(...) pushes a board for a
+    // resolved share (see showPendingShare below), read once by
+    // navigationDestination(for:) to seed that specific TripDetailView,
+    // then cleared — never left sitting for a later, unrelated push to
+    // pick up by accident.
+    @State private var pendingShareToShow: SharedPlaceImport?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -63,7 +69,14 @@ struct TripsListView: View {
             }
             .navigationTitle("Your Boards")
             .navigationDestination(for: Trip.self) { trip in
-                TripDetailView(trip: trip)
+                // Captured up front, before clearing pendingShareToShow
+                // below — that clear is a side effect (onAppear), not
+                // something safe to do inline while building this view.
+                let pending = pendingShareToShow
+                TripDetailView(trip: trip, pendingImport: pending)
+                    .onAppear {
+                        if pending != nil { pendingShareToShow = nil }
+                    }
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -203,15 +216,14 @@ struct TripsListView: View {
                     // row are gone, so there's nothing to notify — merge
                     // the original coordinate back into the pending
                     // share and land on the board it actually came from,
-                    // with Add Places prefilled from both (see
-                    // TripDetailView.onAppear, AddPlaceSheet.init),
-                    // instead of losing the round-trip to the generic
-                    // "From Map" board with no coordinate at all.
+                    // with Add Places prefilled from both, instead of
+                    // losing the round-trip to the generic "From Map"
+                    // board with no coordinate at all.
                     Task {
                         guard var shared = await SharedPlaceImportStore.takePending() else { return }
                         shared.latitude = target.latitude
                         shared.longitude = target.longitude
-                        SharedPlaceImportStore.setPending(shared)
+                        pendingShareToShow = await OpenGraphFetcher.resolvingName(for: shared)
                         if let trip = trips.first(where: { $0.id == target.tripID }) {
                             path.append(trip)
                         } else {
@@ -222,10 +234,30 @@ struct TripsListView: View {
                 return
             }
 
-            // Otherwise, a fresh import — push straight to the "From
-            // Map" board; TripDetailView picks the pending place back up
-            // itself (see its own onAppear) and opens Add Places
-            // pre-filled with it.
+            // Otherwise, a fresh import.
+            showPendingShare()
+        }
+    }
+
+    /// Takes and resolves whatever's pending, then pushes the "From Map"
+    /// board already seeded with it — one atomic step from "is
+    /// something there" to "it's on screen", rather than checking
+    /// separately and letting the pushed board's own onAppear consume it
+    /// afterward. That two-step version (this app's own earlier design)
+    /// left a real gap between "decided to navigate" and "actually read
+    /// the data" — a second pending-share check landing in that gap
+    /// (a second foreground/background cycle mid-test, e.g., trying
+    /// Naver then Google back to back) could push a second, genuinely
+    /// empty visit to the same board before the first one's onAppear got
+    /// to consume the data, which is exactly the intermittent "opens but
+    /// blank" pattern that kept reproducing. Called both directly by
+    /// onOpenURL's generic branch (the deep-link hand-off worked) and by
+    /// checkForPendingShare (it didn't, see below) — same outcome either
+    /// way, since the data was always sitting in the same place.
+    private func showPendingShare() {
+        Task {
+            guard let shared = await SharedPlaceImportStore.takePending() else { return }
+            pendingShareToShow = await OpenGraphFetcher.resolvingName(for: shared)
             path.append(sharedPlacesBoard())
         }
     }
@@ -243,12 +275,12 @@ struct TripsListView: View {
     /// the foreground by ANY means (a fresh launch, the extension's
     /// manual "Open Peragra" button, or the person just tapping the
     /// Home Screen icon themselves after the automatic switch silently
-    /// failed). A non-consuming check (hasPending(), not takePending())
-    /// so this never competes with the real read that happens once
-    /// TripDetailView.onAppear runs for the board this pushes to.
+    /// failed). A cheap non-consuming pre-check (hasPending()) avoids
+    /// spinning up showPendingShare's own Task on every single ordinary
+    /// foreground when there's nothing there to begin with.
     private func checkForPendingShare() {
         guard SharedPlaceImportStore.hasPending() else { return }
-        path.append(sharedPlacesBoard())
+        showPendingShare()
     }
 
     /// The board every OS-shared place lands in — found by name (like any
