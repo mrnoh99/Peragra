@@ -23,25 +23,72 @@ enum OpenGraphFetcher {
         var description: String?
     }
 
-    /// Tries LinkPresentation first — the same framework Messages/Mail
-    /// use to render a rich preview for a pasted link, which is why a
-    /// shared Google Maps short link (`maps.app.goo.gl/...`) already
-    /// shows the real place name in Messages: it follows the link's own
-    /// (sometimes JS-driven) redirect chain and reads whatever metadata
-    /// the destination publishes, not just a single page fetch's raw
-    /// HTML. A plain HTML `<meta>` scrape can't do that — Google Maps'
-    /// place page is a JS-rendered app shell with no place name in its
-    /// initial response, so the old HTML-only version of this function
-    /// always fell through to "Unknown" for Google Maps links
-    /// specifically (Naver/Kakao's server-rendered pages worked fine).
-    /// Falls back to the HTML scrape only if LinkPresentation itself
-    /// yields nothing, since it still covers plain pages LinkPresentation
-    /// might not bother generating a title for.
+    /// Tries three strategies in order, each one a fallback for a way
+    /// the previous one can come back empty for a Google Maps link
+    /// specifically (the reported, reproducing case — Naver/Kakao's
+    /// plain server-rendered pages already work with the HTML scrape
+    /// alone):
+    ///
+    /// 1. Read the place name straight out of the URL Google's own
+    ///    short link (`maps.app.goo.gl/...`) redirects to — Google
+    ///    Maps' real place URL is shaped like
+    ///    `.../maps/place/<url-encoded name>/@lat,lng,...`, so the name
+    ///    is sitting right there in the path once the redirect (a plain
+    ///    HTTP 30x, no JavaScript involved) resolves, with no page
+    ///    content needing to load at all. See placeName(fromMapsPath:).
+    /// 2. LinkPresentation — the same framework Messages/Mail use to
+    ///    render a rich preview for a pasted link. It follows redirects
+    ///    and can read a destination's richer metadata beyond a single
+    ///    page fetch's raw HTML, which covers non-Maps links this
+    ///    module also has to handle.
+    /// 3. A plain HTML `<meta>` scrape, for whatever's left — a static,
+    ///    server-rendered page neither of the above needed any special
+    ///    handling for.
+    ///
+    /// Google Maps' own place page is a JS-rendered app shell with no
+    /// place name in its initial HTML response, which is why relying on
+    /// strategy 3 alone (the original version of this function) always
+    /// fell through to "Unknown" for Google Maps links — and why
+    /// strategy 1 is tried first rather than left as a last resort: it's
+    /// the one that doesn't depend on the destination page's own content
+    /// at all.
     static func fetch(url: URL) async -> Info {
+        if let title = await resolveGoogleMapsPlaceName(from: url) {
+            return Info(title: title, description: nil)
+        }
         if let title = await fetchTitleViaLinkPresentation(url: url) {
             return Info(title: title, description: nil)
         }
         return await fetchViaHTMLMetaTags(url: url)
+    }
+
+    private static func resolveGoogleMapsPlaceName(from url: URL) async -> String? {
+        guard let host = url.host?.lowercased(), host.contains("google.com") || host.contains("goo.gl") else {
+            return nil
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+        guard
+            let (_, response) = try? await URLSession.shared.data(for: request),
+            let finalURL = response.url
+        else { return nil }
+        return placeName(fromMapsPath: finalURL.path)
+    }
+
+    /// Pulls the name out of a Google Maps place URL's own path —
+    /// `/maps/place/<url-encoded name>/@37.5,127.0,17z/...` — decoding
+    /// `+`-for-space the way a URL query/path component encodes it,
+    /// same as `URLComponents` would for a query item, since
+    /// `removingPercentEncoding` alone only undoes %XX escapes.
+    private static func placeName(fromMapsPath path: String) -> String? {
+        guard let nameRange = path.range(of: #"(?<=/maps/place/)[^/@]+"#, options: .regularExpression) else {
+            return nil
+        }
+        let encoded = String(path[nameRange]).replacingOccurrences(of: "+", with: " ")
+        guard let decoded = encoded.removingPercentEncoding?.trimmingCharacters(in: .whitespaces), !decoded.isEmpty else {
+            return nil
+        }
+        return decoded
     }
 
     private static func fetchTitleViaLinkPresentation(url: URL) async -> String? {
