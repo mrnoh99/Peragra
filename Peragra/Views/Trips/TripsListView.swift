@@ -116,7 +116,7 @@ struct TripsListView: View {
                 EditTripSheet(trip: trip)
             }
             .safeAreaInset(edge: .bottom) {
-                Text("developed by JaiSung Noh, MD. · Version 1.0 · Build 4 · 2026")
+                Text("developed by JaiSung Noh, MD. · Version 1.0 · Build 5 · 2026")
                     .font(.system(size: 9))
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity)
