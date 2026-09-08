@@ -60,6 +60,15 @@ enum SharedPlaceImportStore {
         sharedDefaults?.synchronize()
     }
 
+    /// A quick, non-consuming check for whether something is waiting —
+    /// used to decide whether to navigate at all (see
+    /// TripsListView.checkForPendingShare) without actually taking and
+    /// clearing it; takePending() below is still the one thing that
+    /// actually reads and consumes it.
+    static func hasPending() -> Bool {
+        sharedDefaults?.data(forKey: storageKey) != nil
+    }
+
     /// Reads and clears in one step — meant to be read exactly once, by
     /// the main app right after it opens the "peragra://share-import" URL
     /// the extension hands off with (see TripDetailView.onAppear). Retries

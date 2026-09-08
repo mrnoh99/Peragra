@@ -87,32 +87,25 @@ final class ShareViewController: UIViewController {
         state.readyToOpen = true
     }
 
-    /// Deliberately synchronous, called directly from the button's own
-    /// action closure with no `Task { }`/`await` in between — even one
-    /// hop onto a different run loop turn risks the OS no longer
-    /// attributing this open() call to the tap that triggered it, and
-    /// silently declining to switch apps for a call it no longer sees as
-    /// directly user-initiated.
-    ///
-    /// Two rounds of guessing why this doesn't switch apps (a race with
-    /// finish(), then a Task hop off the button's own tap) both turned
-    /// out not to be it — still doesn't switch, synchronous button tap
-    /// included. Rather than guess a fourth time, this surfaces the
-    /// boolean open()'s own completion handler actually reports instead
-    /// of silently calling finish() with it — true would mean the OS
-    /// itself claims success while nothing visibly happens (a very
-    /// different, weirder problem than what's been assumed so far);
-    /// false means it's telling us outright it isn't doing this. Doesn't
-    /// call finish() here at all — leaves the extension on screen so
-    /// that result stays readable, Cancel still dismisses whenever.
+    /// A confirmed, on-device fact rather than a guess: open()'s own
+    /// completion handler reports `false` on at least one real device —
+    /// the OS is explicitly declining the request, not losing a race.
+    /// No further attempt here tries to out-guess that; TripsListView's
+    /// own checkForPendingShare() is the real fallback now, checking for
+    /// a pending share every time the app comes to the foreground by any
+    /// means at all, including just tapping the Home Screen icon by
+    /// hand — since the save itself (setPending, already done by the
+    /// time this button is visible) never depended on this call
+    /// succeeding to begin with. This still tries the automatic open()
+    /// as a harmless bonus (works on other devices), then dismisses the
+    /// extension either way.
     private func openPeragraThenFinish() {
         guard let openURL = URL(string: "peragra://share-import") else {
-            state.message = "No URL to open."
+            finish()
             return
         }
-        state.message = "Opening…"
-        extensionContext?.open(openURL) { [weak self] success in
-            self?.state.message = "open() reported: \(success)"
+        extensionContext?.open(openURL) { [weak self] _ in
+            self?.finish()
         }
     }
 
@@ -158,7 +151,7 @@ private struct ShareRootView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             } else if state.readyToOpen {
-                Text("If Peragra didn\u{2019}t open on its own, tap below to finish adding this place to your \u{201C}From Map\u{201D} board.")
+                Text("Saved. Tap below, or open Peragra from your Home Screen \u{2014} either way it\u{2019}ll be waiting in your \u{201C}From Map\u{201D} board.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

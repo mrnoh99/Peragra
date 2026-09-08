@@ -151,11 +151,13 @@ struct TripsListView: View {
             // on its own.
             Place.syncAllCountryLists(context: modelContext)
             await CloudBackupService.backup(context: modelContext)
+            checkForPendingShare()
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 AutoBackupService.runIfDue(context: modelContext)
                 Task { await CloudBackupService.backup(context: modelContext) }
+                checkForPendingShare()
             } else if newPhase == .background {
                 // The most likely moment to be uninstalled next — worth
                 // one more up-to-date snapshot in iCloud right before
@@ -226,6 +228,27 @@ struct TripsListView: View {
             // pre-filled with it.
             path.append(sharedPlacesBoard())
         }
+    }
+
+    /// A second, independent path to the same "From Map" landing as
+    /// onOpenURL's generic branch — necessary because
+    /// ShareExtension's extensionContext.open() hand-off has turned out
+    /// to be unreliable on at least one real device (open()'s own
+    /// completion handler reporting back `false`, i.e. the OS itself
+    /// declining the request, not a timing issue this app can fix).
+    /// SharedPlaceImportStore's write already happens the moment the
+    /// share is confirmed in the extension, well before that unreliable
+    /// hand-off — so instead of depending on it to know a share is
+    /// waiting, this just checks for one every time the app comes to
+    /// the foreground by ANY means (a fresh launch, the extension's
+    /// manual "Open Peragra" button, or the person just tapping the
+    /// Home Screen icon themselves after the automatic switch silently
+    /// failed). A non-consuming check (hasPending(), not takePending())
+    /// so this never competes with the real read that happens once
+    /// TripDetailView.onAppear runs for the board this pushes to.
+    private func checkForPendingShare() {
+        guard SharedPlaceImportStore.hasPending() else { return }
+        path.append(sharedPlacesBoard())
     }
 
     /// The board every OS-shared place lands in — found by name (like any
