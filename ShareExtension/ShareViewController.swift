@@ -92,17 +92,27 @@ final class ShareViewController: UIViewController {
     /// hop onto a different run loop turn risks the OS no longer
     /// attributing this open() call to the tap that triggered it, and
     /// silently declining to switch apps for a call it no longer sees as
-    /// directly user-initiated. This is the button's one guaranteed
-    /// shot, so it can't afford that hop the way the earlier automatic
-    /// attempt (fired from a background Task with no tap behind it at
-    /// all — see handleSharedItem) already couldn't avoid.
+    /// directly user-initiated.
+    ///
+    /// Two rounds of guessing why this doesn't switch apps (a race with
+    /// finish(), then a Task hop off the button's own tap) both turned
+    /// out not to be it — still doesn't switch, synchronous button tap
+    /// included. Rather than guess a fourth time, this surfaces the
+    /// boolean open()'s own completion handler actually reports instead
+    /// of silently calling finish() with it — true would mean the OS
+    /// itself claims success while nothing visibly happens (a very
+    /// different, weirder problem than what's been assumed so far);
+    /// false means it's telling us outright it isn't doing this. Doesn't
+    /// call finish() here at all — leaves the extension on screen so
+    /// that result stays readable, Cancel still dismisses whenever.
     private func openPeragraThenFinish() {
         guard let openURL = URL(string: "peragra://share-import") else {
-            finish()
+            state.message = "No URL to open."
             return
         }
-        extensionContext?.open(openURL) { [weak self] _ in
-            self?.finish()
+        state.message = "Opening…"
+        extensionContext?.open(openURL) { [weak self] success in
+            self?.state.message = "open() reported: \(success)"
         }
     }
 
