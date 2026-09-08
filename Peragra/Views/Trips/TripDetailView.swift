@@ -10,27 +10,6 @@ private enum DetailTab: String, CaseIterable {
 
 struct TripDetailView: View {
     @Bindable var trip: Trip
-    /// Seeds Add Places already open and prefilled — set only by
-    /// TripsListView, right before it pushes this specific board,
-    /// once it's already taken and resolved a pending share (see
-    /// TripsListView.showPendingShare). Not read from
-    /// SharedPlaceImportStore independently here anymore: that used to
-    /// happen in this view's own onAppear, but checking "is something
-    /// pending" and actually consuming it were two separate steps with
-    /// a real gap between them — a second pending-share check (a
-    /// second foreground/background cycle mid-test, e.g.) landing in
-    /// that gap could push a second, genuinely-empty visit to this same
-    /// board before the first one's own onAppear got to actually
-    /// consume the data, which is exactly the intermittent "opens but
-    /// blank" pattern that kept reproducing. Consuming it exactly once,
-    /// synchronously with the decision to navigate, removes that gap
-    /// entirely.
-    init(trip: Trip, pendingImport: SharedPlaceImport? = nil) {
-        self.trip = trip
-        _sharedRowToPrefill = State(initialValue: pendingImport)
-        _showingAddPlace = State(initialValue: pendingImport != nil)
-    }
-
     @Query private var places: [Place]
     @Query(sort: \Trip.createdAt, order: .reverse) private var allTrips: [Trip]
 
@@ -71,10 +50,24 @@ struct TripDetailView: View {
     @State private var sortMode: PlaceSortMode = .defaultOrder
     @State private var referencePlaceID: UUID?
 
-    init(trip: Trip) {
+    /// `pendingImport` seeds Add Places already open and prefilled — set
+    /// only by TripsListView, right before it pushes this specific
+    /// board, once it's already taken and resolved a pending share (see
+    /// TripsListView.showPendingShare). Not read from
+    /// SharedPlaceImportStore independently here anymore: that used to
+    /// happen in this view's own onAppear, but checking "is something
+    /// pending" and actually consuming it were two separate steps with a
+    /// real gap between them — a second pending-share check landing in
+    /// that gap could push a second, genuinely-empty visit to this same
+    /// board before the first one's own onAppear got to actually consume
+    /// the data. Consuming it exactly once, synchronously with the
+    /// decision to navigate, removes that gap entirely.
+    init(trip: Trip, pendingImport: SharedPlaceImport? = nil) {
         self.trip = trip
         let tripID = trip.id
         _places = Query(filter: #Predicate<Place> { $0.trip?.id == tripID })
+        _sharedRowToPrefill = State(initialValue: pendingImport)
+        _showingAddPlace = State(initialValue: pendingImport != nil)
     }
 
     // Default lists are pinned ahead of whatever order the user's own
