@@ -65,9 +65,20 @@ final class ShareViewController: UIViewController {
         let title = item.attributedContentText?.string
 
         guard let candidate = SharedPlaceImportStore.parse(title: title, text: sharedText, url: sharedURL) else {
-            state.message = "Nothing shareable found."
+            let types = attachments.flatMap(\.registeredTypeIdentifiers).joined(separator: ", ")
+            state.message = "Nothing shareable found. Types offered: \(types.isEmpty ? "(none)" : types)"
             return
         }
+
+        // Shown on this screen (not just the row it becomes back in
+        // Peragra) so what actually got captured is visible right here,
+        // at the moment of sharing — Naver Map's share consistently
+        // makes it all the way to a filled-in row; Google Maps'
+        // consistently doesn't, and this settles which side of the
+        // hand-off that's actually happening on (captured here but lost
+        // later, vs never captured here to begin with) without needing
+        // another round trip through Peragra's own UI to tell.
+        state.capturedSummary = "Captured — name: \(candidate.name.isEmpty ? "(none)" : candidate.name), link: \(candidate.link.isEmpty ? "(none)" : candidate.link)"
 
         SharedPlaceImportStore.setPending(candidate)
 
@@ -130,6 +141,7 @@ final class ShareViewController: UIViewController {
 private final class ShareState: ObservableObject {
     @Published var readyToOpen = false
     @Published var message: String?
+    @Published var capturedSummary: String?
 }
 
 private struct ShareRootView: View {
@@ -156,6 +168,13 @@ private struct ShareRootView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
+                if let capturedSummary = state.capturedSummary {
+                    Text(capturedSummary)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
                 Button("Open Peragra", action: onOpenPeragra)
                     .buttonStyle(.borderedProminent)
                     .padding(.top, 4)
