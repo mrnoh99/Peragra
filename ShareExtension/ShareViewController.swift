@@ -87,10 +87,22 @@ final class ShareViewController: UIViewController {
         state.readyToOpen = true
     }
 
+    /// Deliberately synchronous, called directly from the button's own
+    /// action closure with no `Task { }`/`await` in between — even one
+    /// hop onto a different run loop turn risks the OS no longer
+    /// attributing this open() call to the tap that triggered it, and
+    /// silently declining to switch apps for a call it no longer sees as
+    /// directly user-initiated. This is the button's one guaranteed
+    /// shot, so it can't afford that hop the way the earlier automatic
+    /// attempt (fired from a background Task with no tap behind it at
+    /// all — see handleSharedItem) already couldn't avoid.
     private func openPeragraThenFinish() {
-        Task {
-            await openPeragra()
+        guard let openURL = URL(string: "peragra://share-import") else {
             finish()
+            return
+        }
+        extensionContext?.open(openURL) { [weak self] _ in
+            self?.finish()
         }
     }
 
