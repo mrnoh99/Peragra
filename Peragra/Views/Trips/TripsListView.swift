@@ -177,15 +177,44 @@ struct TripsListView: View {
             // Identify" (an on-site photo whose GPS resolved but whose
             // name didn't). Route it back to that row instead of
             // creating a new place in "From Map".
-            if let target = PendingMapResolution.take() {
-                Task {
-                    guard let shared = SharedPlaceImportStore.takePending() else { return }
-                    let resolved = await OpenGraphFetcher.resolvingName(for: shared)
-                    NotificationCenter.default.post(
-                        name: .peragraMapResolutionReceived,
-                        object: nil,
-                        userInfo: ["rowID": target.rowID, "shared": resolved]
-                    )
+            if let resolution = PendingMapResolution.take() {
+                switch resolution {
+                case .warm(let target):
+                    // Same process the whole time — the AddPlaceSheet
+                    // instance that opened the map app may still be on
+                    // screen, so try filling its row in directly.
+                    Task {
+                        guard let shared = SharedPlaceImportStore.takePending() else { return }
+                        let resolved = await OpenGraphFetcher.resolvingName(for: shared)
+                        NotificationCenter.default.post(
+                            name: .peragraMapResolutionReceived,
+                            object: nil,
+                            userInfo: ["rowID": target.rowID, "shared": resolved]
+                        )
+                    }
+                case .cold(let target):
+                    // The app's process was restarted while the map app
+                    // was in front (a real, reported case — visiting a
+                    // large app like Google Maps gives iOS a reason to
+                    // reclaim a backgrounded Peragra rather than just
+                    // suspend it). That AddPlaceSheet instance and its
+                    // row are gone, so there's nothing to notify — merge
+                    // the original coordinate back into the pending
+                    // share and land on the board it actually came from,
+                    // with Add Places prefilled from both (see
+                    // TripDetailView.onAppear, AddPlaceSheet.init),
+                    // instead of losing the round-trip to the generic
+                    // "From Map" board with no coordinate at all.
+                    if var shared = SharedPlaceImportStore.takePending() {
+                        shared.latitude = target.latitude
+                        shared.longitude = target.longitude
+                        SharedPlaceImportStore.setPending(shared)
+                        if let trip = trips.first(where: { $0.id == target.tripID }) {
+                            path.append(trip)
+                        } else {
+                            path.append(sharedPlacesBoard())
+                        }
+                    }
                 }
                 return
             }

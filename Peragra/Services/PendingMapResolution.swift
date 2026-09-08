@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 
 extension Notification.Name {
@@ -17,31 +18,87 @@ extension Notification.Name {
 /// onOpenURL handler when a share comes back, instead of routing to the
 /// "From Map" board the way an out-of-context share does.
 ///
-/// In-memory only, main-app-process-local — unlike SharedPlaceImportStore,
-/// ShareExtension itself never needs to read or write this, so it has no
-/// need for the App Group's cross-process storage. The row identity this
-/// tracks (a CandidateRow's id, which only exists for as long as its
-/// AddPlaceSheet instance is alive — these rows are never persisted)
-/// only means anything while the app stayed backgrounded, not
-/// terminated, the whole time the map app was in front — which is
-/// exactly the condition under which in-memory-only state survives
-/// anyway. If the app was killed in between, this is simply empty when
-/// checked again, and the share falls back to the ordinary "From Map"
-/// landing instead of silently going nowhere.
+/// Kept two ways at once, because a real trip through a native map app
+/// can end either way:
+///
+/// - An in-memory copy, checked first — cheap, and covers the common
+///   case where the app just moved to the background and stayed there.
+///   Once the process that set it is gone, so is this copy; there is no
+///   way to tell "still running" from "already replaced by a fresh
+///   launch" other than that.
+/// - A UserDefaults-persisted copy, checked when the in-memory one is
+///   gone — covers the real, fairly common case (reported directly:
+///   Google Maps specifically, not Naver/Kakao) where visiting a large,
+///   memory-hungry map app gives iOS a reason to actually terminate the
+///   backgrounded Peragra process rather than just suspend it. The
+///   CandidateRow this was tracking doesn't survive that (rows are
+///   in-memory view state, never persisted), so this copy carries enough
+///   to reconstruct the essentials instead — which trip it belonged to,
+///   and the on-site photo's own coordinate — letting TripsListView open
+///   a fresh Add Places entry on the right board with that coordinate
+///   already attached, rather than losing the round-trip entirely to the
+///   generic "From Map" landing.
 enum PendingMapResolution {
     struct Target {
         let rowID: UUID
+        let tripID: UUID
+        let latitude: Double
+        let longitude: Double
     }
 
-    private static var current: Target?
-
-    static func set(rowID: UUID) {
-        current = Target(rowID: rowID)
+    /// .warm means the process never restarted — the AddPlaceSheet
+    /// instance that called set(...) may still be on screen, so the
+    /// caller can try filling it in directly via notification. .cold
+    /// means the in-memory copy is gone (the process was restarted while
+    /// the map app was in front) — that AddPlaceSheet instance and its
+    /// row are gone with it, so the caller needs to reconstruct a fresh
+    /// one instead, using just what this carries (which trip, which
+    /// coordinate).
+    enum Resolution {
+        case warm(Target)
+        case cold(Target)
     }
 
-    /// Reads and clears in one step.
-    static func take() -> Target? {
-        defer { current = nil }
-        return current
+    private static let defaultsKey = "pendingMapResolutionTarget"
+
+    private static var memory: Target?
+
+    static func set(rowID: UUID, tripID: UUID, coordinate: CLLocationCoordinate2D) {
+        let target = Target(rowID: rowID, tripID: tripID, latitude: coordinate.latitude, longitude: coordinate.longitude)
+        memory = target
+        persist(target)
+    }
+
+    /// Reads and clears in one step — both the in-memory copy and the
+    /// persisted one, so a stale persisted copy never gets read twice.
+    static func take() -> Resolution? {
+        defer {
+            memory = nil
+            UserDefaults.standard.removeObject(forKey: defaultsKey)
+        }
+        if let memory { return .warm(memory) }
+        guard let persisted = readPersisted() else { return nil }
+        return .cold(persisted)
+    }
+
+    private static func persist(_ target: Target) {
+        let payload: [String: Any] = [
+            "rowID": target.rowID.uuidString,
+            "tripID": target.tripID.uuidString,
+            "latitude": target.latitude,
+            "longitude": target.longitude,
+        ]
+        UserDefaults.standard.set(payload, forKey: defaultsKey)
+    }
+
+    private static func readPersisted() -> Target? {
+        guard
+            let payload = UserDefaults.standard.dictionary(forKey: defaultsKey),
+            let rowIDString = payload["rowID"] as? String, let rowID = UUID(uuidString: rowIDString),
+            let tripIDString = payload["tripID"] as? String, let tripID = UUID(uuidString: tripIDString),
+            let latitude = payload["latitude"] as? Double,
+            let longitude = payload["longitude"] as? Double
+        else { return nil }
+        return Target(rowID: rowID, tripID: tripID, latitude: latitude, longitude: longitude)
     }
 }

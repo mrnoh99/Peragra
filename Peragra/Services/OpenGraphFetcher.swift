@@ -1,7 +1,8 @@
 import Foundation
+import LinkPresentation
 
-/// Reads a webpage's Open Graph title/description — the same tags a
-/// chat app's link-preview card reads — so a share that's only a URL
+/// Reads a shared URL's title — the same "what is this link" a chat
+/// app's link-preview card answers — so a share that's only a URL
 /// (Google Maps' and Kakao Map's own "Share" action give no separate
 /// name/address text, unlike Naver Map's, which shares the place name
 /// and address as plain text alongside its link) still yields a
@@ -9,19 +10,48 @@ import Foundation
 ///
 /// Only viable from the main app, not the web app: a browser's fetch()
 /// is blocked by CORS for a cross-origin read like this (see the
-/// equivalent note in lib/sharedPlaceImport.ts), but URLSession isn't
-/// subject to that — it's a browser-specific restriction, not a
-/// server-side block — so this works here with no extra infrastructure.
-/// Deliberately not run from ShareExtension itself: keeps the extension
-/// fast/lightweight (Apple's own guidance for share extensions), and
-/// the main app already shows a loading state while Add Places opens.
+/// equivalent note in lib/sharedPlaceImport.ts), but neither
+/// LPMetadataProvider nor URLSession are subject to that — it's a
+/// browser-specific restriction, not a server-side block — so this
+/// works here with no extra infrastructure. Deliberately not run from
+/// ShareExtension itself: keeps the extension fast/lightweight (Apple's
+/// own guidance for share extensions), and the main app already shows a
+/// loading state while Add Places opens.
 enum OpenGraphFetcher {
     struct Info {
         var title: String?
         var description: String?
     }
 
+    /// Tries LinkPresentation first — the same framework Messages/Mail
+    /// use to render a rich preview for a pasted link, which is why a
+    /// shared Google Maps short link (`maps.app.goo.gl/...`) already
+    /// shows the real place name in Messages: it follows the link's own
+    /// (sometimes JS-driven) redirect chain and reads whatever metadata
+    /// the destination publishes, not just a single page fetch's raw
+    /// HTML. A plain HTML `<meta>` scrape can't do that — Google Maps'
+    /// place page is a JS-rendered app shell with no place name in its
+    /// initial response, so the old HTML-only version of this function
+    /// always fell through to "Unknown" for Google Maps links
+    /// specifically (Naver/Kakao's server-rendered pages worked fine).
+    /// Falls back to the HTML scrape only if LinkPresentation itself
+    /// yields nothing, since it still covers plain pages LinkPresentation
+    /// might not bother generating a title for.
     static func fetch(url: URL) async -> Info {
+        if let title = await fetchTitleViaLinkPresentation(url: url) {
+            return Info(title: title, description: nil)
+        }
+        return await fetchViaHTMLMetaTags(url: url)
+    }
+
+    private static func fetchTitleViaLinkPresentation(url: URL) async -> String? {
+        let provider = LPMetadataProvider()
+        guard let metadata = try? await provider.startFetchingMetadata(for: url) else { return nil }
+        let title = metadata.title?.trimmingCharacters(in: .whitespaces)
+        return (title?.isEmpty ?? true) ? nil : title
+    }
+
+    private static func fetchViaHTMLMetaTags(url: URL) async -> Info {
         var request = URLRequest(url: url)
         request.timeoutInterval = 8
         request.setValue("Mozilla/5.0 (compatible; Peragra/1.0)", forHTTPHeaderField: "User-Agent")

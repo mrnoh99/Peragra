@@ -15,6 +15,16 @@ struct SharedPlaceImport: Codable {
     // guessed at.
     var address: String
     var link: String
+    // Set only by TripsListView's cold-relaunch round-trip fallback (see
+    // PendingMapResolution) — the original on-site photo's own GPS fix,
+    // merged back in after this candidate has already been restashed by
+    // ShareExtension, so the reviewed row keeps its precise coordinate
+    // instead of relying on a geocode of whatever name the map app gave
+    // back. nil for every ordinary share (ShareExtension itself never
+    // sets these — ordinary imports have no GPS fix of their own to
+    // restore).
+    var latitude: Double?
+    var longitude: Double?
 }
 
 enum SharedPlaceImportStore {

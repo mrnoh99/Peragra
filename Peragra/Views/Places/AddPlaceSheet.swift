@@ -86,7 +86,16 @@ struct AddPlaceSheet: View {
         self.trip = trip
         self.defaultCollection = defaultCollection
         if let initialRow {
-            _rows = State(initialValue: [CandidateRow(name: initialRow.name, address: initialRow.address, link: initialRow.link)])
+            var row = CandidateRow(name: initialRow.name, address: initialRow.address, link: initialRow.link)
+            // Set only by the cold-restart round-trip fallback (see
+            // PendingMapResolution) — carries the original on-site
+            // photo's own GPS fix back in, more trustworthy than
+            // geocoding whatever name the map app gave back.
+            if let latitude = initialRow.latitude, let longitude = initialRow.longitude {
+                row.manualLatitude = latitude
+                row.manualLongitude = longitude
+            }
+            _rows = State(initialValue: [row])
         } else {
             _rows = State(initialValue: [CandidateRow()])
         }
@@ -637,8 +646,8 @@ struct AddPlaceSheet: View {
     }
 
     private func openInMap(_ url: URL) {
-        if let rowID = nearbyCandidateRowID {
-            PendingMapResolution.set(rowID: rowID)
+        if let rowID = nearbyCandidateRowID, let coordinate = nearbySearchCoordinate {
+            PendingMapResolution.set(rowID: rowID, tripID: trip.id, coordinate: coordinate)
         }
         openURL(url)
     }
