@@ -35,41 +35,64 @@ enum OpenGraphFetcher {
         var description: String?
     }
 
+    /// Identifies as a link-preview crawler (Facebook's, specifically —
+    /// the single most broadly honored one; nearly every site that
+    /// bothers with rich previews at all recognizes it, since so many
+    /// unrelated integrations check for it too) rather than a real
+    /// browser. This is deliberate, and is what actually makes Google
+    /// Maps links resolve: Google's server can tell a crawler from a
+    /// real visitor, and visiting the SAME link as a real browser gets
+    /// routed into the JS-driven app shell with no place name in its
+    /// initial response — but a crawler gets served a static,
+    /// pre-rendered page with the place's real name in it, because
+    /// that's the whole reason link-preview UAs are honored to begin
+    /// with (it's exactly why sharing a Google Maps link in KakaoTalk or
+    /// WhatsApp already shows the real place name in the preview card —
+    /// same mechanism, same server-side UA check). A genuine mobile
+    /// Safari UA (tried second, as a fallback) is the one that gets the
+    /// unhelpful response.
+    private static let crawlerUserAgent = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
     private static let mobileSafariUserAgent =
         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
 
-    /// Two strategies, in order:
+    /// Tries the crawler UA first, falling back to a real browser UA
+    /// only if that comes back with nothing — covers the rare
+    /// destination that (unlike Google Maps) actually prefers a genuine
+    /// browser UA, or blocks recognized crawlers outright.
+    static func fetch(url: URL) async -> Info {
+        if let info = await fetch(url: url, userAgent: crawlerUserAgent), info.title != nil {
+            return info
+        }
+        return await fetch(url: url, userAgent: mobileSafariUserAgent) ?? Info()
+    }
+
+    /// Three strategies, in order, against whichever response the given
+    /// User-Agent gets served:
     ///
     /// 1. Read the place name straight out of a Google Maps URL —
     ///    `.../maps/place/<url-encoded name>/@lat,lng,...` — whether
     ///    that's the URL this function was handed directly, the one a
     ///    short link (`maps.app.goo.gl/...`) redirects to at the plain
     ///    HTTP level, or one just sitting as text inside that short
-    ///    link's own landing page. That page is server-rendered
-    ///    specifically so it works as a social/link-preview card when
-    ///    shared — even when actually visiting it takes a JS-driven
-    ///    redirect a plain HTTP client won't follow, the real place URL
-    ///    it's about to navigate to is typically still sitting in its
-    ///    HTML/JS as plain text, findable without executing anything.
-    /// 2. A plain HTML `<meta>` scrape, for whatever's left — covers
+    ///    link's own landing page.
+    /// 2. The same pattern, searched across the raw response body text
+    ///    instead of just the final URL — covers a redirect target
+    ///    that's only reachable via a JS-driven redirect a plain HTTP
+    ///    client won't follow, where the real place URL is still
+    ///    typically sitting in that page's HTML/JS as plain text.
+    /// 3. A plain HTML `<meta>` scrape, for whatever's left — covers
     ///    Kakao Map's and any other static, server-rendered page that
-    ///    never needed special handling to begin with.
-    ///
-    /// Google Maps' own place page (once actually navigated to in a
-    /// browser) is a JS-rendered app shell with no place name in its
-    /// initial HTML response, which is why relying on strategy 2 alone
-    /// (the original version of this function) always fell through to
-    /// "Unknown" for Google Maps links specifically.
-    static func fetch(url: URL) async -> Info {
-        guard let (data, response) = try? await URLSession.shared.data(for: request(for: url)) else {
-            return Info()
+    ///    never needed any of the above to begin with.
+    private static func fetch(url: URL, userAgent: String) async -> Info? {
+        guard let (data, response) = try? await URLSession.shared.data(for: request(for: url, userAgent: userAgent)) else {
+            return nil
         }
 
         if let finalURL = response.url, let name = placeName(fromMapsText: finalURL.absoluteString) {
             return Info(title: name, description: nil)
         }
         guard let html = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
-            return Info()
+            return nil
         }
         if let name = placeName(fromMapsText: html) {
             return Info(title: name, description: nil)
@@ -82,10 +105,10 @@ enum OpenGraphFetcher {
         )
     }
 
-    private static func request(for url: URL) -> URLRequest {
+    private static func request(for url: URL, userAgent: String) -> URLRequest {
         var request = URLRequest(url: url)
         request.timeoutInterval = 8
-        request.setValue(mobileSafariUserAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         return request
     }
 
