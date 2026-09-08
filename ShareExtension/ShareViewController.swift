@@ -14,12 +14,16 @@ import UniformTypeIdentifiers
 /// opening its "peragra://share-import" URL — mirroring the web app's PWA
 /// share_target handler.
 final class ShareViewController: UIViewController {
+    private let state = ShareState()
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        let hosting = UIHostingController(rootView: ShareRootView(onCancel: { [weak self] in
-            self?.finish()
-        }))
+        let hosting = UIHostingController(rootView: ShareRootView(
+            state: state,
+            onCancel: { [weak self] in self?.finish() },
+            onOpenPeragra: { [weak self] in self?.openPeragraThenFinish() }
+        ))
         addChild(hosting)
         hosting.view.frame = view.bounds
         hosting.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -38,7 +42,7 @@ final class ShareViewController: UIViewController {
             let item = extensionContext?.inputItems.first as? NSExtensionItem,
             let attachments = item.attachments
         else {
-            finish()
+            state.message = "Nothing shareable found."
             return
         }
 
@@ -61,17 +65,42 @@ final class ShareViewController: UIViewController {
         let title = item.attributedContentText?.string
 
         guard let candidate = SharedPlaceImportStore.parse(title: title, text: sharedText, url: sharedURL) else {
-            finish()
+            state.message = "Nothing shareable found."
             return
         }
 
         SharedPlaceImportStore.setPending(candidate)
 
-        if let openURL = URL(string: "peragra://share-import") {
-            await open(openURL)
-        }
+        // Try automatically first — this works on plenty of
+        // devices/iOS versions, and when it does, this extension's
+        // whole screen just disappears as the OS switches to Peragra,
+        // so nothing below (readyToOpen, the button) ever becomes
+        // visible. When it doesn't — a real, reproducing case on some
+        // devices, where extensionContext.open()'s completion handler
+        // fires but the actual app switch silently never happens — the
+        // save itself already succeeded (setPending, above), so this
+        // stops short of calling finish() and instead shows a manual
+        // "Open Peragra" button as a guaranteed fallback, rather than
+        // the extension quietly completing with nothing having actually
+        // gotten the person back to their data.
+        await openPeragra()
+        state.readyToOpen = true
+    }
 
-        finish()
+    private func openPeragraThenFinish() {
+        Task {
+            await openPeragra()
+            finish()
+        }
+    }
+
+    private func openPeragra() async {
+        guard let openURL = URL(string: "peragra://share-import") else { return }
+        await withCheckedContinuation { continuation in
+            extensionContext?.open(openURL) { _ in
+                continuation.resume()
+            }
+        }
     }
 
     private func loadItem(_ provider: NSItemProvider, typeIdentifier: String) async -> NSSecureCoding? {
@@ -81,44 +110,49 @@ final class ShareViewController: UIViewController {
             }
         }
     }
+}
 
-    /// Waits for the OS to actually act on the request before returning
-    /// — calling finish() (completeRequest, which tears this extension's
-    /// context down) right after firing open() without waiting for its
-    /// own completion handler is a well-known way for the app-switch to
-    /// silently never happen: completeRequest can invalidate the
-    /// extension context before the OS has had a chance to process the
-    /// pending open() request, so the whole hand-off just gets dropped —
-    /// the extension's own small screen flickers and dismisses, but the
-    /// main app never actually comes to the foreground. Passing nil as
-    /// completionHandler (the previous version of this code) meant
-    /// finish() ran on literally the next line, immediately, every time.
-    private func open(_ url: URL) async {
-        await withCheckedContinuation { continuation in
-            extensionContext?.open(url) { _ in
-                continuation.resume()
-            }
-        }
-    }
+private final class ShareState: ObservableObject {
+    @Published var readyToOpen = false
+    @Published var message: String?
 }
 
 private struct ShareRootView: View {
+    @ObservedObject var state: ShareState
     var onCancel: () -> Void
+    var onOpenPeragra: () -> Void
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "mappin.and.ellipse")
+            Image(systemName: state.readyToOpen ? "checkmark.circle.fill" : "mappin.and.ellipse")
                 .font(.system(size: 40))
                 .foregroundStyle(Color(red: 0.98, green: 0.33, blue: 0.17))
-            Text("Saving to Peragra")
+            Text(state.readyToOpen ? "Saved" : "Saving to Peragra")
                 .font(.headline)
-            Text("Open Peragra to finish adding this place to your \u{201C}From Map\u{201D} board.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-            ProgressView()
-                .padding(.top, 8)
+            if let message = state.message {
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            } else if state.readyToOpen {
+                Text("If Peragra didn\u{2019}t open on its own, tap below to finish adding this place to your \u{201C}From Map\u{201D} board.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                Button("Open Peragra", action: onOpenPeragra)
+                    .buttonStyle(.borderedProminent)
+                    .padding(.top, 4)
+            } else {
+                Text("Open Peragra to finish adding this place to your \u{201C}From Map\u{201D} board.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                ProgressView()
+                    .padding(.top, 8)
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
