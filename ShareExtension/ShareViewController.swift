@@ -68,7 +68,7 @@ final class ShareViewController: UIViewController {
         SharedPlaceImportStore.setPending(candidate)
 
         if let openURL = URL(string: "peragra://share-import") {
-            extensionContext?.open(openURL, completionHandler: nil)
+            await open(openURL)
         }
 
         finish()
@@ -78,6 +78,25 @@ final class ShareViewController: UIViewController {
         await withCheckedContinuation { continuation in
             provider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { value, _ in
                 continuation.resume(returning: value)
+            }
+        }
+    }
+
+    /// Waits for the OS to actually act on the request before returning
+    /// — calling finish() (completeRequest, which tears this extension's
+    /// context down) right after firing open() without waiting for its
+    /// own completion handler is a well-known way for the app-switch to
+    /// silently never happen: completeRequest can invalidate the
+    /// extension context before the OS has had a chance to process the
+    /// pending open() request, so the whole hand-off just gets dropped —
+    /// the extension's own small screen flickers and dismisses, but the
+    /// main app never actually comes to the foreground. Passing nil as
+    /// completionHandler (the previous version of this code) meant
+    /// finish() ran on literally the next line, immediately, every time.
+    private func open(_ url: URL) async {
+        await withCheckedContinuation { continuation in
+            extensionContext?.open(url) { _ in
+                continuation.resume()
             }
         }
     }
