@@ -106,15 +106,24 @@ enum SharedPlaceImportStore {
         let url = url?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !title.isEmpty || !text.isEmpty || !url.isEmpty else { return nil }
 
-        // Naver Map's share text is "Place Name\nAddress\n<link>" — no
-        // separate title field. Some other apps instead give the name as
-        // its own title, with text holding just a description/address
-        // line. Either way, whichever non-URL line(s) of `text` weren't
-        // already claimed as the name is the closest thing to an address
-        // this format offers.
-        let lines = nonURLLines(in: text)
-        let name = title.isEmpty ? (lines.first ?? "") : title
-        let address = title.isEmpty ? (lines.count > 1 ? lines[1] : "") : (lines.first ?? "")
+        // Naver Map's own share puts everything — an app tag like
+        // "[네이버지도]", the place name, its address, and the link —
+        // into `title` alone, as one newline-joined block; `text` comes
+        // through empty. That's different from the earlier assumption
+        // this was written against (title holding just a bare name,
+        // text holding a separate address line) — real capture on a
+        // device showed the whole block landing in name, unsplit,
+        // because a non-empty title was trusted to already BE the name
+        // by itself. So both fields get joined and split as one source
+        // of lines here, whichever of them actually holds content:
+        // Naver's case (all in title) and the earlier-assumed case
+        // (name in title, address in text) both fall out of the same
+        // logic, and an app-tag line — anything that's just "[...]" on
+        // its own, e.g. "[네이버지도]" — is dropped rather than taken
+        // as the name.
+        let lines = nonURLLines(in: [title, text].joined(separator: "\n")).filter { !isAppTag($0) }
+        let name = lines.first ?? ""
+        let address = lines.count > 1 ? lines[1] : ""
 
         let rawParts = ["title: \(title)", "text: \(text)"].filter { !$0.hasSuffix(": ") }
         let rawSource = rawParts.isEmpty ? "" : "Shared as — " + rawParts.joined(separator: " | ")
@@ -136,5 +145,13 @@ enum SharedPlaceImportStore {
         text.split(separator: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty && $0.range(of: #"https?://\S+"#, options: .regularExpression) == nil }
+    }
+
+    /// A whole line that's just "[Something]" — an app's own
+    /// self-branding stamp on its share text (Naver Map's "[네이버지도]"
+    /// is the confirmed real-world case), never a place name or address
+    /// on its own.
+    private static func isAppTag(_ line: String) -> Bool {
+        line.hasPrefix("[") && line.hasSuffix("]")
     }
 }
