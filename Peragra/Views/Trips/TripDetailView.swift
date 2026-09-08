@@ -347,12 +347,17 @@ struct TripDetailView: View {
             // Reads and clears in one step — a pending share is only
             // ever meant for the first TripDetailView that appears right
             // after TripsListView's onOpenURL pushed it, never a later
-            // ordinary visit to this same board.
-            if let shared = SharedPlaceImportStore.takePending() {
-                Task {
-                    sharedRowToPrefill = await OpenGraphFetcher.resolvingName(for: shared)
-                    showingAddPlace = true
-                }
+            // ordinary visit to this same board. takePending() itself
+            // retries briefly before giving up (see its own doc comment)
+            // rather than this needing its own logic for that — an
+            // ordinary visit with nothing pending still returns quickly
+            // in the common case, and pays that retry window silently in
+            // the background (nothing here is waiting on it) on the rare
+            // visit where it's checking for real.
+            Task {
+                guard let shared = await SharedPlaceImportStore.takePending() else { return }
+                sharedRowToPrefill = await OpenGraphFetcher.resolvingName(for: shared)
+                showingAddPlace = true
             }
         }
     }

@@ -48,15 +48,38 @@ enum SharedPlaceImportStore {
     static func setPending(_ candidate: SharedPlaceImport) {
         guard let data = try? JSONEncoder().encode(candidate) else { return }
         sharedDefaults?.set(data, forKey: storageKey)
+        // ShareExtension calls this right before its own process
+        // terminates (see ShareViewController.finish()) — synchronize()
+        // is officially unnecessary on modern iOS (writes are supposed
+        // to flush on their own), but in practice a write from a
+        // short-lived extension process racing its own termination
+        // against the main app's read (launched by the very next line,
+        // extensionContext?.open) is exactly the case that benefits from
+        // forcing an immediate flush instead of trusting the OS's normal
+        // background timer to win that race.
+        sharedDefaults?.synchronize()
     }
 
     /// Reads and clears in one step — meant to be read exactly once, by
     /// the main app right after it opens the "peragra://share-import" URL
-    /// the extension hands off with (see TripDetailView.onAppear).
-    static func takePending() -> SharedPlaceImport? {
-        guard let data = sharedDefaults?.data(forKey: storageKey) else { return nil }
-        sharedDefaults?.removeObject(forKey: storageKey)
-        return try? JSONDecoder().decode(SharedPlaceImport.self, from: data)
+    /// the extension hands off with (see TripDetailView.onAppear). Retries
+    /// briefly rather than giving up on the first empty read: even with
+    /// setPending's own synchronize(), the write still has to propagate
+    /// from the extension's process to this one via cfprefsd, which isn't
+    /// instantaneous — and this is called right as the main app is being
+    /// freshly launched/foregrounded by that same extension, the least
+    /// forgiving timing for that propagation to have already finished.
+    static func takePending() async -> SharedPlaceImport? {
+        for attempt in 0..<5 {
+            if let data = sharedDefaults?.data(forKey: storageKey) {
+                sharedDefaults?.removeObject(forKey: storageKey)
+                return try? JSONDecoder().decode(SharedPlaceImport.self, from: data)
+            }
+            if attempt < 4 {
+                try? await Task.sleep(nanoseconds: 150_000_000)
+            }
+        }
+        return nil
     }
 
     /// Turns whatever the OS share sheet handed the extension into a

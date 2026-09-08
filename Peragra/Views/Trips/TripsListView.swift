@@ -184,7 +184,7 @@ struct TripsListView: View {
                     // instance that opened the map app may still be on
                     // screen, so try filling its row in directly.
                     Task {
-                        guard let shared = SharedPlaceImportStore.takePending() else { return }
+                        guard let shared = await SharedPlaceImportStore.takePending() else { return }
                         let resolved = await OpenGraphFetcher.resolvingName(for: shared)
                         NotificationCenter.default.post(
                             name: .peragraMapResolutionReceived,
@@ -205,7 +205,8 @@ struct TripsListView: View {
                     // TripDetailView.onAppear, AddPlaceSheet.init),
                     // instead of losing the round-trip to the generic
                     // "From Map" board with no coordinate at all.
-                    if var shared = SharedPlaceImportStore.takePending() {
+                    Task {
+                        guard var shared = await SharedPlaceImportStore.takePending() else { return }
                         shared.latitude = target.latitude
                         shared.longitude = target.longitude
                         SharedPlaceImportStore.setPending(shared)
