@@ -95,6 +95,12 @@ struct AddPlaceSheet: View {
                 row.manualLatitude = latitude
                 row.manualLongitude = longitude
             }
+            // The share sheet's own raw title/text, unedited — keeps
+            // whatever the sharing app actually sent visible and
+            // reviewable on-device even when it didn't parse into a
+            // clean name, instead of only being diagnosable by reading
+            // a console log (see SharedPlaceImport.rawSource).
+            row.notes = initialRow.rawSource
             _rows = State(initialValue: [row])
         } else {
             _rows = State(initialValue: [CandidateRow()])

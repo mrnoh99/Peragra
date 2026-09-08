@@ -25,6 +25,14 @@ struct SharedPlaceImport: Codable {
     // restore).
     var latitude: Double?
     var longitude: Double?
+    // Whatever raw title/text the share sheet handed the extension,
+    // untouched by parse()'s own name/address guesswork — surfaced into
+    // the reviewed row's own Notes field (see AddPlaceSheet.init) so a
+    // share that doesn't parse into a sensible name is still visible
+    // and reviewable on-device, rather than only diagnosable by reading
+    // a console log off the person's computer. Empty whenever there was
+    // nothing beyond a bare link to begin with.
+    var rawSource: String = ""
 }
 
 enum SharedPlaceImportStore {
@@ -76,10 +84,14 @@ enum SharedPlaceImportStore {
         let name = title.isEmpty ? (lines.first ?? "") : title
         let address = title.isEmpty ? (lines.count > 1 ? lines[1] : "") : (lines.first ?? "")
 
+        let rawParts = ["title: \(title)", "text: \(text)"].filter { !$0.hasSuffix(": ") }
+        let rawSource = rawParts.isEmpty ? "" : "Shared as — " + rawParts.joined(separator: " | ")
+
         return SharedPlaceImport(
             name: name,
             address: address,
-            link: url.isEmpty ? extractURL(from: text) : url
+            link: url.isEmpty ? extractURL(from: text) : url,
+            rawSource: rawSource
         )
     }
 
