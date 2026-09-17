@@ -6,13 +6,47 @@
 <title>Naver Map</title>
 <style>
   html, body, #map { margin: 0; height: 100%; width: 100%; }
+
+  /* Matches the shape PlaceCards' Apple map tab draws natively for its
+     own marker callout (PlacesMapView.appleMapAnnotation): name,
+     address, then a row of controls — a filled primary action and
+     bordered secondary ones — rather than a stack of underlined links.
+     Kept byte-identical to GoogleMapWebView.swift's own copy of this
+     block so every map surface in that app reads the same. */
+  .pc-balloon { max-width: 220px; font-family: -apple-system, sans-serif; }
+  .pc-name {
+    font-size: 15px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pc-address {
+    font-size: 12px; color: #737373; margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pc-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .pc-btn {
+    font: 500 12px -apple-system, sans-serif;
+    border: none; border-radius: 8px; padding: 5px 10px;
+    cursor: pointer; text-decoration: none; display: inline-block;
+  }
+  .pc-btn-primary { background: #007AFF; color: #ffffff; }
+  .pc-btn-secondary { background: rgba(120, 120, 128, 0.16); color: #007AFF; }
+
+  /* Naver's InfoWindow, unlike Google's, draws no close affordance of
+     its own and does not dismiss on a map tap, so the balloon has to
+     carry one. Kept as a small glyph outside the button row so it reads
+     as chrome rather than as one more action. */
+  .pc-close {
+    position: absolute; top: 0; right: 0;
+    border: none; background: none; padding: 2px 6px;
+    font-size: 16px; line-height: 1; color: #a3a3a3; cursor: pointer;
+  }
 </style>
 </head>
 <body>
 <!--
-  Hosted here (not embedded as loadHTMLString inside the iOS app's
+  Hosted here (not embedded as loadHTMLString inside an iOS app's
   WKWebView) so it loads as a genuine https://mrnoh99.github.io/Peragra/
-  page — the same origin already registered as this Client ID's Web
+  page — the same origin already registered as the Client ID's Web
   Service URL in the NCP console, and the same one NaverMapView.tsx (the
   web app's own Naver map component) already uses successfully. Loading
   Naver's map JS SDK from a synthetic local origin (loadHTMLString, or
@@ -22,15 +56,39 @@
   that entirely by being a real, already-working origin instead of
   reproducing Naver's script-loading technique against a fake one.
 
-  The native app navigates the WKWebView straight to this page, then
-  calls window.renderNaverMap(payload) via evaluateJavaScript once the
-  navigation finishes — payload is
-  { clientId, tripDestination, places: [{ id, name, address, emoji,
-  visited, addressTrusted, latitude, longitude, kakaoMapUrlString,
-  naverMapUrlString, tmapUrlString }] }, mirroring NaverMapWebView
-  .MarkerPlace on the Swift side. "View place card" taps relay back to
-  native via window.webkit.messageHandlers.selectPlace, the same
-  WKScriptMessageHandler channel used when this ran as embedded HTML.
+  TWO apps load this page: Peragra's own iOS app
+  (Peragra/Views/Places/NaverMapWebView.swift) and PlaceCards
+  (PlaceCards/Views/NaverMapWebView.swift, a separate repo). Each
+  navigates its WKWebView straight here, then calls
+  window.renderNaverMap(payload) via evaluateJavaScript once the
+  navigation finishes. "View card" taps relay back to native via
+  window.webkit.messageHandlers.selectPlace.
+
+  Their payloads differ, and every difference is handled by a default
+  below rather than by branching on which app is calling — so neither
+  app has to send fields it has no notion of:
+
+    { clientId,
+      strings?,          // absent -> DEFAULT_STRINGS (Peragra: English).
+                         //   PlaceCards has its own in-app language
+                         //   setting, and only its Swift side can
+                         //   resolve it (.localized), so it sends these.
+      tripDestination?,  // Peragra's per-trip qualifier for the Google
+                         //   Maps query; absent -> "".
+      places: [{ id, name, address, emoji, visited, latitude, longitude,
+                 addressTrusted?,       // only === false downgrades the
+                                        //   Google query; absent -> the
+                                        //   address is used.
+                 appleMapUrlString?,    // PlaceCards only for now;
+                 kakaoMapUrlString?,    //   any of these being absent
+                 naverMapUrlString?,    //   just drops that one button.
+                 tmapUrlString? }] }
+
+  Changing this page changes BOTH apps' marker balloons. PlaceCards
+  briefly kept a forked copy (placecards-naver-map-embed.html) to avoid
+  exactly that; the fork was removed once reshaping Peragra's balloon
+  too was explicitly approved, since two diverging copies of this page
+  is the worse problem.
 -->
 <div id="map">
   <div style="display:flex;align-items:center;justify-content:center;height:100%;font:14px -apple-system,sans-serif;color:#a3a3a3;">Loading Naver Map…</div>
@@ -40,26 +98,40 @@
   let scriptLoadStarted = false;
   let mapReady = false;
 
+  const DEFAULT_STRINGS = {
+    loadError: "Couldn't load Naver Map — check your Client ID in Settings.",
+    authError: "Naver Map rejected this Client ID — check it in Settings.",
+    scriptError: "Failed to load the Naver Map script.",
+    close: "Close",
+    viewCard: "View card",
+    openGoogleMaps: "Google Maps",
+    openAppleMaps: "Apple Maps",
+    openNaverMap: "Naver Map",
+    openKakaoMap: "Kakao Map",
+    openTmap: "Tmap",
+  };
+  let L = DEFAULT_STRINGS;
+
   function showError(message) {
     if (mapReady) return;
     const el = document.getElementById("map");
-    if (el) {
-      el.outerHTML =
-        '<div style="display:flex;align-items:center;justify-content:center;' +
-        'height:100%;padding:24px;text-align:center;font:14px -apple-system,sans-serif;' +
-        'color:#a3a3a3;">' + message + '</div>';
-    }
+    if (!el) return;
+    // textContent on a real node, not an outerHTML string with the
+    // message concatenated in: these strings can come from the payload.
+    const errorEl = document.createElement("div");
+    errorEl.style.cssText = "display:flex;align-items:center;justify-content:center;" +
+      "height:100%;padding:24px;text-align:center;font:14px -apple-system,sans-serif;color:#a3a3a3;";
+    errorEl.textContent = message;
+    el.replaceWith(errorEl);
   }
 
   function loadNaverScript(clientId) {
     if (scriptLoadStarted) return;
     scriptLoadStarted = true;
-    const timeout = setTimeout(() => {
-      showError("Couldn't load Naver Map — check your Client ID in Settings.");
-    }, 10000);
+    const timeout = setTimeout(() => showError(L.loadError), 10000);
     window.navermap_authFailure = function () {
       clearTimeout(timeout);
-      showError("Naver Map rejected this Client ID — check it in Settings.");
+      showError(L.authError);
     };
     const script = document.createElement("script");
     script.src = "https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=" +
@@ -70,7 +142,7 @@
     };
     script.onerror = function () {
       clearTimeout(timeout);
-      showError("Failed to load the Naver Map script.");
+      showError(L.scriptError);
     };
     document.body.appendChild(script);
   }
@@ -94,7 +166,8 @@
         position,
         map,
         icon: {
-          content: '<div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;opacity:' + (place.visited ? 0.5 : 1) + ';">' + place.emoji + "</div>",
+          content: '<div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;opacity:' +
+            (place.visited ? 0.5 : 1) + ';">' + (place.emoji || "") + "</div>",
           size: new naver.maps.Size(24, 24),
           anchor: new naver.maps.Point(12, 24),
         },
@@ -103,70 +176,71 @@
         // Built as DOM nodes with textContent, not an HTML string, so a
         // place name/address containing markup can't inject into the page.
         const content = document.createElement("div");
+        content.className = "pc-balloon";
         content.style.position = "relative";
         content.style.padding = "4px 22px 4px 2px";
+
         const closeEl = document.createElement("button");
         closeEl.type = "button";
+        closeEl.className = "pc-close";
         closeEl.textContent = "×";
-        closeEl.setAttribute("aria-label", "Close");
-        closeEl.style.position = "absolute";
-        closeEl.style.top = "0";
-        closeEl.style.right = "0";
-        closeEl.style.border = "none";
-        closeEl.style.background = "none";
-        closeEl.style.padding = "2px 6px";
-        closeEl.style.fontSize = "16px";
-        closeEl.style.lineHeight = "1";
-        closeEl.style.color = "#a3a3a3";
-        closeEl.style.cursor = "pointer";
+        closeEl.setAttribute("aria-label", L.close);
         closeEl.onclick = () => infoWindow.close();
         content.appendChild(closeEl);
+
         const nameEl = document.createElement("div");
-        nameEl.style.fontWeight = "600";
+        nameEl.className = "pc-name";
         nameEl.textContent = place.name;
         content.appendChild(nameEl);
+
         if (place.address) {
           const addressEl = document.createElement("div");
-          addressEl.style.color = "#737373";
-          addressEl.style.fontSize = "12px";
+          addressEl.className = "pc-address";
           addressEl.textContent = place.address;
           content.appendChild(addressEl);
         }
-        const mapsQuery = (place.addressTrusted && place.address)
-          ? [place.name, place.address].filter(Boolean).join(", ")
-          : [place.name, tripDestination].filter(Boolean).join(", ");
-        const googleUrl = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(mapsQuery);
-        const makeMapLink = (href, label) => {
-          const linkEl = document.createElement("a");
-          linkEl.href = href;
-          linkEl.textContent = label;
-          linkEl.style.display = "block";
-          linkEl.style.marginTop = "4px";
-          linkEl.style.fontSize = "12px";
-          return linkEl;
-        };
+
+        const actions = document.createElement("div");
+        actions.className = "pc-actions";
         const viewCardEl = document.createElement("button");
         viewCardEl.type = "button";
-        viewCardEl.textContent = "📋 View place card";
-        viewCardEl.style.display = "block";
-        viewCardEl.style.marginTop = "4px";
-        viewCardEl.style.fontSize = "12px";
-        viewCardEl.style.color = "#f9532c";
-        viewCardEl.style.textDecoration = "underline";
-        viewCardEl.style.background = "none";
-        viewCardEl.style.border = "none";
-        viewCardEl.style.padding = "0";
-        viewCardEl.style.cursor = "pointer";
+        viewCardEl.className = "pc-btn pc-btn-primary";
+        viewCardEl.textContent = L.viewCard;
         viewCardEl.onclick = () => {
           if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.selectPlace) {
             window.webkit.messageHandlers.selectPlace.postMessage(place.id);
           }
         };
-        content.appendChild(viewCardEl);
-        content.appendChild(makeMapLink(googleUrl, "Open in Google Maps"));
-        if (place.naverMapUrlString) content.appendChild(makeMapLink(place.naverMapUrlString, "Open in Naver Map"));
-        if (place.kakaoMapUrlString) content.appendChild(makeMapLink(place.kakaoMapUrlString, "Open in Kakao Map"));
-        if (place.tmapUrlString) content.appendChild(makeMapLink(place.tmapUrlString, "Open in Tmap"));
+        actions.appendChild(viewCardEl);
+
+        // Anything falsy — a provider the calling app left nil, or one it
+        // has no notion of at all — is skipped, so the row only ever
+        // shows apps that can actually open this place.
+        const addMapLink = (href, label) => {
+          if (!href) return;
+          const linkEl = document.createElement("a");
+          linkEl.className = "pc-btn pc-btn-secondary";
+          linkEl.href = href;
+          linkEl.textContent = label;
+          actions.appendChild(linkEl);
+        };
+        // `addressTrusted === false` means the caller's own geocoding
+        // never resolved this address (Peragra's `.estimated` pins), so
+        // the query falls back to name + trip destination. A caller that
+        // omits the field entirely (PlaceCards) uses the address.
+        const mapsQuery = (place.addressTrusted !== false && place.address)
+          ? [place.name, place.address].filter(Boolean).join(", ")
+          : [place.name, tripDestination].filter(Boolean).join(", ");
+        addMapLink(
+          "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(mapsQuery),
+          L.openGoogleMaps
+        );
+        addMapLink(place.appleMapUrlString, L.openAppleMaps);
+        addMapLink(place.naverMapUrlString, L.openNaverMap);
+        addMapLink(place.kakaoMapUrlString, L.openKakaoMap);
+        addMapLink(place.tmapUrlString, L.openTmap);
+        content.appendChild(actions);
+
         infoWindow.setContent(content);
         infoWindow.open(map, marker);
       });
@@ -177,10 +251,11 @@
   }
 
   // Called by the native app (via evaluateJavaScript) once this page has
-  // finished navigating — queues the render until the Naver script (kicked
-  // off on the first call) has finished loading.
+  // finished navigating — queues the render until the Naver script
+  // (kicked off on the first call) has finished loading.
   window.renderNaverMap = function (payload) {
     pendingPayload = payload;
+    L = Object.assign({}, DEFAULT_STRINGS, payload.strings || {});
     if (window.naver && window.naver.maps) {
       doRender(payload);
     } else {
